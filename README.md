@@ -27,7 +27,7 @@ WebScan is a modular, async Python tool that helps developers and penetration te
 ### From source (recommended)
 
 ```bash
-git clone https://github.com/yourorg/webscan.git
+git clone https://github.com/lutzashl290788-cell/webscan.git
 cd webscan
 pip install .
 ```
