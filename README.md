@@ -14,6 +14,9 @@ WebScan is a modular, async Python tool that helps developers and penetration te
 | `headers`       | Missing/weak security headers: CSP, HSTS, X-Frame-Options, and more |
 | `directories`   | Accessible sensitive directories: `/admin`, `/backup`, `/.git/`, phpMyAdmin, … |
 | `sql_injection` | Error-based SQL injection in URL query parameters (MySQL, PostgreSQL, SQLite, …) |
+| `cors`          | CORS misconfigurations: reflected `Origin`, wildcard `*`, credentials exposure |
+| `cookies`       | Cookie security flags: missing `Secure` / `HttpOnly` / `SameSite` |
+| `http_methods`  | Dangerous enabled HTTP methods: `PUT`, `DELETE`, `TRACE`, `CONNECT`, `PATCH` |
 
 - ⚡ **Async** — `aiohttp`-powered, scans dozens of targets concurrently
 - 🧩 **Plugin architecture** — easy to extend with new check modules

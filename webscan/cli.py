@@ -9,8 +9,11 @@ from pathlib import Path
 from webscan.engine import ScanEngine
 from webscan.plugins.base import BasePlugin
 from webscan.plugins.config_files import ConfigFilesPlugin
+from webscan.plugins.cookies import CookiesPlugin
+from webscan.plugins.cors import CorsPlugin
 from webscan.plugins.directories import DirectoriesPlugin
 from webscan.plugins.headers import HeadersPlugin
+from webscan.plugins.http_methods import HttpMethodsPlugin
 from webscan.plugins.sql_injection import SqlInjectionPlugin
 from webscan.reporter import Reporter
 
@@ -22,6 +25,9 @@ ALL_PLUGINS: dict[str, type[BasePlugin]] = {
     "headers":       HeadersPlugin,
     "directories":   DirectoriesPlugin,
     "sql_injection": SqlInjectionPlugin,
+    "cors":          CorsPlugin,
+    "cookies":       CookiesPlugin,
+    "http_methods":  HttpMethodsPlugin,
 }
 
 
