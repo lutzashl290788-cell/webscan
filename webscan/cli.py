@@ -7,19 +7,21 @@ import sys
 from pathlib import Path
 
 from webscan.engine import ScanEngine
+from webscan.plugins.base import BasePlugin
 from webscan.plugins.config_files import ConfigFilesPlugin
 from webscan.plugins.directories import DirectoriesPlugin
 from webscan.plugins.headers import HeadersPlugin
-from webscan.plugins.base import BasePlugin
+from webscan.plugins.sql_injection import SqlInjectionPlugin
 from webscan.reporter import Reporter
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Plugin registry — add new plugins here
 # ──────────────────────────────────────────────────────────────────────────────
 ALL_PLUGINS: dict[str, type[BasePlugin]] = {
-    "config_files": ConfigFilesPlugin,
-    "headers":      HeadersPlugin,
-    "directories":  DirectoriesPlugin,
+    "config_files":  ConfigFilesPlugin,
+    "headers":       HeadersPlugin,
+    "directories":   DirectoriesPlugin,
+    "sql_injection": SqlInjectionPlugin,
 }
 
 

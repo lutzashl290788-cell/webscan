@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import asyncio
 import ssl as ssl_lib
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Callable
 
 import aiohttp
 
@@ -12,7 +12,7 @@ from webscan.models import ScanReport, TargetResult
 from webscan.plugins.base import BasePlugin
 
 _DEFAULT_HEADERS = {
-    "User-Agent": "WebScan/1.0 (security-audit; github.com/yourorg/webscan)",
+    "User-Agent": "WebScan/1.0 (security-audit; github.com/lutzashl290788-cell/webscan)",
     "Accept": "*/*",
 }
 
@@ -103,7 +103,7 @@ class ScanEngine:
                     )
                 )
             else:
-                report.targets.append(item)  # type: ignore[arg-type]
+                report.targets.append(item)
 
         report.scan_finished = _utcnow()
         report.total_findings = sum(len(r.findings) for r in report.targets)

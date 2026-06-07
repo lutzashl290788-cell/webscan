@@ -13,6 +13,7 @@ WebScan is a modular, async Python tool that helps developers and penetration te
 | `config_files`  | 50+ exposed files: `.env`, `.git/config`, `wp-config.php`, SSH keys, SQL dumps, … |
 | `headers`       | Missing/weak security headers: CSP, HSTS, X-Frame-Options, and more |
 | `directories`   | Accessible sensitive directories: `/admin`, `/backup`, `/.git/`, phpMyAdmin, … |
+| `sql_injection` | Error-based SQL injection in URL query parameters (MySQL, PostgreSQL, SQLite, …) |
 
 - ⚡ **Async** — `aiohttp`-powered, scans dozens of targets concurrently
 - 🧩 **Plugin architecture** — easy to extend with new check modules
