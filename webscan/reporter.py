@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, fields
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from webscan.models import ScanReport, Severity, SEVERITY_ORDER
+from webscan.models import SEVERITY_ORDER, Finding, ScanReport, Severity
 
 # Console / Markdown severity decorators
 _SEVERITY_EMOJI: dict[Severity, str] = {
@@ -65,8 +65,8 @@ class Reporter:
         lines += [
             "# 🔍 WebScan Security Report",
             "",
-            f"| Field | Value |",
-            f"|---|---|",
+            "| Field | Value |",
+            "|---|---|",
             f"| Scan started  | `{r.scan_started}` |",
             f"| Scan finished | `{r.scan_finished}` |",
             f"| Targets scanned | **{len(r.targets)}** |",
@@ -127,8 +127,8 @@ class Reporter:
                 lines += [
                     f"#### {i}. {emoji} `[{badge}]` {f.title}",
                     "",
-                    f"| | |",
-                    f"|---|---|",
+                    "| | |",
+                    "|---|---|",
                     f"| **Plugin** | `{f.plugin}` |",
                     f"| **URL** | {f.url} |",
                     "",
@@ -189,17 +189,15 @@ class Reporter:
 # Helpers
 # ------------------------------------------------------------------
 
-def _json_default(obj: Any) -> Any:
+def _json_default(obj: Any) -> Any:  # noqa: ANN401 — generic JSON fallback
     """Fallback JSON serialiser for non-standard types."""
     if hasattr(obj, "value"):  # Enum
         return obj.value
     return str(obj)
 
 
-def _count_severities(
-    findings: list,  # list[Finding]
-) -> dict[Severity, int]:
-    counts: dict[Severity, int] = {s: 0 for s in Severity}
+def _count_severities(findings: list[Finding]) -> dict[Severity, int]:
+    counts: dict[Severity, int] = dict.fromkeys(Severity, 0)
     for f in findings:
         counts[f.severity] = counts.get(f.severity, 0) + 1
     return counts

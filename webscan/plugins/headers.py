@@ -173,7 +173,7 @@ class HeadersPlugin(BasePlugin):
                             )
                         )
 
-        except (aiohttp.ClientError, Exception):
+        except Exception:  # noqa: BLE001 — plugins must never propagate errors
             # Network errors are surfaced as engine-level errors, not findings
             pass
 

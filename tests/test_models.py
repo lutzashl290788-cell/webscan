@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 
-from webscan.models import Finding, Severity, ScanReport, TargetResult
+from webscan.models import Finding, ScanReport, Severity, TargetResult
 
 
 def test_finding_severity_serialises_as_string() -> None:
