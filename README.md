@@ -17,18 +17,21 @@ WebScan is a modular, async Python tool that helps developers and penetration te
 | `xss`              | Reflected XSS in URL query parameters with injection-context classification |
 | `path_traversal`   | Path traversal / local file inclusion (`../etc/passwd`, `windows/win.ini`) |
 | `open_redirect`    | Open redirects in redirect-like parameters (`next`, `url`, `redirect`, …) |
+| `ssrf`             | Reflected SSRF via internal / cloud-metadata endpoints (AWS IMDS, GCP, localhost) |
 | `cors`             | CORS misconfigurations: reflected `Origin`, wildcard `*`, credentials exposure |
 | `cookies`          | Cookie security flags: missing `Secure` / `HttpOnly` / `SameSite` |
 | `http_methods`     | Dangerous enabled HTTP methods: `PUT`, `DELETE`, `TRACE`, `CONNECT`, `PATCH` |
 | `security_txt`     | `security.txt` (RFC 9116) presence and content best practices |
 | `tech_fingerprint` | Server / framework / CMS fingerprinting from headers, cookies and HTML |
+| `subdomains`       | Subdomain enumeration via Certificate Transparency logs (crt.sh) |
 
 - ⚡ **Async** — `aiohttp`-powered, scans dozens of targets concurrently
 - 🕷️ **Crawler** — spider targets to discover URLs and forms (depth/scope/robots-aware)
 - 🔐 **Authentication** — cookie, header, basic-auth and form-login support
 - 🌐 **Network & evasion** — proxy, User-Agent rotation and request rate limiting
 - 🧩 **Plugin architecture** — easy to extend with new check modules
-- 📄 **Reports** — JSON, Markdown and a self-contained HTML report
+- 📄 **Reports** — JSON, Markdown, self-contained HTML and SARIF (GitHub Code Scanning)
+- 🤖 **CI-ready** — GitHub Actions workflows for tests and SARIF upload
 - 🛡️ **Non-crashing** — every error is captured; the tool always exits cleanly
 - 🐍 **Python 3.10+**, fully typed, PEP 8 compliant, **zero runtime deps beyond `aiohttp`**
 
@@ -150,7 +153,7 @@ docker run --rm webscan -t https://example.com
 | Flag | Description |
 |------|-------------|
 | `-o PATH` | Base path for report files (without extension) |
-| `--format json md html` | Report format(s) — any of `json`, `md`, `html` (default: `json md`) |
+| `--format json md html sarif` | Report format(s) — any of `json`, `md`, `html`, `sarif` (default: `json md`) |
 | `--min-severity LEVEL` | Only show findings at or above this severity in the console |
 | `--no-color` | Disable ANSI colour in the console summary |
 | `-v` | Verbose: print every finding to stdout |
@@ -209,6 +212,10 @@ A human-readable document with a summary table and per-finding sections includin
 ### HTML (`-o report --format html` → `report.html`)
 
 A self-contained, dark-themed report with inline CSS and severity colour-coding — no external assets, opens offline in any browser.
+
+### SARIF (`-o report --format sarif` → `report.sarif`)
+
+SARIF 2.1.0 output for **GitHub Code Scanning**. Upload it with `github/codeql-action/upload-sarif` to surface findings in the repository's Security tab. A ready-to-use workflow ships in `.github/workflows/security-scan.yml`.
 
 ---
 
