@@ -252,6 +252,48 @@ class Reporter:
         return sarif_str
 
     # ------------------------------------------------------------------
+    # CSV
+    # ------------------------------------------------------------------
+
+    def to_csv(self, output_path: Path | None = None) -> str:
+        """Render findings as CSV (one row per finding) for Excel/Jira import.
+
+        :param output_path: If provided, the CSV is also written here.
+        :returns: CSV string.
+        """
+        import csv
+        import io
+
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(
+            ["target", "plugin", "severity", "title", "url",
+             "description", "remediation", "evidence"]
+        )
+        for tr in self.report.targets:
+            sorted_findings = sorted(
+                tr.findings, key=lambda f: SEVERITY_ORDER.get(f.severity, 99)
+            )
+            for f in sorted_findings:
+                writer.writerow(
+                    [
+                        tr.target,
+                        f.plugin,
+                        f.severity.value,
+                        f.title,
+                        f.url,
+                        f.description,
+                        f.remediation,
+                        json.dumps(f.evidence, default=_json_default),
+                    ]
+                )
+
+        csv_str = buffer.getvalue()
+        if output_path is not None:
+            output_path.write_text(csv_str, encoding="utf-8")
+        return csv_str
+
+    # ------------------------------------------------------------------
     # HTML
     # ------------------------------------------------------------------
 

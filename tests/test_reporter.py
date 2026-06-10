@@ -141,3 +141,33 @@ def test_sarif_dedupes_rules() -> None:
     assert len(run["results"]) == 2
     # Same plugin → one rule entry only.
     assert len(run["tool"]["driver"]["rules"]) == 1
+
+
+def test_csv_report_has_header_and_rows() -> None:
+    import csv
+    import io
+
+    reporter = Reporter(_make_report())
+    out = reporter.to_csv()
+
+    rows = list(csv.reader(io.StringIO(out)))
+    assert rows[0] == [
+        "target", "plugin", "severity", "title", "url",
+        "description", "remediation", "evidence",
+    ]
+    assert len(rows) == 2  # header + one finding
+    assert rows[1][1] == "config_files"
+    assert rows[1][2] == "critical"
+    assert rows[1][4] == "https://example.com/.env"
+
+
+def test_csv_escapes_commas_in_fields() -> None:
+    import csv
+    import io
+
+    report = _make_report()
+    report.targets[0].findings[0].description = "a, b, c with commas"
+    reporter = Reporter(report)
+
+    rows = list(csv.reader(io.StringIO(reporter.to_csv())))
+    assert rows[1][5] == "a, b, c with commas"
