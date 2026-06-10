@@ -25,6 +25,28 @@ class NetConfig:
     user_agent: str = ""  # explicit override; empty keeps the default
     random_agent: bool = False
     delay: float = 0.0  # seconds to pace between dispatched targets
+    random_delay: bool = False  # jitter the delay by ×0.5–×1.5
+    rate_limit: float = 0.0  # max requests per second (0 = unlimited)
+    verify_ssl: bool = False  # security scanners skip cert verification by default
+
+    def base_delay(self) -> float:
+        """Per-target delay before jitter: max of ``delay`` and the rate-limit gap."""
+        base = self.delay
+        if self.rate_limit > 0:
+            base = max(base, 1.0 / self.rate_limit)
+        return base
+
+    def effective_delay(self, jitter: float) -> float:
+        """Resolve the per-target delay, applying jitter and rate limiting.
+
+        :param jitter: A factor in [0, 1) used to scale the base delay to
+                       ×0.5–×1.5 when ``random_delay`` is set. Passed in (rather
+                       than generated here) so callers stay deterministic/testable.
+        """
+        base = self.base_delay()
+        if self.random_delay and base > 0:
+            base = base * (0.5 + jitter)
+        return base
 
 
 def pick_user_agent(config: NetConfig, index: int, default: str) -> str:

@@ -181,6 +181,23 @@ Examples
         metavar="SEC",
         help="Seconds to wait before each target (rate limiting; default: 0).",
     )
+    ng.add_argument(
+        "--random-delay",
+        action="store_true",
+        help="Randomise --delay by ×0.5–×1.5 to look less automated.",
+    )
+    ng.add_argument(
+        "--rate-limit",
+        type=float,
+        default=0.0,
+        metavar="N",
+        help="Cap requests to at most N per second (sets a minimum delay).",
+    )
+    ng.add_argument(
+        "--no-verify-ssl",
+        action="store_true",
+        help="Skip TLS certificate verification (default for security scans).",
+    )
 
     # --- Plugins ---
     pg = parser.add_argument_group("Plugins")
@@ -393,6 +410,9 @@ async def _run(args: argparse.Namespace) -> int:
         user_agent=args.user_agent or "",
         random_agent=args.random_agent,
         delay=args.delay,
+        random_delay=args.random_delay,
+        rate_limit=args.rate_limit,
+        verify_ssl=not args.no_verify_ssl,
     )
     if net.proxy:
         os.environ["HTTP_PROXY"] = net.proxy
@@ -435,7 +455,8 @@ async def _run(args: argparse.Namespace) -> int:
         auth_cookies=auth.cookies,
         proxy=net.proxy,
         user_agent=pick_user_agent(net, 0, ""),
-        delay=net.delay,
+        delay=net.base_delay(),
+        random_delay=net.random_delay,
     )
     report = await engine.scan_all(targets)
 

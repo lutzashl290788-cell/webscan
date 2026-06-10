@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import random
 import ssl as ssl_lib
 from collections.abc import Callable
 from datetime import datetime, timezone
@@ -53,6 +54,7 @@ class ScanEngine:
         proxy: str = "",
         user_agent: str = "",
         delay: float = 0.0,
+        random_delay: bool = False,
     ) -> None:
         self.plugins = plugins
         self.concurrency = max(1, concurrency)
@@ -64,6 +66,7 @@ class ScanEngine:
         self._proxy = proxy
         self._user_agent = user_agent
         self._delay = max(0.0, delay)
+        self._random_delay = random_delay
 
     # ------------------------------------------------------------------
     # Public API
@@ -102,7 +105,10 @@ class ScanEngine:
                 nonlocal done_counter
                 async with semaphore:
                     if self._delay:
-                        await asyncio.sleep(self._delay)
+                        wait = self._delay
+                        if self._random_delay:
+                            wait = wait * (0.5 + random.random())
+                        await asyncio.sleep(wait)
                     result = await self._scan_target(target, session)
                 done_counter += 1
                 if self.on_progress:
