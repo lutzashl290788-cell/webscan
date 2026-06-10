@@ -20,6 +20,7 @@ from webscan.plugins.headers import HeadersPlugin
 from webscan.plugins.http_methods import HttpMethodsPlugin
 from webscan.plugins.security_txt import SecurityTxtPlugin
 from webscan.plugins.sql_injection import SqlInjectionPlugin
+from webscan.plugins.xss import XssPlugin
 from webscan.reporter import Reporter
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -30,6 +31,7 @@ ALL_PLUGINS: dict[str, type[BasePlugin]] = {
     "headers":       HeadersPlugin,
     "directories":   DirectoriesPlugin,
     "sql_injection": SqlInjectionPlugin,
+    "xss":           XssPlugin,
     "cors":          CorsPlugin,
     "cookies":       CookiesPlugin,
     "http_methods":  HttpMethodsPlugin,

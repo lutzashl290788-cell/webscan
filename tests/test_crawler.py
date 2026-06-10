@@ -1,7 +1,7 @@
 """Tests for the async crawler using a routed fake session."""
 from __future__ import annotations
 
-from webscan.crawler import Crawler, CrawlConfig
+from webscan.crawler import CrawlConfig, Crawler
 
 
 class _Resp:
@@ -10,7 +10,7 @@ class _Resp:
         self.status = status
         self.headers = {"Content-Type": ctype}
 
-    async def __aenter__(self) -> "_Resp":
+    async def __aenter__(self) -> _Resp:
         return self
 
     async def __aexit__(self, *_exc: object) -> bool:
