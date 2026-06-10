@@ -1,6 +1,8 @@
 """Plugin: check for security.txt (RFC 9116)."""
 from __future__ import annotations
 
+import asyncio
+
 import aiohttp
 
 from webscan.models import Finding, Severity
@@ -32,7 +34,12 @@ class SecurityTxtPlugin(BasePlugin):
         url = target.rstrip("/") + self._SECURITY_TXT_PATH
 
         try:
-            async with session.get(url, allow_redirects=True, ssl=False, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            async with session.get(
+                url,
+                allow_redirects=True,
+                ssl=False,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
                 if resp.status == 200:
                     text = await resp.text()
                     findings.extend(self._parse_security_txt(text, target, url))
@@ -59,7 +66,7 @@ class SecurityTxtPlugin(BasePlugin):
                             ),
                         )
                     )
-        except Exception:
+        except (aiohttp.ClientError, asyncio.TimeoutError):
             pass
 
         return findings
