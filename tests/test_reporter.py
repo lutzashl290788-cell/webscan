@@ -70,3 +70,32 @@ def test_html_escapes_malicious_content() -> None:
 
     assert "<script>alert(1)</script>" not in html
     assert "&lt;script&gt;" in html
+
+
+def test_console_summary_min_severity_filters() -> None:
+    report = _make_report()
+    report.targets[0].findings.append(
+        Finding(
+            plugin="headers",
+            title="Missing header",
+            severity=Severity.LOW,
+            description="x",
+            url="https://example.com",
+        )
+    )
+    reporter = Reporter(report)
+
+    out = reporter.to_console_summary(min_severity=Severity.HIGH)
+
+    assert "Exposed file: /.env" in out  # critical passes
+    assert "Missing header" not in out   # low filtered out
+
+
+def test_console_summary_color_adds_ansi() -> None:
+    reporter = Reporter(_make_report())
+
+    colored = reporter.to_console_summary(color=True)
+    plain = reporter.to_console_summary(color=False)
+
+    assert "\033[" in colored
+    assert "\033[" not in plain

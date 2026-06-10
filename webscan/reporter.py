@@ -25,6 +25,17 @@ _SEVERITY_BADGE: dict[Severity, str] = {
     Severity.INFO:     "INFO    ",
 }
 
+# ANSI 256-colour codes per severity for the coloured console summary.
+_SEVERITY_ANSI: dict[Severity, str] = {
+    Severity.CRITICAL: "\033[1;38;5;196m",
+    Severity.HIGH:     "\033[1;38;5;208m",
+    Severity.MEDIUM:   "\033[1;38;5;178m",
+    Severity.LOW:      "\033[1;38;5;33m",
+    Severity.INFO:     "\033[1;38;5;245m",
+}
+_ANSI_RESET = "\033[0m"
+_ANSI_DIM = "\033[2m"
+
 
 class Reporter:
     """Renders a :class:`~webscan.models.ScanReport` in one or more formats."""
@@ -248,23 +259,43 @@ class Reporter:
     # Console summary (plain text)
     # ------------------------------------------------------------------
 
-    def to_console_summary(self) -> str:
-        """One-line-per-finding text for terminal output."""
+    def to_console_summary(
+        self,
+        color: bool = False,
+        min_severity: Severity | None = None,
+    ) -> str:
+        """One-line-per-finding text for terminal output.
+
+        :param color: Wrap severities in ANSI colour codes.
+        :param min_severity: Hide findings less severe than this level.
+        """
+        threshold = SEVERITY_ORDER.get(min_severity, 99) if min_severity else 99
         lines: list[str] = []
         for tr in self.report.targets:
+            shown = [
+                f
+                for f in tr.findings
+                if SEVERITY_ORDER.get(f.severity, 99) <= threshold
+            ]
             header = f"[{tr.target}]"
-            if not tr.findings and not tr.errors:
+            if not shown and not tr.errors:
                 lines.append(f"  ✓ {header} — no findings")
                 continue
             lines.append(f"  • {header}")
             sorted_findings = sorted(
-                tr.findings,
+                shown,
                 key=lambda f: SEVERITY_ORDER.get(f.severity, 99),
             )
             for f in sorted_findings:
                 badge = _SEVERITY_BADGE.get(f.severity, "?       ")
                 emoji = _SEVERITY_EMOJI.get(f.severity, " ")
-                lines.append(f"      {emoji} [{badge}] {f.title}")
+                if color:
+                    tint = _SEVERITY_ANSI.get(f.severity, "")
+                    lines.append(
+                        f"      {emoji} {tint}[{badge}]{_ANSI_RESET} {f.title}"
+                    )
+                else:
+                    lines.append(f"      {emoji} [{badge}] {f.title}")
             for err in tr.errors:
                 lines.append(f"      ⚡ [ERROR   ] {err}")
         return "\n".join(lines)

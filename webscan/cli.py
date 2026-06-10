@@ -14,6 +14,7 @@ import aiohttp
 from webscan.auth import AuthConfig, LoginError, PreparedAuth, prepare_auth
 from webscan.crawler import CrawlConfig, Crawler
 from webscan.engine import ScanEngine
+from webscan.models import Severity
 from webscan.net import NetConfig, pick_user_agent
 from webscan.plugins.base import BasePlugin
 from webscan.plugins.config_files import ConfigFilesPlugin
@@ -220,6 +221,17 @@ Examples
         "-q", "--quiet",
         action="store_true",
         help="Suppress all stdout output except errors.",
+    )
+    og.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable ANSI colour in the console summary.",
+    )
+    og.add_argument(
+        "--min-severity",
+        choices=["critical", "high", "medium", "low", "info"],
+        metavar="LEVEL",
+        help="Only show findings at or above this severity in the console summary.",
     )
 
     # --- Performance ---
@@ -431,10 +443,12 @@ async def _run(args: argparse.Namespace) -> int:
 
     # Print summary / detailed findings to stdout
     if not quiet:
+        use_color = not args.no_color and sys.stdout.isatty()
+        min_sev = Severity(args.min_severity) if args.min_severity else None
         print(f"  Scan completed  {report.scan_started} → {report.scan_finished}")
         print(f"  Total findings  {report.total_findings}")
         print()
-        print(reporter.to_console_summary())
+        print(reporter.to_console_summary(color=use_color, min_severity=min_sev))
         print()
 
     # Write report files
