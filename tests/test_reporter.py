@@ -46,3 +46,27 @@ def test_markdown_report_contains_target() -> None:
     assert "https://example.com" in md
     assert "CRITICAL" in md
     assert "/.env" in md
+
+
+def test_html_report_is_self_contained() -> None:
+    reporter = Reporter(_make_report())
+    html = reporter.to_html()
+
+    assert html.startswith("<!DOCTYPE html>")
+    assert "WebScan Security Report" in html
+    assert "https://example.com/.env" in html
+    # No external assets — fully offline.
+    assert "http://" not in html.split("<body>")[1] or "example.com" in html
+    assert "<script src" not in html
+    assert "cdn" not in html.lower()
+
+
+def test_html_escapes_malicious_content() -> None:
+    report = _make_report()
+    report.targets[0].findings[0].title = "<script>alert(1)</script>"
+    reporter = Reporter(report)
+
+    html = reporter.to_html()
+
+    assert "<script>alert(1)</script>" not in html
+    assert "&lt;script&gt;" in html

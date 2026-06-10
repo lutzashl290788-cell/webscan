@@ -206,10 +206,10 @@ Examples
     og.add_argument(
         "--format",
         nargs="+",
-        choices=["json", "md"],
+        choices=["json", "md", "html"],
         default=["json", "md"],
         metavar="FMT",
-        help="Output format(s): json, md (default: both).",
+        help="Output format(s): json, md, html (default: json md).",
     )
     og.add_argument(
         "-v", "--verbose",
@@ -453,6 +453,12 @@ async def _run(args: argparse.Namespace) -> int:
             reporter.to_markdown(p)
             if not quiet:
                 print(f"  ✍  MD  report  : {p}")
+
+        if "html" in args.format:
+            p = base.with_suffix(".html")
+            reporter.to_html(p)
+            if not quiet:
+                print(f"  ✍  HTML report : {p}")
 
         if not quiet:
             print()
