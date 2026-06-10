@@ -3,9 +3,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import ssl as ssl_lib
 import sys
 from pathlib import Path
 
+import aiohttp
+
+from webscan.crawler import CrawlConfig, Crawler
 from webscan.engine import ScanEngine
 from webscan.plugins.base import BasePlugin
 from webscan.plugins.config_files import ConfigFilesPlugin
@@ -64,6 +68,45 @@ Examples
         "-f", "--file",
         metavar="FILE",
         help="Plain-text file with one target URL per line (# comments allowed).",
+    )
+
+    # --- Crawler ---
+    cg = parser.add_argument_group("Crawler")
+    cg.add_argument(
+        "--crawl",
+        action="store_true",
+        help="Spider each target to discover additional URLs before scanning.",
+    )
+    cg.add_argument(
+        "--depth",
+        type=int,
+        default=2,
+        metavar="N",
+        help="Maximum crawl depth from each seed URL (default: 2).",
+    )
+    cg.add_argument(
+        "--max-urls",
+        type=int,
+        default=200,
+        metavar="N",
+        help="Maximum number of URLs to discover per seed (default: 200).",
+    )
+    cg.add_argument(
+        "--scope",
+        metavar="DOMAIN",
+        help="Restrict crawling to this host (default: each seed's own host).",
+    )
+    cg.add_argument(
+        "--exclude",
+        nargs="+",
+        default=[],
+        metavar="PATTERN",
+        help="Skip URLs containing any of these substrings while crawling.",
+    )
+    cg.add_argument(
+        "--ignore-robots",
+        action="store_true",
+        help="Ignore robots.txt rules while crawling.",
     )
 
     # --- Plugins ---
@@ -174,11 +217,61 @@ def _load_targets(args: argparse.Namespace) -> list[str]:
 # Main async scan routine
 # ──────────────────────────────────────────────────────────────────────────────
 
+async def _crawl_targets(
+    seeds: list[str],
+    args: argparse.Namespace,
+) -> list[str]:
+    """Expand *seeds* into a deduplicated list of in-scope URLs via the crawler."""
+    ctx = ssl_lib.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl_lib.CERT_NONE
+
+    config = CrawlConfig(
+        max_depth=args.depth,
+        max_urls=args.max_urls,
+        scope=args.scope or "",
+        respect_robots=not args.ignore_robots,
+        exclude=args.exclude,
+    )
+
+    discovered: list[str] = []
+    seen: set[str] = set()
+    timeout = aiohttp.ClientTimeout(total=args.timeout, connect=min(5, args.timeout))
+
+    async with aiohttp.ClientSession(
+        timeout=timeout,
+        connector=aiohttp.TCPConnector(ssl=ctx),
+    ) as session:
+        crawler = Crawler(session, config)
+        for seed in seeds:
+            try:
+                result = await crawler.crawl(seed)
+            except Exception:  # noqa: BLE001 — a bad seed must not abort the scan
+                if seed not in seen:
+                    seen.add(seed)
+                    discovered.append(seed)
+                continue
+            for url in result.urls:
+                if url not in seen:
+                    seen.add(url)
+                    discovered.append(url)
+
+    return discovered or seeds
+
+
 async def _run(args: argparse.Namespace) -> int:
     targets = _load_targets(args)
 
     if not targets:
         _die("No targets specified. Use -t URL or -f FILE.")
+
+    if args.crawl:
+        if not args.quiet:
+            print(f"  Crawling {len(targets)} seed(s) (depth={args.depth}) …")
+        targets = await _crawl_targets(targets, args)
+        if not args.quiet:
+            print(f"  Discovered {len(targets)} URL(s) to scan.")
+            print()
 
     plugins: list[BasePlugin] = [ALL_PLUGINS[name]() for name in args.plugins]
     quiet: bool = args.quiet
