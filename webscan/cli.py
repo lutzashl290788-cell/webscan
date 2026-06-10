@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import ssl as ssl_lib
 import sys
 from pathlib import Path
@@ -13,6 +14,7 @@ import aiohttp
 from webscan.auth import AuthConfig, LoginError, PreparedAuth, prepare_auth
 from webscan.crawler import CrawlConfig, Crawler
 from webscan.engine import ScanEngine
+from webscan.net import NetConfig, pick_user_agent
 from webscan.plugins.base import BasePlugin
 from webscan.plugins.config_files import ConfigFilesPlugin
 from webscan.plugins.cookies import CookiesPlugin
@@ -143,6 +145,32 @@ Examples
         help='URL-encoded login body, e.g. "username=admin&password=secret".',
     )
 
+    # --- Network ---
+    ng = parser.add_argument_group("Network & evasion")
+    ng.add_argument(
+        "--proxy",
+        metavar="URL",
+        help="Route all requests through a proxy, e.g. http://127.0.0.1:8080 "
+        "or socks5://127.0.0.1:9050.",
+    )
+    ng.add_argument(
+        "--user-agent",
+        metavar="STR",
+        help="Override the User-Agent header for every request.",
+    )
+    ng.add_argument(
+        "--random-agent",
+        action="store_true",
+        help="Rotate through a pool of common browser User-Agents.",
+    )
+    ng.add_argument(
+        "--delay",
+        type=float,
+        default=0.0,
+        metavar="SEC",
+        help="Seconds to wait before each target (rate limiting; default: 0).",
+    )
+
     # --- Plugins ---
     pg = parser.add_argument_group("Plugins")
     pg.add_argument(
@@ -262,6 +290,7 @@ async def _crawl_targets(
     seeds: list[str],
     args: argparse.Namespace,
     auth: PreparedAuth,
+    net: NetConfig,
 ) -> list[str]:
     """Expand *seeds* into a deduplicated list of in-scope URLs via the crawler."""
     ctx = _build_ssl_ctx()
@@ -274,6 +303,11 @@ async def _crawl_targets(
         exclude=args.exclude,
     )
 
+    crawl_headers = dict(auth.headers)
+    ua = pick_user_agent(net, 0, "")
+    if ua:
+        crawl_headers["User-Agent"] = ua
+
     discovered: list[str] = []
     seen: set[str] = set()
     timeout = aiohttp.ClientTimeout(total=args.timeout, connect=min(5, args.timeout))
@@ -281,8 +315,9 @@ async def _crawl_targets(
     async with aiohttp.ClientSession(
         timeout=timeout,
         connector=aiohttp.TCPConnector(ssl=ctx),
-        headers=auth.headers or None,
+        headers=crawl_headers or None,
         cookies=auth.cookies or None,
+        trust_env=bool(net.proxy),
     ) as session:
         crawler = Crawler(session, config)
         for seed in seeds:
@@ -329,10 +364,24 @@ async def _run(args: argparse.Namespace) -> int:
             bits.append(f"{len(auth.headers)} header(s)")
         print(f"  Auth        : {', '.join(bits) or 'configured'}")
 
+    # Resolve network options. A proxy is wired in via aiohttp's trust_env,
+    # so we publish it through the standard proxy environment variables.
+    net = NetConfig(
+        proxy=args.proxy or "",
+        user_agent=args.user_agent or "",
+        random_agent=args.random_agent,
+        delay=args.delay,
+    )
+    if net.proxy:
+        os.environ["HTTP_PROXY"] = net.proxy
+        os.environ["HTTPS_PROXY"] = net.proxy
+        if not args.quiet:
+            print(f"  Proxy       : {net.proxy}")
+
     if args.crawl:
         if not args.quiet:
             print(f"  Crawling {len(targets)} seed(s) (depth={args.depth}) …")
-        targets = await _crawl_targets(targets, args, auth)
+        targets = await _crawl_targets(targets, args, auth, net)
         if not args.quiet:
             print(f"  Discovered {len(targets)} URL(s) to scan.")
             print()
@@ -362,6 +411,9 @@ async def _run(args: argparse.Namespace) -> int:
         on_progress=_progress,
         auth_headers=auth.headers,
         auth_cookies=auth.cookies,
+        proxy=net.proxy,
+        user_agent=pick_user_agent(net, 0, ""),
+        delay=net.delay,
     )
     report = await engine.scan_all(targets)
 
