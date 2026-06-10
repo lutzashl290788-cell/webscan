@@ -27,6 +27,7 @@ from webscan.plugins.open_redirect import OpenRedirectPlugin
 from webscan.plugins.path_traversal import PathTraversalPlugin
 from webscan.plugins.security_txt import SecurityTxtPlugin
 from webscan.plugins.sql_injection import SqlInjectionPlugin
+from webscan.plugins.ssrf import SsrfPlugin
 from webscan.plugins.tech_fingerprint import TechFingerprintPlugin
 from webscan.plugins.xss import XssPlugin
 from webscan.reporter import Reporter
@@ -42,6 +43,7 @@ ALL_PLUGINS: dict[str, type[BasePlugin]] = {
     "xss":           XssPlugin,
     "path_traversal": PathTraversalPlugin,
     "open_redirect": OpenRedirectPlugin,
+    "ssrf":          SsrfPlugin,
     "cors":          CorsPlugin,
     "cookies":       CookiesPlugin,
     "http_methods":  HttpMethodsPlugin,
