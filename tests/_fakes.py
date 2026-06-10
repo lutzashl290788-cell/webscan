@@ -28,6 +28,9 @@ class FakeHeaders:
     def __contains__(self, key: str) -> bool:
         return any(k.lower() == key.lower() for k, _ in self._items)
 
+    def items(self) -> list[tuple[str, str]]:
+        return list(self._items)
+
 
 class FakeResponse:
     def __init__(
@@ -47,7 +50,7 @@ class FakeResponse:
     async def __aexit__(self, *_exc: object) -> bool:
         return False
 
-    async def text(self) -> str:
+    async def text(self, **_kwargs: object) -> str:
         return self._body
 
 
