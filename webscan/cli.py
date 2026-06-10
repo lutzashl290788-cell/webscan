@@ -6,9 +6,11 @@ import asyncio
 import ssl as ssl_lib
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 import aiohttp
 
+from webscan.auth import AuthConfig, LoginError, PreparedAuth, prepare_auth
 from webscan.crawler import CrawlConfig, Crawler
 from webscan.engine import ScanEngine
 from webscan.plugins.base import BasePlugin
@@ -109,6 +111,36 @@ Examples
         "--ignore-robots",
         action="store_true",
         help="Ignore robots.txt rules while crawling.",
+    )
+
+    # --- Authentication ---
+    ag = parser.add_argument_group("Authentication")
+    ag.add_argument(
+        "--cookie",
+        metavar="STR",
+        help='Raw cookie header to send with every request, e.g. "session=abc123".',
+    )
+    ag.add_argument(
+        "--header",
+        action="append",
+        default=[],
+        metavar="NAME:VALUE",
+        help='Extra header to send (repeatable), e.g. --header "Authorization: Bearer T".',
+    )
+    ag.add_argument(
+        "--basic-auth",
+        metavar="USER:PASS",
+        help="HTTP Basic auth credentials.",
+    )
+    ag.add_argument(
+        "--login-url",
+        metavar="URL",
+        help="Form login endpoint; POSTed with --login-data to capture a session.",
+    )
+    ag.add_argument(
+        "--login-data",
+        metavar="STR",
+        help='URL-encoded login body, e.g. "username=admin&password=secret".',
     )
 
     # --- Plugins ---
@@ -219,14 +251,20 @@ def _load_targets(args: argparse.Namespace) -> list[str]:
 # Main async scan routine
 # ──────────────────────────────────────────────────────────────────────────────
 
-async def _crawl_targets(
-    seeds: list[str],
-    args: argparse.Namespace,
-) -> list[str]:
-    """Expand *seeds* into a deduplicated list of in-scope URLs via the crawler."""
+def _build_ssl_ctx() -> ssl_lib.SSLContext:
     ctx = ssl_lib.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl_lib.CERT_NONE
+    return ctx
+
+
+async def _crawl_targets(
+    seeds: list[str],
+    args: argparse.Namespace,
+    auth: PreparedAuth,
+) -> list[str]:
+    """Expand *seeds* into a deduplicated list of in-scope URLs via the crawler."""
+    ctx = _build_ssl_ctx()
 
     config = CrawlConfig(
         max_depth=args.depth,
@@ -243,6 +281,8 @@ async def _crawl_targets(
     async with aiohttp.ClientSession(
         timeout=timeout,
         connector=aiohttp.TCPConnector(ssl=ctx),
+        headers=auth.headers or None,
+        cookies=auth.cookies or None,
     ) as session:
         crawler = Crawler(session, config)
         for seed in seeds:
@@ -267,10 +307,32 @@ async def _run(args: argparse.Namespace) -> int:
     if not targets:
         _die("No targets specified. Use -t URL or -f FILE.")
 
+    # Resolve authentication (static material + optional form login).
+    auth_config = AuthConfig(
+        cookie=args.cookie or "",
+        headers=args.header,
+        basic_auth=args.basic_auth or "",
+        login_url=args.login_url or "",
+        login_data=args.login_data or "",
+    )
+    timeout = aiohttp.ClientTimeout(total=args.timeout, connect=min(5, args.timeout))
+    try:
+        auth = await prepare_auth(auth_config, _build_ssl_ctx(), timeout)
+    except LoginError as exc:
+        _die(str(exc))
+
+    if not args.quiet and auth_config.is_configured():
+        bits = []
+        if auth.cookies:
+            bits.append(f"{len(auth.cookies)} cookie(s)")
+        if auth.headers:
+            bits.append(f"{len(auth.headers)} header(s)")
+        print(f"  Auth        : {', '.join(bits) or 'configured'}")
+
     if args.crawl:
         if not args.quiet:
             print(f"  Crawling {len(targets)} seed(s) (depth={args.depth}) …")
-        targets = await _crawl_targets(targets, args)
+        targets = await _crawl_targets(targets, args, auth)
         if not args.quiet:
             print(f"  Discovered {len(targets)} URL(s) to scan.")
             print()
@@ -298,6 +360,8 @@ async def _run(args: argparse.Namespace) -> int:
         concurrency=args.concurrency,
         timeout=args.timeout,
         on_progress=_progress,
+        auth_headers=auth.headers,
+        auth_cookies=auth.cookies,
     )
     report = await engine.scan_all(targets)
 
@@ -367,7 +431,7 @@ def main() -> None:
     sys.exit(exit_code)
 
 
-def _die(msg: str) -> None:
+def _die(msg: str) -> NoReturn:
     print(f"[!] {msg}", file=sys.stderr)
     sys.exit(1)
 

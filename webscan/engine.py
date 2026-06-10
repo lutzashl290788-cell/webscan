@@ -48,12 +48,16 @@ class ScanEngine:
         concurrency: int = 10,
         timeout: int = 10,
         on_progress: ProgressCallback | None = None,
+        auth_headers: dict[str, str] | None = None,
+        auth_cookies: dict[str, str] | None = None,
     ) -> None:
         self.plugins = plugins
         self.concurrency = max(1, concurrency)
         self.timeout = aiohttp.ClientTimeout(total=timeout, connect=min(5, timeout))
         self.on_progress = on_progress
         self._ssl_ctx = _build_ssl_context()
+        self._auth_headers = auth_headers or {}
+        self._auth_cookies = auth_cookies or {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -74,10 +78,14 @@ class ScanEngine:
         )
         semaphore = asyncio.Semaphore(self.concurrency)
 
+        merged_headers = {**_DEFAULT_HEADERS, **self._auth_headers}
+        cookies = self._auth_cookies or None
+
         async with aiohttp.ClientSession(
             connector=connector,
             timeout=self.timeout,
-            headers=_DEFAULT_HEADERS,
+            headers=merged_headers,
+            cookies=cookies,
             connector_owner=True,
         ) as session:
 
