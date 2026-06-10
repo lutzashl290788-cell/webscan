@@ -28,6 +28,7 @@ from webscan.plugins.path_traversal import PathTraversalPlugin
 from webscan.plugins.security_txt import SecurityTxtPlugin
 from webscan.plugins.sql_injection import SqlInjectionPlugin
 from webscan.plugins.ssrf import SsrfPlugin
+from webscan.plugins.subdomains import SubdomainsPlugin
 from webscan.plugins.tech_fingerprint import TechFingerprintPlugin
 from webscan.plugins.xss import XssPlugin
 from webscan.reporter import Reporter
@@ -49,6 +50,7 @@ ALL_PLUGINS: dict[str, type[BasePlugin]] = {
     "http_methods":  HttpMethodsPlugin,
     "security_txt":  SecurityTxtPlugin,
     "tech_fingerprint": TechFingerprintPlugin,
+    "subdomains":    SubdomainsPlugin,
 }
 
 
