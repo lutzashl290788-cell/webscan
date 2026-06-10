@@ -8,21 +8,29 @@ WebScan is a modular, async Python tool that helps developers and penetration te
 
 ## Features
 
-| Plugin          | What it checks |
-|-----------------|----------------|
-| `config_files`  | 50+ exposed files: `.env`, `.git/config`, `wp-config.php`, SSH keys, SQL dumps, … |
-| `headers`       | Missing/weak security headers: CSP, HSTS, X-Frame-Options, and more |
-| `directories`   | Accessible sensitive directories: `/admin`, `/backup`, `/.git/`, phpMyAdmin, … |
-| `sql_injection` | Error-based SQL injection in URL query parameters (MySQL, PostgreSQL, SQLite, …) |
-| `cors`          | CORS misconfigurations: reflected `Origin`, wildcard `*`, credentials exposure |
-| `cookies`       | Cookie security flags: missing `Secure` / `HttpOnly` / `SameSite` |
-| `http_methods`  | Dangerous enabled HTTP methods: `PUT`, `DELETE`, `TRACE`, `CONNECT`, `PATCH` |
+| Plugin             | What it checks |
+|--------------------|----------------|
+| `config_files`     | 50+ exposed files: `.env`, `.git/config`, `wp-config.php`, SSH keys, SQL dumps, … |
+| `headers`          | Missing/weak security headers: CSP, HSTS, X-Frame-Options, and more |
+| `directories`      | Accessible sensitive directories: `/admin`, `/backup`, `/.git/`, phpMyAdmin, … |
+| `sql_injection`    | SQL injection — error-based, boolean-blind and time-blind (MySQL, PostgreSQL, MSSQL, Oracle, …) |
+| `xss`              | Reflected XSS in URL query parameters with injection-context classification |
+| `path_traversal`   | Path traversal / local file inclusion (`../etc/passwd`, `windows/win.ini`) |
+| `open_redirect`    | Open redirects in redirect-like parameters (`next`, `url`, `redirect`, …) |
+| `cors`             | CORS misconfigurations: reflected `Origin`, wildcard `*`, credentials exposure |
+| `cookies`          | Cookie security flags: missing `Secure` / `HttpOnly` / `SameSite` |
+| `http_methods`     | Dangerous enabled HTTP methods: `PUT`, `DELETE`, `TRACE`, `CONNECT`, `PATCH` |
+| `security_txt`     | `security.txt` (RFC 9116) presence and content best practices |
+| `tech_fingerprint` | Server / framework / CMS fingerprinting from headers, cookies and HTML |
 
 - ⚡ **Async** — `aiohttp`-powered, scans dozens of targets concurrently
+- 🕷️ **Crawler** — spider targets to discover URLs and forms (depth/scope/robots-aware)
+- 🔐 **Authentication** — cookie, header, basic-auth and form-login support
+- 🌐 **Network & evasion** — proxy, User-Agent rotation and request rate limiting
 - 🧩 **Plugin architecture** — easy to extend with new check modules
-- 📄 **Reports** — JSON (machine-readable) + Markdown (human-readable)
+- 📄 **Reports** — JSON, Markdown and a self-contained HTML report
 - 🛡️ **Non-crashing** — every error is captured; the tool always exits cleanly
-- 🐍 **Python 3.10+**, fully typed, PEP 8 compliant
+- 🐍 **Python 3.10+**, fully typed, PEP 8 compliant, **zero runtime deps beyond `aiohttp`**
 
 ---
 
@@ -70,21 +78,36 @@ webscan -t https://example.com -v
 # Select specific plugins
 webscan -t https://example.com --plugins headers config_files
 
+# Crawl the site first, then scan every discovered URL
+webscan -t https://example.com --crawl --depth 2
+
+# Scan behind a login (form-based authentication)
+webscan -t https://example.com/dashboard \
+        --login-url https://example.com/login \
+        --login-data "username=admin&password=secret"
+
+# Route through a proxy with a rotating User-Agent and rate limiting
+webscan -t https://example.com --proxy http://127.0.0.1:8080 --random-agent --delay 0.5
+
+# Write an HTML report and only show high+ findings in the console
+webscan -t https://example.com -o ./reports/scan --format html --min-severity high
+
 # List available plugins
 webscan --list-plugins
+```
+
+### Docker
+
+```bash
+docker build -t webscan .
+docker run --rm webscan -t https://example.com
 ```
 
 ---
 
 ## Usage Reference
 
-```
-webscan [-h] [-t URL [URL ...]] [-f FILE]
-        [--plugins NAME [NAME ...]] [--list-plugins]
-        [-o PATH] [--format FMT [FMT ...]]
-        [-v] [-q]
-        [-c N] [--timeout SEC]
-```
+**Targets & plugins**
 
 | Flag | Description |
 |------|-------------|
@@ -92,8 +115,44 @@ webscan [-h] [-t URL [URL ...]] [-f FILE]
 | `-f FILE` | File with one URL per line (`#` comments supported) |
 | `--plugins` | Which plugins to run (default: all) |
 | `--list-plugins` | Print all available plugins and exit |
+
+**Crawler**
+
+| Flag | Description |
+|------|-------------|
+| `--crawl` | Spider each target to discover more URLs before scanning |
+| `--depth N` | Maximum crawl depth from each seed (default: 2) |
+| `--max-urls N` | Maximum URLs to discover per seed (default: 200) |
+| `--scope DOMAIN` | Restrict crawling to this host (default: each seed's host) |
+| `--exclude PATTERN …` | Skip URLs containing any of these substrings |
+| `--ignore-robots` | Ignore `robots.txt` rules while crawling |
+
+**Authentication**
+
+| Flag | Description |
+|------|-------------|
+| `--cookie "k=v; …"` | Raw cookie header sent with every request |
+| `--header "Name: Value"` | Extra header (repeatable) |
+| `--basic-auth user:pass` | HTTP Basic auth credentials |
+| `--login-url URL` + `--login-data "u=a&p=b"` | Form login to capture a session |
+
+**Network & evasion**
+
+| Flag | Description |
+|------|-------------|
+| `--proxy URL` | Route requests through an HTTP/SOCKS proxy |
+| `--user-agent STR` | Override the User-Agent header |
+| `--random-agent` | Rotate through a pool of browser User-Agents |
+| `--delay SEC` | Wait before each target (rate limiting) |
+
+**Output & performance**
+
+| Flag | Description |
+|------|-------------|
 | `-o PATH` | Base path for report files (without extension) |
-| `--format json md` | Report format(s) — `json`, `md`, or both (default: both) |
+| `--format json md html` | Report format(s) — any of `json`, `md`, `html` (default: `json md`) |
+| `--min-severity LEVEL` | Only show findings at or above this severity in the console |
+| `--no-color` | Disable ANSI colour in the console summary |
 | `-v` | Verbose: print every finding to stdout |
 | `-q` | Quiet: suppress all stdout except errors |
 | `-c N` | Concurrency — max simultaneous targets (default: 10) |
@@ -146,6 +205,10 @@ http://internal-app:8080
 ### Markdown (`-o report` → `report.md`)
 
 A human-readable document with a summary table and per-finding sections including severity badges, evidence, and remediation guidance.
+
+### HTML (`-o report --format html` → `report.html`)
+
+A self-contained, dark-themed report with inline CSS and severity colour-coding — no external assets, opens offline in any browser.
 
 ---
 
