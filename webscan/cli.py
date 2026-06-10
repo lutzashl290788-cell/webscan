@@ -14,6 +14,7 @@ from webscan.plugins.cors import CorsPlugin
 from webscan.plugins.directories import DirectoriesPlugin
 from webscan.plugins.headers import HeadersPlugin
 from webscan.plugins.http_methods import HttpMethodsPlugin
+from webscan.plugins.security_txt import SecurityTxtPlugin
 from webscan.plugins.sql_injection import SqlInjectionPlugin
 from webscan.reporter import Reporter
 
@@ -28,6 +29,7 @@ ALL_PLUGINS: dict[str, type[BasePlugin]] = {
     "cors":          CorsPlugin,
     "cookies":       CookiesPlugin,
     "http_methods":  HttpMethodsPlugin,
+    "security_txt":  SecurityTxtPlugin,
 }
 
 
