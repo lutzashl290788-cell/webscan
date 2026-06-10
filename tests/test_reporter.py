@@ -99,3 +99,45 @@ def test_console_summary_color_adds_ansi() -> None:
 
     assert "\033[" in colored
     assert "\033[" not in plain
+
+
+def test_sarif_report_structure() -> None:
+    reporter = Reporter(_make_report())
+    sarif = json.loads(reporter.to_sarif())
+
+    assert sarif["version"] == "2.1.0"
+    run = sarif["runs"][0]
+    assert run["tool"]["driver"]["name"] == "WebScan"
+
+    # The single critical finding maps to a SARIF error result.
+    assert len(run["results"]) == 1
+    result = run["results"][0]
+    assert result["ruleId"] == "config_files"
+    assert result["level"] == "error"
+    assert result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == (
+        "https://example.com/.env"
+    )
+
+    # The rule is registered once in the driver.
+    rule_ids = [r["id"] for r in run["tool"]["driver"]["rules"]]
+    assert rule_ids == ["config_files"]
+
+
+def test_sarif_dedupes_rules() -> None:
+    report = _make_report()
+    report.targets[0].findings.append(
+        Finding(
+            plugin="config_files",
+            title="Exposed file: /.git/config",
+            severity=Severity.HIGH,
+            description="x",
+            url="https://example.com/.git/config",
+        )
+    )
+    reporter = Reporter(report)
+    sarif = json.loads(reporter.to_sarif())
+    run = sarif["runs"][0]
+
+    assert len(run["results"]) == 2
+    # Same plugin → one rule entry only.
+    assert len(run["tool"]["driver"]["rules"]) == 1

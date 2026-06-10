@@ -36,6 +36,15 @@ _SEVERITY_ANSI: dict[Severity, str] = {
 _ANSI_RESET = "\033[0m"
 _ANSI_DIM = "\033[2m"
 
+# SARIF result levels per severity (SARIF only defines error/warning/note/none).
+_SARIF_LEVEL: dict[Severity, str] = {
+    Severity.CRITICAL: "error",
+    Severity.HIGH:     "error",
+    Severity.MEDIUM:   "warning",
+    Severity.LOW:      "note",
+    Severity.INFO:     "note",
+}
+
 
 class Reporter:
     """Renders a :class:`~webscan.models.ScanReport` in one or more formats."""
@@ -169,6 +178,78 @@ class Reporter:
         if output_path is not None:
             output_path.write_text(md_str, encoding="utf-8")
         return md_str
+
+    # ------------------------------------------------------------------
+    # SARIF (Static Analysis Results Interchange Format 2.1.0)
+    # ------------------------------------------------------------------
+
+    def to_sarif(self, output_path: Path | None = None) -> str:
+        """Serialise findings as SARIF 2.1.0 for GitHub Code Scanning.
+
+        :param output_path: If provided, the SARIF JSON is also written here.
+        :returns: SARIF JSON string.
+        """
+        rules: dict[str, dict[str, Any]] = {}
+        results: list[dict[str, Any]] = []
+
+        for tr in self.report.targets:
+            for f in tr.findings:
+                rule_id = f.plugin
+                if rule_id not in rules:
+                    rules[rule_id] = {
+                        "id": rule_id,
+                        "name": rule_id,
+                        "shortDescription": {"text": rule_id},
+                        "defaultConfiguration": {
+                            "level": _SARIF_LEVEL.get(f.severity, "warning")
+                        },
+                    }
+                results.append(
+                    {
+                        "ruleId": rule_id,
+                        "level": _SARIF_LEVEL.get(f.severity, "warning"),
+                        "message": {"text": f"{f.title}. {f.description}".strip()},
+                        "properties": {
+                            "severity": f.severity.value,
+                            "remediation": f.remediation,
+                            "evidence": f.evidence,
+                        },
+                        "locations": [
+                            {
+                                "physicalLocation": {
+                                    "artifactLocation": {"uri": f.url}
+                                }
+                            }
+                        ],
+                    }
+                )
+
+        sarif: dict[str, Any] = {
+            "version": "2.1.0",
+            "$schema": (
+                "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/"
+                "Schemata/sarif-schema-2.1.0.json"
+            ),
+            "runs": [
+                {
+                    "tool": {
+                        "driver": {
+                            "name": "WebScan",
+                            "informationUri": (
+                                "https://github.com/lutzashl290788-cell/webscan"
+                            ),
+                            "rules": list(rules.values()),
+                        }
+                    },
+                    "results": results,
+                }
+            ],
+        }
+
+        sarif_str = json.dumps(sarif, indent=2, ensure_ascii=False)
+        if output_path is not None:
+            output_path.write_text(sarif_str, encoding="utf-8")
+        return sarif_str
 
     # ------------------------------------------------------------------
     # HTML

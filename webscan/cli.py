@@ -207,10 +207,10 @@ Examples
     og.add_argument(
         "--format",
         nargs="+",
-        choices=["json", "md", "html"],
+        choices=["json", "md", "html", "sarif"],
         default=["json", "md"],
         metavar="FMT",
-        help="Output format(s): json, md, html (default: json md).",
+        help="Output format(s): json, md, html, sarif (default: json md).",
     )
     og.add_argument(
         "-v", "--verbose",
@@ -473,6 +473,12 @@ async def _run(args: argparse.Namespace) -> int:
             reporter.to_html(p)
             if not quiet:
                 print(f"  ✍  HTML report : {p}")
+
+        if "sarif" in args.format:
+            p = base.with_suffix(".sarif")
+            reporter.to_sarif(p)
+            if not quiet:
+                print(f"  ✍  SARIF report: {p}")
 
         if not quiet:
             print()
