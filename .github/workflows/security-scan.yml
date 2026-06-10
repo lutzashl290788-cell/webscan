@@ -1,0 +1,50 @@
+name: Security Scan
+
+# Reusable template: run WebScan against a target and upload SARIF results to
+# the repository's Code Scanning dashboard. Set the TARGET below (or wire it to
+# a deployed staging URL) before enabling on a schedule.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Target URL to scan"
+        required: true
+        default: "https://example.com"
+  # Uncomment to run weekly:
+  # schedule:
+  #   - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+  security-events: write  # required to upload SARIF
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install WebScan
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Run scan
+        # Do not fail the job on findings; the SARIF upload surfaces them instead.
+        continue-on-error: true
+        run: |
+          webscan -t "${{ github.event.inputs.target || 'https://example.com' }}" \
+            --crawl --depth 1 \
+            -o webscan-report --format sarif -q
+
+      - name: Upload SARIF to Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: webscan-report.sarif
+          category: webscan
