@@ -1,0 +1,40 @@
+# Version control
+.git
+.gitignore
+
+# Python caches & build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+webscan/venv/
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Tests & docs not needed at runtime
+tests/
+docs/
+
+# Generated reports
+reports/
+*.report.json
+*.report.md
+
+# CI / editor
+.github/
+.vscode/
+.idea/
