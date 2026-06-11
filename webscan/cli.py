@@ -200,6 +200,11 @@ Examples
         action="store_true",
         help="Skip TLS certificate verification (default for security scans).",
     )
+    ng.add_argument(
+        "--no-bruteforce",
+        action="store_true",
+        help="Disable DNS subdomain brute force (subdomains plugin uses CT only).",
+    )
 
     # --- Plugins ---
     pg = parser.add_argument_group("Plugins")
@@ -430,7 +435,12 @@ async def _run(args: argparse.Namespace) -> int:
             print(f"  Discovered {len(targets)} URL(s) to scan.")
             print()
 
-    plugins: list[BasePlugin] = [ALL_PLUGINS[name]() for name in args.plugins]
+    plugins: list[BasePlugin] = []
+    for name in args.plugins:
+        if name == "subdomains":
+            plugins.append(SubdomainsPlugin(bruteforce=not args.no_bruteforce))
+        else:
+            plugins.append(ALL_PLUGINS[name]())
     quiet: bool = args.quiet
 
     def _progress(target: str, done: int, total: int) -> None:

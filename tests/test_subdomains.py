@@ -50,7 +50,7 @@ async def test_registrable_domain() -> None:
 
 
 async def test_discovers_and_dedupes_subdomains() -> None:
-    plugin = SubdomainsPlugin(resolve=False)
+    plugin = SubdomainsPlugin(resolve=False, bruteforce=False)
     session = _Session(_CRT_JSON)
 
     findings = await plugin.run("https://example.com", session)  # type: ignore[arg-type]
@@ -67,7 +67,7 @@ async def test_discovers_and_dedupes_subdomains() -> None:
 
 
 async def test_empty_crtsh_no_finding() -> None:
-    plugin = SubdomainsPlugin(resolve=False)
+    plugin = SubdomainsPlugin(resolve=False, bruteforce=False)
     session = _Session("[]")
 
     findings = await plugin.run("https://example.com", session)  # type: ignore[arg-type]
@@ -76,9 +76,28 @@ async def test_empty_crtsh_no_finding() -> None:
 
 
 async def test_non_200_no_finding() -> None:
-    plugin = SubdomainsPlugin(resolve=False)
+    plugin = SubdomainsPlugin(resolve=False, bruteforce=False)
     session = _Session("error", status=503)
 
     findings = await plugin.run("https://example.com", session)  # type: ignore[arg-type]
 
     assert findings == []
+
+
+async def test_bruteforce_merges_resolved_hits(monkeypatch: object) -> None:
+    # Pretend two brute-forced prefixes resolve; CT returns nothing extra.
+    async def fake_resolve(self: object, names: list[str]) -> list[str]:
+        return [n for n in names if n in ("www.example.com", "vpn.example.com")]
+
+    monkeypatch.setattr(  # type: ignore[attr-defined]
+        SubdomainsPlugin, "_resolve_all", fake_resolve
+    )
+    plugin = SubdomainsPlugin(resolve=False, bruteforce=True)
+    session = _Session("[]")  # empty CT response
+
+    findings = await plugin.run("https://example.com", session)  # type: ignore[arg-type]
+
+    assert len(findings) == 1
+    ev = findings[0].evidence
+    assert set(ev["bruteforce_hits"]) == {"www.example.com", "vpn.example.com"}
+    assert "www.example.com" in ev["subdomains"]

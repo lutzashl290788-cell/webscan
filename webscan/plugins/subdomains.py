@@ -13,15 +13,29 @@ from webscan.plugins.base import BasePlugin
 _CRT_SH = "https://crt.sh/?q=%.{domain}&output=json"
 _MAX_REPORTED = 200
 
+# Common subdomain prefixes probed via DNS when --subdomain-bruteforce is on.
+_BRUTE_PREFIXES: list[str] = [
+    "www", "mail", "ftp", "webmail", "smtp", "pop", "imap", "ns1", "ns2",
+    "dns", "vpn", "admin", "portal", "test", "dev", "staging", "stage",
+    "api", "app", "apps", "beta", "demo", "git", "gitlab", "jenkins", "ci",
+    "cdn", "static", "assets", "img", "images", "media", "shop", "store",
+    "blog", "news", "forum", "support", "help", "docs", "wiki", "status",
+    "dashboard", "panel", "cpanel", "secure", "login", "auth", "sso", "m",
+    "mobile", "internal", "intranet", "corp", "vpn2", "db", "database",
+    "sql", "mysql", "redis", "cache", "monitor", "grafana", "kibana",
+    "jira", "confluence", "mx", "mx1", "mx2", "old", "new", "backup",
+]
+
 
 class SubdomainsPlugin(BasePlugin):
-    """Discovers subdomains of the target's registrable domain via CT logs."""
+    """Discovers subdomains via CT logs (crt.sh) and optional DNS brute force."""
 
     name = "subdomains"
-    description = "Enumerate subdomains via Certificate Transparency (crt.sh)"
+    description = "Enumerate subdomains via Certificate Transparency and DNS brute force"
 
-    def __init__(self, resolve: bool = True) -> None:
+    def __init__(self, resolve: bool = True, bruteforce: bool = True) -> None:
         self._resolve = resolve
+        self._bruteforce = bruteforce
 
     async def run(
         self,
@@ -33,12 +47,24 @@ class SubdomainsPlugin(BasePlugin):
             return []
 
         domain = _registrable_domain(host)
+
         names = await self._query_crtsh(session, domain)
+
+        # DNS brute force: probe common prefixes and keep the ones that resolve.
+        brute_hits: list[str] = []
+        if self._bruteforce:
+            candidates = [f"{p}.{domain}" for p in _BRUTE_PREFIXES]
+            brute_hits = await self._resolve_all(candidates)
+            names.update(brute_hits)
+
         if not names:
             return []
 
-        # Confirm which discovered names currently resolve in DNS.
-        resolved = await self._resolve_all(sorted(names)) if self._resolve else []
+        # Confirm which CT-discovered names currently resolve in DNS.
+        resolved = sorted(set(brute_hits))
+        if self._resolve:
+            ct_only = sorted(names - set(brute_hits))
+            resolved = sorted(set(resolved) | set(await self._resolve_all(ct_only)))
 
         reported = sorted(names)[:_MAX_REPORTED]
         return [
@@ -47,15 +73,17 @@ class SubdomainsPlugin(BasePlugin):
                 title=f"{len(names)} subdomain(s) discovered for {domain}",
                 severity=Severity.INFO,
                 description=(
-                    f"Certificate Transparency logs (crt.sh) disclosed "
-                    f"{len(names)} subdomain(s) of '{domain}'. Subdomains widen the "
-                    "attack surface and may expose forgotten or staging hosts."
+                    f"Discovered {len(names)} subdomain(s) of '{domain}' via "
+                    "Certificate Transparency logs (crt.sh) and DNS brute force. "
+                    "Subdomains widen the attack surface and may expose forgotten "
+                    "or staging hosts."
                 ),
                 url=target,
                 evidence={
                     "domain": domain,
                     "count": len(names),
                     "resolved": resolved,
+                    "bruteforce_hits": sorted(brute_hits),
                     "subdomains": reported,
                     "truncated": len(names) > _MAX_REPORTED,
                 },
@@ -94,17 +122,27 @@ class SubdomainsPlugin(BasePlugin):
         return names
 
     async def _resolve_all(self, names: list[str]) -> list[str]:
-        # Resolve a bounded sample to confirm liveness without flooding DNS.
-        sample = names[:50]
-        loop = asyncio.get_event_loop()
-        resolved: list[str] = []
-        for name in sample:
+        """Resolve *names* concurrently and return those that have DNS records."""
+        if not names:
+            return []
+        loop = asyncio.get_running_loop()
+
+        async def _one(name: str) -> str | None:
             try:
                 await loop.getaddrinfo(name, None)
-                resolved.append(name)
+                return name
             except (OSError, asyncio.TimeoutError):
-                continue
-        return resolved
+                return None
+
+        # Bound concurrency so a large brute-force list doesn't swamp the resolver.
+        sem = asyncio.Semaphore(20)
+
+        async def _bounded(name: str) -> str | None:
+            async with sem:
+                return await _one(name)
+
+        results = await asyncio.gather(*[_bounded(n) for n in names])
+        return [n for n in results if n]
 
 
 def _registrable_domain(host: str) -> str:
