@@ -9,13 +9,15 @@
  ╚══╝╚══╝ ╚══════╝╚═════╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝
 ```
 
-**Automated async web security scanner for penetration testers and developers**
+### Automated async web security scanner for pentesters & developers
 
+*Crawl → discover → audit. 14 plugins, 5 report formats, zero config.*
+
+[![CI](https://img.shields.io/github/actions/workflow/status/lutzashl290788-cell/webscan/ci.yml?style=flat-square&label=CI&logo=githubactions&logoColor=white)](https://github.com/lutzashl290788-cell/webscan/actions)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/github/license/lutzashl290788-cell/webscan?style=flat-square&color=00d26a)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/lutzashl290788-cell/webscan?style=flat-square&color=ffd700)](https://github.com/lutzashl290788-cell/webscan/stargazers)
 [![Issues](https://img.shields.io/github/issues/lutzashl290788-cell/webscan?style=flat-square&color=ff6b6b)](https://github.com/lutzashl290788-cell/webscan/issues)
-[![PyPI](https://img.shields.io/pypi/v/webscan?style=flat-square&color=00d26a&logo=pypi&logoColor=white)](https://pypi.org/project/webscan)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](CONTRIBUTING.md)
 
 </div>
@@ -25,39 +27,48 @@
 ## ⚡ Quick Start
 
 ```bash
-pip install webscan
+git clone https://github.com/lutzashl290788-cell/webscan
+cd webscan && pip install .
+
 webscan -t https://example.com
 ```
 
-> **Legal notice:** Use only on systems you own or have written permission to test.
+> **Legal notice:** use only on systems you own or have explicit written permission to test.
 
 ---
 
 ## 🎯 What it does
 
-WebScan crawls your target, discovers all endpoints and forms, then fires every plugin against them — all concurrently via `aiohttp`.
+WebScan optionally **crawls** your target to discover URLs and forms, then fires every
+plugin against them — all concurrently via `aiohttp`. One run, colour-coded findings,
+machine-readable reports.
 
-```
-$ webscan -t https://example.com --depth 3 -v
+```console
+$ webscan -t https://example.com --plugins headers cookies http_methods ssl_tls tech_fingerprint
 
-🔍 Starting scan → https://example.com
-🕷  Crawler found 47 URLs, 12 forms
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:18
+╔══════════════════════════════════════════════════════════╗
+║              WebScan — Security Auditor                 ║
+╚══════════════════════════════════════════════════════════╝
+  Targets     : 1
+  Plugins     : headers, cookies, http_methods, ssl_tls, tech_fingerprint
+  Concurrency : 10
+  Timeout     : 10s
 
- 🔴 CRITICAL  /.env exposed
-    URL: https://example.com/.env
-    Fix: Remove from webroot, add to .gitignore
+  [█] 1/1 — https://example.com
 
- 🟠 HIGH      Missing HSTS header
-    URL: https://example.com
-    Fix: Add Strict-Transport-Security: max-age=31536000
+  Scan completed  2026-06-11T11:11:51+00:00 → 2026-06-11T11:11:52+00:00
+  Total findings  9
 
- 🟡 MEDIUM    CORS wildcard (*)
-    URL: https://example.com/api/data
-    Fix: Restrict Access-Control-Allow-Origin to known origins
-
- ✅ Scan complete: 3 findings (1 CRITICAL · 1 HIGH · 1 MEDIUM)
-    Report saved → reports/scan.json | reports/scan.md
+  • [https://example.com]
+      🟠 [HIGH    ] Missing header: Content-Security-Policy
+      🟠 [HIGH    ] Missing header: Strict-Transport-Security
+      🟡 [MEDIUM  ] Missing header: X-Frame-Options
+      🟡 [MEDIUM  ] Missing header: X-Content-Type-Options
+      🟡 [MEDIUM  ] Missing HSTS header
+      🔵 [LOW     ] Missing header: Referrer-Policy
+      🔵 [LOW     ] Missing header: Permissions-Policy
+      🔵 [LOW     ] Information disclosure: Server
+      ⚪ [INFO    ] Technologies detected: Cloudflare
 ```
 
 ---
@@ -67,19 +78,21 @@ $ webscan -t https://example.com --depth 3 -v
 | Plugin | Checks |
 |--------|--------|
 | `config_files` | 50+ exposed files: `.env`, `.git/config`, `wp-config.php`, SSH keys, SQL dumps |
-| `headers` | CSP, HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy |
-| `directories` | `/admin`, `/backup`, `/.git/`, phpMyAdmin, exposed panels |
-| `sql_injection` | Error-based, boolean blind, time-based — MySQL/PgSQL/SQLite/MSSQL |
-| `xss` | Reflected, stored, DOM-based + WAF bypass payloads |
-| `cors` | Reflected Origin, wildcard `*`, credentials exposure |
-| `cookies` | Missing `Secure` / `HttpOnly` / `SameSite` |
-| `http_methods` | Dangerous: `PUT`, `DELETE`, `TRACE`, `CONNECT` |
-| `path_traversal` | `../../../etc/passwd` and encoded variants |
+| `headers` | CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy |
+| `directories` | `/admin`, `/backup`, `/.git/`, phpMyAdmin and open directory listings |
+| `sql_injection` | Error-based, **boolean-blind** and **time-blind** — MySQL / PostgreSQL / MSSQL / Oracle |
+| `xss` | Reflected XSS in query parameters with injection-context classification |
+| `cors` | Reflected `Origin`, wildcard `*`, credentials exposure |
+| `cookies` | Missing `Secure` / `HttpOnly` / `SameSite` flags |
+| `http_methods` | Dangerous methods enabled: `PUT`, `DELETE`, `TRACE`, `CONNECT`, `PATCH` |
+| `path_traversal` | `../../../etc/passwd`, `windows/win.ini` and encoded variants |
 | `open_redirect` | `?next=`, `?redirect=`, `?url=` parameter abuse |
-| `ssrf` | AWS metadata, internal hosts, out-of-band detection |
-| `ssl_tls` | Weak ciphers, expired certs, SSLv2/v3/TLS1.0, missing HSTS |
-| `tech_fingerprint` | CMS, framework, server version → CVE lookup |
-| `subdomains` | DNS bruteforce + Certificate Transparency (crt.sh) |
+| `ssrf` | AWS/GCP metadata & localhost probes (response-signature based) |
+| `ssl_tls` | Weak protocols (SSLv2/3, TLS 1.0/1.1), expired/expiring certs, missing HSTS |
+| `tech_fingerprint` | Server / framework / CMS detection from headers, cookies & HTML |
+| `subdomains` | DNS brute force + Certificate Transparency logs (crt.sh) |
+
+> Run `webscan --list-plugins` to see them all, or pick a subset with `--plugins`.
 
 ---
 
@@ -89,49 +102,124 @@ $ webscan -t https://example.com --depth 3 -v
 # Single target, all plugins
 webscan -t https://example.com
 
-# Multiple targets with auth
-webscan -t https://a.com https://b.com --cookie "session=abc123"
+# Crawl first, then scan every discovered URL
+webscan -t https://example.com --crawl --depth 3
 
-# Deep crawl with proxy (Burp Suite)
-webscan -t https://example.com --depth 5 --proxy http://127.0.0.1:8080
+# Authenticated scan (form login)
+webscan -t https://example.com/dashboard \
+        --login-url https://example.com/login \
+        --login-data "username=admin&password=secret"
 
-# Only critical findings, save report
-webscan -t https://example.com --min-severity high -o ./reports/scan
+# Through a proxy (e.g. Burp) with a rotating User-Agent and rate limiting
+webscan -t https://example.com --proxy http://127.0.0.1:8080 --random-agent --rate-limit 5
 
-# Select specific plugins
+# Only high+ findings, write an HTML + SARIF report
+webscan -t https://example.com --min-severity high -o ./reports/scan --format html sarif
+
+# Pick specific plugins / read targets from a file
 webscan -t https://example.com --plugins xss sql_injection headers
-
-# Targets from file
-webscan -f targets.txt --format json html sarif
+webscan -f targets.txt --format json csv
 ```
 
-### All flags
+<details>
+<summary><b>All flags</b></summary>
 
 ```
+Targets
   -t URL [URL ...]       Target URL(s)
-  -f FILE                File with one URL per line
-  --plugins NAME [...]   Plugins to run (default: all)
-  --depth N              Crawler depth (default: 2)
-  --min-severity LEVEL   Filter: low | medium | high | critical
-  -o PATH                Report base path (no extension)
-  --format FMT [...]     json | md | html | sarif | csv
-  --proxy URL            HTTP/SOCKS5 proxy (e.g. http://127.0.0.1:8080)
-  --cookie STRING        Session cookie(s)
+  -f FILE                File with one URL per line (# comments allowed)
+
+Crawler
+  --crawl                Spider each target before scanning
+  --depth N              Max crawl depth (default: 2)
+  --max-urls N           Max URLs to discover per seed (default: 200)
+  --scope DOMAIN         Restrict crawl to this host
+  --exclude PATTERN ...  Skip URLs containing these substrings
+  --ignore-robots        Ignore robots.txt
+
+Authentication
+  --cookie STRING        Raw cookie header
   --header "K: V"        Extra header (repeatable)
   --basic-auth user:pass HTTP Basic auth
-  --login-url URL        Form-based login URL
-  --login-data STRING    Form login POST data
+  --login-url URL        Form-login endpoint
+  --login-data STRING    Form-login POST body
+
+Network & evasion
+  --proxy URL            HTTP/SOCKS proxy (e.g. http://127.0.0.1:8080)
   --user-agent STRING    Custom User-Agent
-  --random-agent         Random User-Agent from built-in list
-  --delay N              Delay between requests (seconds)
-  --random-delay         Randomize delay ×0.5–×1.5
-  --rate-limit N         Max requests per second
-  --timeout SEC          Per-request timeout (default: 10)
+  --random-agent         Rotate through a built-in User-Agent pool
+  --delay SEC            Delay before each target
+  --random-delay         Randomise the delay ×0.5–×1.5
+  --rate-limit N         Cap at N requests per second
+  --no-verify-ssl        Skip TLS certificate verification
+  --no-bruteforce        Disable DNS brute force (subdomains plugin)
+
+Plugins & output
+  --plugins NAME [...]   Plugins to run (default: all)
+  --list-plugins         List plugins and exit
+  -o PATH                Report base path (no extension)
+  --format FMT [...]     json | md | html | sarif | csv  (default: json md)
+  --min-severity LEVEL   critical | high | medium | low | info
+  --no-color             Disable ANSI colour
+  -v                     Verbose
+  -q                     Quiet
+
+Performance
   -c N                   Concurrent targets (default: 10)
-  --no-verify-ssl        Disable SSL certificate verification
-  --ignore-robots        Ignore robots.txt
-  -v                     Verbose: print every finding
-  -q                     Quiet: suppress stdout except errors
+  --timeout SEC          Per-request timeout (default: 10)
+```
+
+</details>
+
+---
+
+## 📊 Output formats
+
+| Format | Flag | Use case |
+|--------|------|----------|
+| JSON | `--format json` | CI/CD, scripting, integrations |
+| Markdown | `--format md` | Human review, GitHub PRs |
+| HTML | `--format html` | Self-contained stakeholder reports |
+| SARIF | `--format sarif` | GitHub Code Scanning, VS Code |
+| CSV | `--format csv` | Excel, Jira, Notion |
+
+**CI-friendly:** WebScan exits with code `1` when any CRITICAL or HIGH finding is detected.
+
+---
+
+## ⚙️ CI/CD
+
+A ready-to-use workflow ships in [`.github/workflows/security-scan.yml`](.github/workflows/security-scan.yml):
+
+```yaml
+name: Security Scan
+on: [workflow_dispatch]
+permissions:
+  security-events: write
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install .
+      - run: webscan -t ${{ secrets.STAGING_URL }} --min-severity high --format sarif -o report
+        continue-on-error: true
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: report.sarif
+```
+
+### Docker
+
+```bash
+docker build -t webscan .
+docker run --rm webscan -t https://example.com
+
+# Mount a directory to keep reports
+docker run --rm -v "$(pwd)/reports:/reports" webscan \
+  -t https://example.com -o /reports/scan --format json html
 ```
 
 ---
@@ -150,56 +238,11 @@ class MyPlugin(BasePlugin):
 
     async def run(self, target: str, session: aiohttp.ClientSession) -> list[Finding]:
         findings: list[Finding] = []
-        # your checks here
+        # ... perform checks, append Finding(...) objects ...
         return findings
 ```
 
-Register in `webscan/cli.py` → `ALL_PLUGINS["my_plugin"] = MyPlugin` — that's it.
-
----
-
-## 📊 Output formats
-
-| Format | Flag | Use case |
-|--------|------|----------|
-| JSON | `--format json` | CI/CD, scripting, integrations |
-| Markdown | `--format md` | Human review, GitHub PRs |
-| HTML | `--format html` | Stakeholder reports |
-| SARIF | `--format sarif` | GitHub Security tab, VS Code |
-| CSV | `--format csv` | Excel, Jira, Notion |
-
-**CI integration** — exits with code `1` when any CRITICAL or HIGH finding is detected.
-
----
-
-## ⚙️ CI/CD
-
-```yaml
-# .github/workflows/security.yml
-name: Security Scan
-on: [push, pull_request]
-jobs:
-  webscan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: pip install webscan
-      - run: webscan -t ${{ secrets.STAGING_URL }} --min-severity high --format sarif -o report
-      - uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: report.sarif
-```
-
-### Docker
-
-```bash
-docker run --rm ghcr.io/lutzashl290788-cell/webscan -t https://example.com
-
-# With reports
-docker run --rm -v $(pwd)/reports:/reports \
-  ghcr.io/lutzashl290788-cell/webscan \
-  -t https://example.com -o /reports/scan
-```
+Register it in `webscan/cli.py` → `ALL_PLUGINS["my_plugin"] = MyPlugin`. Done.
 
 ---
 
@@ -208,54 +251,58 @@ docker run --rm -v $(pwd)/reports:/reports \
 ```
 webscan/
 ├── cli.py              # Entry point, argument parsing
-├── scanner.py          # Async scan orchestrator
-├── crawler.py          # Async spider with JS endpoint extraction
-├── models.py           # Finding, Severity, ScanResult dataclasses
-├── auth.py             # Auth: cookie, bearer, basic, form-based
+├── engine.py           # Async scan orchestrator (concurrency, sessions)
+├── crawler.py          # Async breadth-first spider (links + forms)
+├── auth.py             # Auth: cookie, header, basic, form-based login
+├── net.py              # Proxy, User-Agent rotation, rate limiting
+├── models.py           # Finding, Severity, ScanReport dataclasses
 ├── reporter.py         # JSON / MD / HTML / SARIF / CSV output
+├── utils/html.py       # Dependency-free HTML link & form parser
 └── plugins/
     ├── base.py         # BasePlugin ABC
-    ├── config_files.py
     ├── headers.py
     ├── sql_injection.py
     ├── xss.py
-    └── ...             # one file per plugin
+    └── ...             # one file per plugin (14 total)
 ```
+
+Runtime dependency: **`aiohttp` only**. Everything else is the Python standard library.
 
 ---
 
 ## 📦 Installation
 
 ```bash
-# pip
-pip install webscan
-
-# pipx (isolated)
-pipx install webscan
-
 # from source
 git clone https://github.com/lutzashl290788-cell/webscan
-cd webscan && pip install -e ".[dev]"
+cd webscan && pip install .
+
+# development install (ruff, mypy, pytest)
+pip install -e ".[dev]"
 ```
 
-**Requirements:** Python ≥ 3.10, aiohttp ≥ 3.9
+**Requirements:** Python ≥ 3.10, `aiohttp` ≥ 3.9
 
 ---
 
 ## 🤝 Contributing
 
-PRs are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```bash
 pip install -e ".[dev]"
-pytest tests/ -v
+ruff check webscan tests
+mypy webscan
+pytest -q
 ```
 
 ---
 
 ## ⚖️ Legal
 
-WebScan is for **authorized security testing only**. Only use on systems you own or have explicit written permission to test. Unauthorized scanning may be illegal in your jurisdiction.
+WebScan is for **authorized security testing only**. Use it solely on systems you own or
+have explicit written permission to test. Unauthorized scanning may be illegal in your
+jurisdiction.
 
 ---
 
