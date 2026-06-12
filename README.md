@@ -313,3 +313,5 @@ Made with ☕ and too many CVEs
 **[⭐ Star if useful](https://github.com/lutzashl290788-cell/webscan/stargazers)** · **[🐛 Report bug](https://github.com/lutzashl290788-cell/webscan/issues)** · **[💡 Request feature](https://github.com/lutzashl290788-cell/webscan/issues)**
 
 </div>
+
+Future Milestone: Integrating LLM-powered auditing (Claude 3.5 Sonnet) for smart false-positive reduction.
