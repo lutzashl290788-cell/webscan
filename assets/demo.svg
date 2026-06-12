@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="598" viewBox="0 0 760 598" font-family="SFMono-Regular,Consolas,Liberation Mono,Menlo,monospace" font-size="14">
+  <rect width="760" height="598" rx="10" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
+  <rect width="760" height="36" rx="10" fill="#161b22"/>
+  <rect y="26" width="760" height="10" fill="#161b22"/>
+  <circle cx="22" cy="18" r="6" fill="#ff5f56"/>
+  <circle cx="42" cy="18" r="6" fill="#ffbd2e"/>
+  <circle cx="62" cy="18" r="6" fill="#27c93f"/>
+  <text x="380" y="23" fill="#8b949e" font-size="12" text-anchor="middle">webscan — security audit</text>
+    <text x="20" y="52" fill="#7ee787" opacity="0">$ webscan -t https://example.com --crawl --depth 2<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="0.00s" fill="freeze"/></text>
+  <text x="20" y="74" fill="#c9d1d9" opacity="0">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="0.28s" fill="freeze"/></text>
+  <text x="20" y="96" fill="#39c5cf" opacity="0">╔══════════════════════════════════════════════════╗<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="0.56s" fill="freeze"/></text>
+  <text x="20" y="118" fill="#39c5cf" opacity="0">║          WebScan — Security Auditor              ║<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="0.84s" fill="freeze"/></text>
+  <text x="20" y="140" fill="#39c5cf" opacity="0">╚══════════════════════════════════════════════════╝<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="1.12s" fill="freeze"/></text>
+  <text x="20" y="162" fill="#8b949e" opacity="0">  Targets     : 1<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="1.40s" fill="freeze"/></text>
+  <text x="20" y="184" fill="#8b949e" opacity="0">  Plugins     : 14 enabled<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="1.68s" fill="freeze"/></text>
+  <text x="20" y="206" fill="#8b949e" opacity="0">  Crawling 1 seed (depth=2) …<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="1.96s" fill="freeze"/></text>
+  <text x="20" y="228" fill="#3fb950" opacity="0">  Discovered 12 URL(s) to scan.<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="2.24s" fill="freeze"/></text>
+  <text x="20" y="250" fill="#c9d1d9" opacity="0">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="2.52s" fill="freeze"/></text>
+  <text x="20" y="272" fill="#3fb950" opacity="0">  [████████████████████] 12/12  done<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="2.80s" fill="freeze"/></text>
+  <text x="20" y="294" fill="#c9d1d9" opacity="0">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="3.08s" fill="freeze"/></text>
+  <text x="20" y="316" fill="#f0f6fc" opacity="0">  Total findings  9<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="3.36s" fill="freeze"/></text>
+  <text x="20" y="338" fill="#c9d1d9" opacity="0">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="3.64s" fill="freeze"/></text>
+  <text x="20" y="360" fill="#c9d1d9" opacity="0">  • [https://example.com]<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="3.92s" fill="freeze"/></text>
+  <text x="54" y="382" fill="#db6d28" opacity="0">🟠 [HIGH    ] Missing header: Content-Security-Policy<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="4.20s" fill="freeze"/></text>
+  <text x="54" y="404" fill="#db6d28" opacity="0">🟠 [HIGH    ] Missing header: Strict-Transport-Security<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="4.48s" fill="freeze"/></text>
+  <text x="54" y="426" fill="#d29922" opacity="0">🟡 [MEDIUM  ] Missing header: X-Frame-Options<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="4.76s" fill="freeze"/></text>
+  <text x="54" y="448" fill="#d29922" opacity="0">🟡 [MEDIUM  ] Missing HSTS header<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="5.04s" fill="freeze"/></text>
+  <text x="54" y="470" fill="#58a6ff" opacity="0">🔵 [LOW     ] Information disclosure: Server<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="5.32s" fill="freeze"/></text>
+  <text x="54" y="492" fill="#8b949e" opacity="0">⚪ [INFO    ] Technologies detected: Cloudflare<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="5.60s" fill="freeze"/></text>
+  <text x="20" y="514" fill="#c9d1d9" opacity="0">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="5.88s" fill="freeze"/></text>
+  <text x="20" y="536" fill="#39c5cf" opacity="0">  ✍  SARIF report : reports/scan.sarif<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="6.16s" fill="freeze"/></text>
+  <text x="20" y="558" fill="#3fb950" opacity="0">  ✓ scan complete<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="6.44s" fill="freeze"/></text>
+  <rect x="20" y="566" width="9" height="17" fill="#3fb950" opacity="0"><animate attributeName="opacity" values="0;0;1" dur="6.72s" fill="freeze"/><animate attributeName="opacity" values="1;0;1" dur="1s" begin="6.72s" repeatCount="indefinite"/></rect>
+</svg>

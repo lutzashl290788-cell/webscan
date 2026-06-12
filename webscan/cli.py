@@ -35,6 +35,21 @@ from webscan.plugins.tech_fingerprint import TechFingerprintPlugin
 from webscan.plugins.xss import XssPlugin
 from webscan.reporter import Reporter
 
+# Shown on every interactive run. WebScan is an authorised-testing tool; this
+# notice makes the operator's responsibility explicit and discourages misuse.
+_LEGAL_DISCLAIMER = (
+    "WebScan — authorised security testing only. By scanning a target you "
+    "confirm you own it or hold explicit written permission. Unauthorised "
+    "scanning may be illegal. You are solely responsible for your use."
+)
+
+
+def _disclaimer_text() -> str:
+    """Dim the disclaimer only when stderr is an interactive terminal."""
+    if sys.stderr.isatty():
+        return f"\033[2m{_LEGAL_DISCLAIMER}\033[0m"
+    return _LEGAL_DISCLAIMER
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Plugin registry — add new plugins here
 # ──────────────────────────────────────────────────────────────────────────────
@@ -584,6 +599,9 @@ def main() -> None:
     if not args.target and not args.file:
         parser.print_help()
         sys.exit(1)
+
+    if not args.quiet:
+        print(_disclaimer_text(), file=sys.stderr)
 
     exit_code = asyncio.run(_run(args))
     sys.exit(exit_code)

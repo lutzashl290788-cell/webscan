@@ -11,7 +11,7 @@
 
 ### Automated async web security scanner for pentesters & developers
 
-*Crawl → discover → audit. 14 plugins, 5 report formats, zero config.*
+*Crawl → discover → audit. 14 plugins, 5 report formats, polite defaults.*
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lutzashl290788-cell/webscan/ci.yml?style=flat-square&label=CI&logo=githubactions&logoColor=white)](https://github.com/lutzashl290788-cell/webscan/actions)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
@@ -19,6 +19,8 @@
 [![Stars](https://img.shields.io/github/stars/lutzashl290788-cell/webscan?style=flat-square&color=ffd700)](https://github.com/lutzashl290788-cell/webscan/stargazers)
 [![Issues](https://img.shields.io/github/issues/lutzashl290788-cell/webscan?style=flat-square&color=ff6b6b)](https://github.com/lutzashl290788-cell/webscan/issues)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](CONTRIBUTING.md)
+
+<img src="assets/demo.svg" alt="WebScan terminal demo — animated scan output" width="760"/>
 
 </div>
 
@@ -30,10 +32,51 @@
 git clone https://github.com/lutzashl290788-cell/webscan
 cd webscan && pip install .
 
-webscan -t https://example.com
+# Recommended for first-time / site-owner scans
+webscan -t https://example.com --safe-mode
 ```
 
 > **Legal notice:** use only on systems you own or have explicit written permission to test.
+> A responsibility notice is printed on every interactive run.
+
+---
+
+## 👥 Built for three audiences
+
+### 🛡️ Site owners & beginners — safety and clarity
+
+| Feature | What it does | Why it matters |
+|--------|--------------|----------------|
+| **Safe Mode** (`--safe-mode`) | Caps request rate (~2 req/s), uses an honest User-Agent, lowers concurrency, and respects `robots.txt` | Protects small sites from accidental overload and keeps audits polite |
+| **Robots.txt respect** | Crawler skips disallowed paths by default | Helps beginners scan only what the site owner permits |
+| **Colour-coded findings** | Terminal output uses severity colours (critical → info) | Spot the worst issues first without reading raw logs |
+
+```bash
+webscan -t https://yoursite.com --safe-mode
+```
+
+### 🥷 Bug hunters — stealth and depth
+
+| Feature | What it does | Why it matters |
+|--------|--------------|----------------|
+| **Request jitter** (`--random-delay`) | Randomises pause between requests (×0.5–×1.5) | Blurs automated traffic patterns against basic WAF rules |
+| **User-Agent rotation** (`--random-agent`) | Rotates browser-like signatures (Chrome, Firefox, mobile) | Bypasses blocks on scanner fingerprints; probes mobile variants |
+| **Proxy / SOCKS5** (`--proxy`) | Routes all traffic through Burp, Tor, or any HTTP/SOCKS proxy | Keeps your real IP off the target's logs |
+
+```bash
+webscan -t https://target.com --proxy socks5://127.0.0.1:9050 --random-agent --random-delay
+```
+
+### 🧬 Responsible disclosure — ethics and privacy
+
+| Feature | What it does | Why it matters |
+|--------|--------------|----------------|
+| **Legal disclaimer** | Printed at startup in interactive mode | Makes authorised-use explicit; discourages misuse |
+| **Report anonymisation** (`--anonymize`) | Strips local paths, hostname, username, and private IPs from exports | Safer SARIF/JSON sharing; GDPR-friendly data minimisation |
+
+```bash
+webscan -t https://example.com --format sarif json -o report --anonymize
+```
 
 ---
 
@@ -102,6 +145,9 @@ $ webscan -t https://example.com --plugins headers cookies http_methods ssl_tls 
 # Single target, all plugins
 webscan -t https://example.com
 
+# Polite scan for site owners (recommended default)
+webscan -t https://example.com --safe-mode
+
 # Crawl first, then scan every discovered URL
 webscan -t https://example.com --crawl --depth 3
 
@@ -113,8 +159,8 @@ webscan -t https://example.com/dashboard \
 # Through a proxy (e.g. Burp) with a rotating User-Agent and rate limiting
 webscan -t https://example.com --proxy http://127.0.0.1:8080 --random-agent --rate-limit 5
 
-# Only high+ findings, write an HTML + SARIF report
-webscan -t https://example.com --min-severity high -o ./reports/scan --format html sarif
+# Only high+ findings, write an HTML + SARIF report (anonymised for sharing)
+webscan -t https://example.com --min-severity high -o ./reports/scan --format html sarif --anonymize
 
 # Pick specific plugins / read targets from a file
 webscan -t https://example.com --plugins xss sql_injection headers
@@ -145,6 +191,7 @@ Authentication
   --login-data STRING    Form-login POST body
 
 Network & evasion
+  --safe-mode            Polite preset: low rate, honest UA, robots respected
   --proxy URL            HTTP/SOCKS proxy (e.g. http://127.0.0.1:8080)
   --user-agent STRING    Custom User-Agent
   --random-agent         Rotate through a built-in User-Agent pool
@@ -160,6 +207,7 @@ Plugins & output
   -o PATH                Report base path (no extension)
   --format FMT [...]     json | md | html | sarif | csv  (default: json md)
   --min-severity LEVEL   critical | high | medium | low | info
+  --anonymize            Strip local paths, hostname and private IPs from reports
   --no-color             Disable ANSI colour
   -v                     Verbose
   -q                     Quiet
@@ -250,11 +298,12 @@ Register it in `webscan/cli.py` → `ALL_PLUGINS["my_plugin"] = MyPlugin`. Done.
 
 ```
 webscan/
-├── cli.py              # Entry point, argument parsing
+├── cli.py              # Entry point, argument parsing, legal disclaimer
 ├── engine.py           # Async scan orchestrator (concurrency, sessions)
 ├── crawler.py          # Async breadth-first spider (links + forms)
 ├── auth.py             # Auth: cookie, header, basic, form-based login
 ├── net.py              # Proxy, User-Agent rotation, rate limiting
+├── anonymize.py        # Report scrubbing for external sharing
 ├── models.py           # Finding, Severity, ScanReport dataclasses
 ├── reporter.py         # JSON / MD / HTML / SARIF / CSV output
 ├── utils/html.py       # Dependency-free HTML link & form parser
@@ -302,7 +351,7 @@ pytest -q
 
 WebScan is for **authorized security testing only**. Use it solely on systems you own or
 have explicit written permission to test. Unauthorized scanning may be illegal in your
-jurisdiction.
+jurisdiction. You are solely responsible for your use of this software.
 
 ---
 
