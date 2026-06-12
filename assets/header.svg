@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="240" viewBox="0 0 820 240" font-family="SFMono-Regular,Consolas,Liberation Mono,Menlo,monospace">
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#39c5cf"/>
+      <stop offset="0.5" stop-color="#7ee787"/>
+      <stop offset="1" stop-color="#39c5cf"/>
+      <animate attributeName="x1" values="0;1;0" dur="6s" repeatCount="indefinite"/>
+      <animate attributeName="x2" values="1;2;1" dur="6s" repeatCount="indefinite"/>
+    </linearGradient>
+    <clipPath id="reveal">
+      <rect x="195" y="60" width="0" height="80">
+        <animate attributeName="width" from="0" to="430" dur="1.1s"
+                 begin="0.3s" fill="freeze" calcMode="spline"
+                 keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+      </rect>
+    </clipPath>
+  </defs>
+
+  <rect width="820" height="240" rx="14" fill="#0d1117"/>
+  <rect width="820" height="240" rx="14" fill="none" stroke="#21262d"/>
+
+  <!-- scanline shimmer -->
+  <rect x="0" y="0" width="820" height="2" fill="#39c5cf" opacity="0.5">
+    <animate attributeName="y" values="0;240;0" dur="5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;0.5;0" dur="5s" repeatCount="indefinite"/>
+  </rect>
+
+  <text x="410" y="40" text-anchor="middle" fill="#8b949e" font-size="13" letter-spacing="3">
+    A U T O M A T E D   W E B   S E C U R I T Y   A U D I T O R
+  </text>
+
+  <!-- typewriter title -->
+  <g clip-path="url(#reveal)">
+    <text x="410" y="116" text-anchor="middle" fill="url(#grad)"
+          font-size="76" font-weight="bold" letter-spacing="2">WebScan</text>
+  </g>
+  <!-- blinking caret after the title reveal -->
+  <rect x="619" y="60" width="6" height="76" fill="#7ee787" opacity="0">
+    <animate attributeName="opacity" values="0;0;1" keyTimes="0;0.12;0.13" dur="1.4s" fill="freeze"/>
+    <animate attributeName="opacity" values="1;0;1" dur="1s" begin="1.4s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- animated gradient underline -->
+  <rect x="195" y="132" width="0" height="3" rx="2" fill="url(#grad)">
+    <animate attributeName="width" from="0" to="430" dur="1.1s" begin="0.4s"
+             fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+  </rect>
+
+    <text x="410" y="168" text-anchor="middle" fill="#7ee787" font-size="18" font-family="SFMono-Regular,Consolas,monospace" opacity="0">async web security scanner<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0.000;0.000;0.031;0.219;0.250;1.000" dur="9.6s" repeatCount="indefinite"/></text>
+  <text x="410" y="168" text-anchor="middle" fill="#7ee787" font-size="18" font-family="SFMono-Regular,Consolas,monospace" opacity="0">14 plugins · 5 report formats<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0.000;0.250;0.281;0.469;0.500;1.000" dur="9.6s" repeatCount="indefinite"/></text>
+  <text x="410" y="168" text-anchor="middle" fill="#7ee787" font-size="18" font-family="SFMono-Regular,Consolas,monospace" opacity="0">safe mode · stealth · anonymised reports<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0.000;0.500;0.531;0.719;0.750;1.000" dur="9.6s" repeatCount="indefinite"/></text>
+  <text x="410" y="168" text-anchor="middle" fill="#7ee787" font-size="18" font-family="SFMono-Regular,Consolas,monospace" opacity="0">for site owners, bug hunters and researchers<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0.000;0.750;0.781;0.969;1.000;1.000" dur="9.6s" repeatCount="indefinite"/></text>
+
+  <!-- severity dots pulsing -->
+  <g transform="translate(346, 200)">
+    <circle cx="0"  cy="0" r="6" fill="#da3633"><animate attributeName="opacity" values="0.3;1;0.3" dur="2s" begin="0s"   repeatCount="indefinite"/></circle>
+    <circle cx="28" cy="0" r="6" fill="#db6d28"><animate attributeName="opacity" values="0.3;1;0.3" dur="2s" begin="0.4s" repeatCount="indefinite"/></circle>
+    <circle cx="56" cy="0" r="6" fill="#d29922"><animate attributeName="opacity" values="0.3;1;0.3" dur="2s" begin="0.8s" repeatCount="indefinite"/></circle>
+    <circle cx="84" cy="0" r="6" fill="#58a6ff"><animate attributeName="opacity" values="0.3;1;0.3" dur="2s" begin="1.2s" repeatCount="indefinite"/></circle>
+    <circle cx="112" cy="0" r="6" fill="#3fb950"><animate attributeName="opacity" values="0.3;1;0.3" dur="2s" begin="1.6s" repeatCount="indefinite"/></circle>
+  </g>
+</svg>

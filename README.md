@@ -1,15 +1,6 @@
 <div align="center">
 
-```
-██╗    ██╗███████╗██████╗ ███████╗ ██████╗ █████╗ ███╗   ██╗
-██║    ██║██╔════╝██╔══██╗██╔════╝██╔════╝██╔══██╗████╗  ██║
-██║ █╗ ██║█████╗  ██████╔╝███████╗██║     ███████║██╔██╗ ██║
-██║███╗██║██╔══╝  ██╔══██╗╚════██║██║     ██╔══██║██║╚██╗██║
-╚███╔███╔╝███████╗██████╔╝███████║╚██████╗██║  ██║██║ ╚████║
- ╚══╝╚══╝ ╚══════╝╚═════╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝
-```
-
-### Automated async web security scanner for pentesters & developers
+<img src="assets/header.svg" alt="WebScan — automated web security auditor" width="820"/>
 
 *Crawl → discover → audit. 14 plugins, 5 report formats, polite defaults.*
 
