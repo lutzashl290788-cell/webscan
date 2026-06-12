@@ -11,6 +11,7 @@ from typing import NoReturn
 
 import aiohttp
 
+from webscan.anonymize import anonymize_report
 from webscan.auth import AuthConfig, LoginError, PreparedAuth, prepare_auth
 from webscan.crawler import CrawlConfig, Crawler
 from webscan.engine import ScanEngine
@@ -267,6 +268,12 @@ Examples
         metavar="LEVEL",
         help="Only show findings at or above this severity in the console summary.",
     )
+    og.add_argument(
+        "--anonymize",
+        action="store_true",
+        help="Strip local paths, hostname/username and private IPs from reports "
+        "before writing them (GDPR-friendly, safe to share externally).",
+    )
 
     # --- Performance ---
     perfg = parser.add_argument_group("Performance")
@@ -494,6 +501,11 @@ async def _run(args: argparse.Namespace) -> int:
     if not quiet:
         print()  # end progress line
         print()
+
+    if args.anonymize:
+        report = anonymize_report(report)
+        if not quiet:
+            print("  Anonymize   : on (paths, host/user and private IPs redacted)")
 
     reporter = Reporter(report)
 
