@@ -161,6 +161,12 @@ Examples
     # --- Network ---
     ng = parser.add_argument_group("Network & evasion")
     ng.add_argument(
+        "--safe-mode",
+        action="store_true",
+        help="Gentle, polite scan: low rate limit, honest User-Agent, lower "
+        "concurrency and robots.txt respected. Recommended for non-experts.",
+    )
+    ng.add_argument(
         "--proxy",
         metavar="URL",
         help="Route all requests through a proxy, e.g. http://127.0.0.1:8080 "
@@ -410,15 +416,28 @@ async def _run(args: argparse.Namespace) -> int:
             bits.append(f"{len(auth.headers)} header(s)")
         print(f"  Auth        : {', '.join(bits) or 'configured'}")
 
+    # Safe Mode: a gentle, polite preset for non-experts. Caps the request
+    # rate, keeps an honest User-Agent, lowers concurrency and respects
+    # robots.txt — unless the user has overridden any of these explicitly.
+    rate_limit = args.rate_limit
+    if args.safe_mode:
+        if rate_limit <= 0:
+            rate_limit = 2.0  # at most ~2 requests/second
+        if args.concurrency > 4:
+            args.concurrency = 4
+        args.ignore_robots = False  # always be polite in safe mode
+        if not args.quiet:
+            print("  Safe Mode   : on (polite rate, honest UA, robots respected)")
+
     # Resolve network options. A proxy is wired in via aiohttp's trust_env,
     # so we publish it through the standard proxy environment variables.
     net = NetConfig(
         proxy=args.proxy or "",
         user_agent=args.user_agent or "",
-        random_agent=args.random_agent,
+        random_agent=args.random_agent and not args.safe_mode,
         delay=args.delay,
         random_delay=args.random_delay,
-        rate_limit=args.rate_limit,
+        rate_limit=rate_limit,
         verify_ssl=not args.no_verify_ssl,
     )
     if net.proxy:
