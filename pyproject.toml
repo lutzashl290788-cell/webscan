@@ -25,18 +25,44 @@ classifiers = [
 ]
 dependencies = [
     "aiohttp>=3.9.0",
+    "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4",
     "pytest-asyncio>=0.23",
+    "pytest-cov>=4.1",
     "mypy>=1.8",
     "ruff>=0.3",
+    "types-PyYAML>=6.0",
 ]
 
 [project.scripts]
 webscan = "webscan.cli:main"
+
+# Built-in plugins are registered here so they are discovered via importlib
+# entry points; third-party packages can add their own under the same group.
+[project.entry-points."webscan.plugins"]
+config_files = "webscan.plugins.config_files:ConfigFilesPlugin"
+secrets = "webscan.plugins.secrets:SecretsPlugin"
+headers = "webscan.plugins.headers:HeadersPlugin"
+directories = "webscan.plugins.directories:DirectoriesPlugin"
+sql_injection = "webscan.plugins.sql_injection:SqlInjectionPlugin"
+xss = "webscan.plugins.xss:XssPlugin"
+path_traversal = "webscan.plugins.path_traversal:PathTraversalPlugin"
+open_redirect = "webscan.plugins.open_redirect:OpenRedirectPlugin"
+ssrf = "webscan.plugins.ssrf:SsrfPlugin"
+cors = "webscan.plugins.cors:CorsPlugin"
+cookies = "webscan.plugins.cookies:CookiesPlugin"
+http_methods = "webscan.plugins.http_methods:HttpMethodsPlugin"
+ssl_tls = "webscan.plugins.ssl_tls:SslTlsPlugin"
+security_txt = "webscan.plugins.security_txt:SecurityTxtPlugin"
+tech_fingerprint = "webscan.plugins.tech_fingerprint:TechFingerprintPlugin"
+robots_sitemap = "webscan.plugins.robots_sitemap:RobotsSitemapPlugin"
+subdomains = "webscan.plugins.subdomains:SubdomainsPlugin"
+graphql = "webscan.plugins.graphql:GraphqlPlugin"
+cve_lookup = "webscan.plugins.cve_lookup:CveLookupPlugin"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -60,3 +86,17 @@ select = ["E", "F", "I", "N", "UP", "ANN", "BLE", "C4", "PTH"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+# ─── Coverage ────────────────────────────────────────────────────────────────
+[tool.coverage.run]
+source = ["webscan"]
+omit = ["webscan/venv/*", "*/__init__.py"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]

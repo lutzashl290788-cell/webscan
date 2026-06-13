@@ -33,5 +33,5 @@ jobs:
       - name: Type-check (mypy)
         run: mypy webscan
 
-      - name: Tests (pytest)
-        run: pytest -q
+      - name: Tests (pytest + coverage gate)
+        run: pytest -q --cov=webscan --cov-report=term-missing --cov-fail-under=80

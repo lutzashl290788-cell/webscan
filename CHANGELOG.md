@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`cve_lookup` plugin** (opt-in): maps software/version banners (Server,
+  X-Powered-By) to known CVEs via the NVD API, reporting the CVE id, year,
+  description and CVSS severity, each linked to its official record on
+  [cve.org](https://www.cve.org). (#28)
+- **`graphql` plugin** (opt-in): detects GraphQL endpoints with introspection
+  enabled (full-schema disclosure) across common paths. (#11)
+- **JWT and generic `api_key=`/secret detection** in the `secrets` plugin. (#10)
+- **Retry with exponential backoff** (`--retries`, `--retry-backoff`) for
+  network-heavy lookups, riding out transient timeouts and `429`/`5xx`. (#16)
+- **Entry-point plugin discovery**: built-ins are registered under the
+  `webscan.plugins` entry-point group and discovered via `importlib.metadata`,
+  so third-party packages can add plugins. (#17)
+- **YAML config profiles** (`--config`, `--profile`): reusable scan settings;
+  CLI flags override file values, which override built-in defaults. (#19)
+- **Published Docker image**: CI builds and pushes to GHCR on `main`/tags. (#20)
+- **Coverage gate in CI** (`--cov-fail-under=80`) plus tests for the engine, CLI,
+  config/retry layers and previously-untested plugins. (#23)
 - **`--explain`**: prints a plain-language, jargon-free explanation under each
   finding so non-experts understand what it means and why it matters (offline,
   no LLM dependency).

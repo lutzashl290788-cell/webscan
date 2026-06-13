@@ -25,6 +25,12 @@ class FakeHeaders:
             return values
         return [] if default is None else default
 
+    def __getitem__(self, key: str) -> str:
+        for k, v in self._items:
+            if k.lower() == key.lower():
+                return v
+        raise KeyError(key)
+
     def __contains__(self, key: str) -> bool:
         return any(k.lower() == key.lower() for k, _ in self._items)
 
@@ -67,4 +73,8 @@ class FakeSession:
 
     def options(self, url: str, **kwargs: object) -> FakeResponse:
         self.requests.append(("OPTIONS", url, kwargs))
+        return self._response
+
+    def post(self, url: str, **kwargs: object) -> FakeResponse:
+        self.requests.append(("POST", url, kwargs))
         return self._response

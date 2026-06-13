@@ -78,6 +78,16 @@ PLAIN_EXPLANATIONS: dict[str, str] = {
         "Your robots.txt publicly lists private-looking paths. robots.txt is "
         "visible to everyone, so it advertises exactly what you wanted hidden."
     ),
+    "graphql": (
+        "Your GraphQL API lets anyone download its full blueprint (every command "
+        "and data field). Turning that off in production makes it much harder for "
+        "attackers to find weak spots."
+    ),
+    "cve_lookup": (
+        "The software version your site advertises has publicly known "
+        "vulnerabilities (CVEs). Attackers scan for exactly this — update to a "
+        "patched version."
+    ),
 }
 
 

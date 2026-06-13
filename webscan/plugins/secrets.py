@@ -32,6 +32,18 @@ _SECRET_PATTERNS: list[tuple[str, Severity, re.Pattern[str]]] = [
     ("Google OAuth client secret", Severity.HIGH, re.compile(r"\bGOCSPX-[0-9A-Za-z_\-]{20,}")),
     ("Private key block", Severity.CRITICAL,
      re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----")),
+    # A JWT (three base64url segments, header beginning "eyJ" == '{"'). May carry
+    # session claims; treat an exposed one as a leaked credential.
+    ("JSON Web Token (JWT)", Severity.MEDIUM,
+     re.compile(r"\beyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}")),
+    # Generic "api_key = '...'" / "secret: \"...\"" assignments with a long value.
+    # Quoted + length-bounded to keep false positives low.
+    ("Generic API key / secret", Severity.MEDIUM, re.compile(
+        r"""(?ix)
+        \b(?:api[_-]?key|access[_-]?token|secret[_-]?key|client[_-]?secret|auth[_-]?token)\b
+        ['"]?\s*[:=]\s*['"][A-Za-z0-9_\-]{16,}['"]
+        """,
+    )),
 ]
 
 _MAX_SCRIPTS = 15  # bound the number of external JS files fetched per target

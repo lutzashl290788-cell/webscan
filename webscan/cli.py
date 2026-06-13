@@ -6,6 +6,7 @@ import asyncio
 import os
 import ssl as ssl_lib
 import sys
+from importlib.metadata import entry_points
 from pathlib import Path
 from typing import NoReturn
 
@@ -13,6 +14,7 @@ import aiohttp
 
 from webscan.anonymize import anonymize_report
 from webscan.auth import AuthConfig, LoginError, PreparedAuth, prepare_auth
+from webscan.config import ConfigError, load_profile
 from webscan.crawler import CrawlConfig, Crawler
 from webscan.engine import ScanEngine
 from webscan.models import SEVERITY_ORDER, ScanReport, Severity
@@ -21,7 +23,9 @@ from webscan.plugins.base import BasePlugin
 from webscan.plugins.config_files import ConfigFilesPlugin
 from webscan.plugins.cookies import CookiesPlugin
 from webscan.plugins.cors import CorsPlugin
+from webscan.plugins.cve_lookup import CveLookupPlugin
 from webscan.plugins.directories import DirectoriesPlugin
+from webscan.plugins.graphql import GraphqlPlugin
 from webscan.plugins.headers import HeadersPlugin
 from webscan.plugins.http_methods import HttpMethodsPlugin
 from webscan.plugins.open_redirect import OpenRedirectPlugin
@@ -36,6 +40,7 @@ from webscan.plugins.subdomains import SubdomainsPlugin
 from webscan.plugins.tech_fingerprint import TechFingerprintPlugin
 from webscan.plugins.xss import XssPlugin
 from webscan.reporter import Reporter
+from webscan.retry import RetryConfig
 
 # Shown on every interactive run. WebScan is an authorised-testing tool; this
 # notice makes the operator's responsibility explicit and discourages misuse.
@@ -53,9 +58,12 @@ def _disclaimer_text() -> str:
     return _LEGAL_DISCLAIMER
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Plugin registry — add new plugins here
+# Plugin registry
 # ──────────────────────────────────────────────────────────────────────────────
-ALL_PLUGINS: dict[str, type[BasePlugin]] = {
+# Built-in plugins, shipped in this package. Third parties can register their own
+# under the ``webscan.plugins`` entry-point group (see _discover_plugins); those
+# are merged on top of these at import time.
+_BUILTIN_PLUGINS: dict[str, type[BasePlugin]] = {
     "config_files":  ConfigFilesPlugin,
     "secrets":       SecretsPlugin,
     "headers":       HeadersPlugin,
@@ -73,7 +81,44 @@ ALL_PLUGINS: dict[str, type[BasePlugin]] = {
     "tech_fingerprint": TechFingerprintPlugin,
     "robots_sitemap": RobotsSitemapPlugin,
     "subdomains":    SubdomainsPlugin,
+    "graphql":       GraphqlPlugin,
+    "cve_lookup":    CveLookupPlugin,
 }
+
+
+def _discover_plugins() -> dict[str, type[BasePlugin]]:
+    """Discover plugins registered under the ``webscan.plugins`` entry-point group.
+
+    Each entry point must resolve to a :class:`BasePlugin` subclass. Discovery is
+    fully fail-safe: a broken or missing entry point is skipped rather than
+    aborting startup. Built-ins are always available even if metadata is absent
+    (e.g. running from a source checkout that has not been reinstalled).
+    """
+    discovered: dict[str, type[BasePlugin]] = {}
+    try:
+        eps = entry_points(group="webscan.plugins")
+    except Exception:  # noqa: BLE001 — metadata access must never crash the CLI
+        return discovered
+    for ep in eps:
+        try:
+            cls = ep.load()
+        except Exception:  # noqa: BLE001 — skip a single bad plugin, keep the rest
+            continue
+        if isinstance(cls, type) and issubclass(cls, BasePlugin):
+            discovered[ep.name] = cls
+    return discovered
+
+
+# Effective registry: built-ins, with entry-point plugins merged on top.
+ALL_PLUGINS: dict[str, type[BasePlugin]] = {**_BUILTIN_PLUGINS, **_discover_plugins()}
+
+# Plugins excluded from the default run (opt-in only): network-heavy or
+# rate-limited external lookups the user should request explicitly.
+_OPT_IN_PLUGINS = {"cve_lookup", "graphql"}
+_DEFAULT_PLUGINS = [name for name in ALL_PLUGINS if name not in _OPT_IN_PLUGINS]
+
+# Supported report output formats.
+_OUTPUT_FORMATS = ["json", "md", "html", "sarif", "csv"]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -95,6 +140,7 @@ Examples
 """,
     )
 
+    _add_config_args(parser)
     _add_target_args(parser)
     _add_crawler_args(parser)
     _add_auth_args(parser)
@@ -103,6 +149,21 @@ Examples
     _add_output_args(parser)
     _add_performance_args(parser)
     return parser
+
+
+def _add_config_args(parser: argparse.ArgumentParser) -> None:
+    cg = parser.add_argument_group("Config file")
+    cg.add_argument(
+        "--config",
+        metavar="FILE",
+        help="YAML config file with reusable scan settings. CLI flags override "
+        "values from the file.",
+    )
+    cg.add_argument(
+        "--profile",
+        metavar="NAME",
+        help="Named profile to select from a config file's 'profiles:' section.",
+    )
 
 
 def _add_target_args(parser: argparse.ArgumentParser) -> None:
@@ -235,6 +296,22 @@ def _add_network_args(parser: argparse.ArgumentParser) -> None:
         help="Cap requests to at most N per second (sets a minimum delay).",
     )
     ng.add_argument(
+        "--retries",
+        type=int,
+        default=2,
+        metavar="N",
+        help="Retries on transient errors (timeouts, 429/5xx) for external "
+        "lookups, with exponential backoff (default: 2).",
+    )
+    ng.add_argument(
+        "--retry-backoff",
+        type=float,
+        default=0.5,
+        metavar="SEC",
+        help="Base backoff delay before the first retry; doubles each attempt "
+        "(default: 0.5).",
+    )
+    ng.add_argument(
         "--no-verify-ssl",
         action="store_true",
         help="Skip TLS certificate verification (default for security scans).",
@@ -252,10 +329,11 @@ def _add_plugin_args(parser: argparse.ArgumentParser) -> None:
         "--plugins",
         nargs="+",
         choices=list(ALL_PLUGINS.keys()),
-        default=list(ALL_PLUGINS.keys()),
+        default=_DEFAULT_PLUGINS,
         metavar="NAME",
         help=(
-            f"Plugins to enable (default: all). "
+            f"Plugins to enable (default: all except opt-in). "
+            f"Opt-in (network-heavy): {', '.join(sorted(_OPT_IN_PLUGINS))}. "
             f"Available: {', '.join(ALL_PLUGINS.keys())}."
         ),
     )
@@ -276,7 +354,7 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
     og.add_argument(
         "--format",
         nargs="+",
-        choices=["json", "md", "html", "sarif", "csv"],
+        choices=_OUTPUT_FORMATS,
         default=["json", "md"],
         metavar="FMT",
         help="Output format(s): json, md, html, sarif, csv (default: json md).",
@@ -486,12 +564,19 @@ async def _resolve_auth(args: argparse.Namespace) -> PreparedAuth:
 
 def _make_plugins(args: argparse.Namespace) -> list[BasePlugin]:
     """Instantiate the selected plugins, honouring plugin-specific options."""
+    retry = RetryConfig(
+        retries=max(0, args.retries),
+        base_delay=max(0.0, args.retry_backoff),
+    )
     plugins: list[BasePlugin] = []
     for name in args.plugins:
+        cls = ALL_PLUGINS[name]
         if name == "subdomains":
             plugins.append(SubdomainsPlugin(bruteforce=not args.no_bruteforce))
+        elif name in {"cve_lookup", "graphql"}:
+            plugins.append(cls(retry=retry))  # type: ignore[call-arg]
         else:
-            plugins.append(ALL_PLUGINS[name]())
+            plugins.append(cls())
     return plugins
 
 
@@ -634,8 +719,33 @@ def _print_banner(
 # Entry points
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _apply_config(parser: argparse.ArgumentParser) -> None:
+    """Fold a --config profile into the parser defaults (CLI still overrides).
+
+    Resolved before the final parse so precedence is: explicit CLI flag >
+    config-file value > built-in default.
+    """
+    pre, _ = parser.parse_known_args()
+    if not pre.config:
+        return
+    try:
+        profile = load_profile(pre.config, pre.profile)
+    except ConfigError as exc:
+        _die(str(exc))
+
+    bad_plugins = [p for p in profile.get("plugins", []) if p not in ALL_PLUGINS]
+    if bad_plugins:
+        _die(f"Unknown plugin(s) in config: {', '.join(bad_plugins)}")
+    bad_formats = [f for f in profile.get("format", []) if f not in _OUTPUT_FORMATS]
+    if bad_formats:
+        _die(f"Unknown format(s) in config: {', '.join(bad_formats)}")
+
+    parser.set_defaults(**profile)
+
+
 def main() -> None:
     parser = _build_parser()
+    _apply_config(parser)
     args = parser.parse_args()
 
     if args.list_plugins:

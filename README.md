@@ -2,7 +2,7 @@
 
 <img src="assets/header.svg" alt="WebScan — automated web security auditor" width="820"/>
 
-*Crawl → discover → audit. 16 plugins, 5 report formats, polite defaults.*
+*Crawl → discover → audit. 19 plugins, 5 report formats, polite defaults.*
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lutzashl290788-cell/webscan/ci.yml?style=flat-square&label=CI&logo=githubactions&logoColor=white)](https://github.com/lutzashl290788-cell/webscan/actions)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
@@ -112,7 +112,7 @@ $ webscan -t https://example.com --plugins headers cookies http_methods ssl_tls 
 | Plugin | Checks |
 |--------|--------|
 | `config_files` | 50+ exposed files: `.env`, `.git/config`, `wp-config.php`, SSH keys, SQL dumps |
-| `secrets` | Leaked API keys in HTML/JS: AWS, Anthropic, OpenAI, Stripe, GitHub, Slack (redacted) |
+| `secrets` | Leaked API keys in HTML/JS: AWS, Anthropic, OpenAI, Stripe, GitHub, Slack, JWTs, generic `api_key=` (redacted) |
 | `headers` | CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy |
 | `directories` | `/admin`, `/backup`, `/.git/`, phpMyAdmin and open directory listings |
 | `sql_injection` | Error-based, **boolean-blind** and **time-blind** — MySQL / PostgreSQL / MSSQL / Oracle |
@@ -127,8 +127,16 @@ $ webscan -t https://example.com --plugins headers cookies http_methods ssl_tls 
 | `tech_fingerprint` | Server / framework / CMS detection from headers, cookies & HTML |
 | `subdomains` | DNS brute force + Certificate Transparency logs (crt.sh) |
 | `robots_sitemap` | robots.txt / sitemap.xml hygiene + sensitive paths leaked via Disallow |
+| `graphql` | GraphQL endpoints with introspection enabled (schema disclosure) — *opt-in* |
+| `cve_lookup` | Maps detected software/versions to known CVEs via NVD, linked to [cve.org](https://www.cve.org) — *opt-in* |
 
 > Run `webscan --list-plugins` to see them all, or pick a subset with `--plugins`.
+>
+> **Opt-in plugins** (`graphql`, `cve_lookup`) make extra/external requests, so
+> they're excluded from the default run — enable them explicitly, e.g.
+> `--plugins cve_lookup graphql`. Plugins are discovered via the
+> `webscan.plugins` [entry-point group](pyproject.toml), so third-party packages
+> can register their own.
 
 ---
 
@@ -191,11 +199,17 @@ Network & evasion
   --delay SEC            Delay before each target
   --random-delay         Randomise the delay ×0.5–×1.5
   --rate-limit N         Cap at N requests per second
+  --retries N            Retries on transient errors (429/5xx, timeouts) (default: 2)
+  --retry-backoff SEC    Base backoff before first retry, doubles each attempt (default: 0.5)
   --no-verify-ssl        Skip TLS certificate verification
   --no-bruteforce        Disable DNS brute force (subdomains plugin)
 
+Config file
+  --config FILE          YAML config with reusable settings (CLI flags override)
+  --profile NAME         Named profile to select from the config's profiles:
+
 Plugins & output
-  --plugins NAME [...]   Plugins to run (default: all)
+  --plugins NAME [...]   Plugins to run (default: all except opt-in)
   --list-plugins         List plugins and exit
   -o PATH                Report base path (no extension)
   --format FMT [...]     json | md | html | sarif | csv  (default: json md)
@@ -213,6 +227,38 @@ Performance
 ```
 
 </details>
+
+---
+
+## 🗂️ Config profiles
+
+Keep reusable scan settings in a YAML file instead of long command lines. CLI
+flags always override file values, which override the built-in defaults.
+
+```yaml
+# webscan.yml — named profiles, selected with --profile
+profiles:
+  quick:
+    plugins: [headers, cookies, ssl_tls]
+    concurrency: 30
+  deep:
+    plugins: [headers, sql_injection, xss, ssrf, cve_lookup]
+    crawl: true
+    depth: 3
+    format: [json, sarif]
+```
+
+```bash
+webscan -t https://example.com --config webscan.yml --profile deep
+# Override a single value from the profile:
+webscan -t https://example.com --config webscan.yml --profile deep --concurrency 5
+```
+
+A flat file (keys at the top level, no `profiles:`) is treated as a single
+default profile. Recognised keys: `plugins`, `concurrency`, `timeout`, `format`,
+`output`, `crawl`, `depth`, `max_urls`, `scope`, `exclude`, `min_severity`,
+`fail_on`, `safe_mode`, `delay`, `rate_limit`, `retries`, `retry_backoff`,
+`verbose`, `quiet`, `anonymize`.
 
 ---
 
@@ -256,12 +302,19 @@ jobs:
 
 ### Docker
 
+A container image is published to the GitHub Container Registry on every push to
+`main` and on version tags, so you can run WebScan with zero local install:
+
 ```bash
+# Pull and run the published image
+docker run --rm ghcr.io/lutzashl290788-cell/webscan -t https://example.com
+
+# …or build it yourself
 docker build -t webscan .
 docker run --rm webscan -t https://example.com
 
 # Mount a directory to keep reports
-docker run --rm -v "$(pwd)/reports:/reports" webscan \
+docker run --rm -v "$(pwd)/reports:/reports" ghcr.io/lutzashl290788-cell/webscan \
   -t https://example.com -o /reports/scan --format json html
 ```
 
