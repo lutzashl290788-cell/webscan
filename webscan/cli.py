@@ -15,7 +15,7 @@ from webscan.anonymize import anonymize_report
 from webscan.auth import AuthConfig, LoginError, PreparedAuth, prepare_auth
 from webscan.crawler import CrawlConfig, Crawler
 from webscan.engine import ScanEngine
-from webscan.models import SEVERITY_ORDER, Severity
+from webscan.models import SEVERITY_ORDER, ScanReport, Severity
 from webscan.net import NetConfig, pick_user_agent
 from webscan.plugins.base import BasePlugin
 from webscan.plugins.config_files import ConfigFilesPlugin
@@ -417,49 +417,19 @@ async def _crawl_targets(
     return discovered or seeds
 
 
-async def _run(args: argparse.Namespace) -> int:
-    targets = _load_targets(args)
-
-    if not targets:
-        _die("No targets specified. Use -t URL or -f FILE.")
-
-    # Resolve authentication (static material + optional form login).
-    auth_config = AuthConfig(
-        cookie=args.cookie or "",
-        headers=args.header,
-        basic_auth=args.basic_auth or "",
-        login_url=args.login_url or "",
-        login_data=args.login_data or "",
-    )
-    timeout = aiohttp.ClientTimeout(total=args.timeout, connect=min(5, args.timeout))
-    try:
-        auth = await prepare_auth(auth_config, _build_ssl_ctx(), timeout)
-    except LoginError as exc:
-        _die(str(exc))
-
-    if not args.quiet and auth_config.is_configured():
-        bits = []
-        if auth.cookies:
-            bits.append(f"{len(auth.cookies)} cookie(s)")
-        if auth.headers:
-            bits.append(f"{len(auth.headers)} header(s)")
-        print(f"  Auth        : {', '.join(bits) or 'configured'}")
-
-    # Safe Mode: a gentle, polite preset for non-experts. Caps the request
-    # rate, keeps an honest User-Agent, lowers concurrency and respects
-    # robots.txt — unless the user has overridden any of these explicitly.
-    rate_limit = args.rate_limit
+def _apply_safe_mode(args: argparse.Namespace) -> float:
+    """Apply the polite Safe-Mode preset and return the effective rate limit."""
+    rate_limit: float = args.rate_limit
     if args.safe_mode:
         if rate_limit <= 0:
             rate_limit = 2.0  # at most ~2 requests/second
-        if args.concurrency > 4:
-            args.concurrency = 4
+        args.concurrency = min(args.concurrency, 4)
         args.ignore_robots = False  # always be polite in safe mode
-        if not args.quiet:
-            print("  Safe Mode   : on (polite rate, honest UA, robots respected)")
+    return rate_limit
 
-    # Resolve network options. A proxy is wired in via aiohttp's trust_env,
-    # so we publish it through the standard proxy environment variables.
+
+def _resolve_net(args: argparse.Namespace, rate_limit: float) -> NetConfig:
+    """Build the network config and publish proxy env vars for aiohttp."""
     net = NetConfig(
         proxy=args.proxy or "",
         user_agent=args.user_agent or "",
@@ -472,24 +442,90 @@ async def _run(args: argparse.Namespace) -> int:
     if net.proxy:
         os.environ["HTTP_PROXY"] = net.proxy
         os.environ["HTTPS_PROXY"] = net.proxy
-        if not args.quiet:
-            print(f"  Proxy       : {net.proxy}")
+    return net
 
-    if args.crawl:
-        if not args.quiet:
-            print(f"  Crawling {len(targets)} seed(s) (depth={args.depth}) …")
-        targets = await _crawl_targets(targets, args, auth, net)
-        if not args.quiet:
-            print(f"  Discovered {len(targets)} URL(s) to scan.")
-            print()
 
+async def _resolve_auth(args: argparse.Namespace) -> PreparedAuth:
+    """Resolve static credentials and perform an optional form login."""
+    auth_config = AuthConfig(
+        cookie=args.cookie or "",
+        headers=args.header,
+        basic_auth=args.basic_auth or "",
+        login_url=args.login_url or "",
+        login_data=args.login_data or "",
+    )
+    timeout = aiohttp.ClientTimeout(total=args.timeout, connect=min(5, args.timeout))
+    try:
+        return await prepare_auth(auth_config, _build_ssl_ctx(), timeout)
+    except LoginError as exc:
+        _die(str(exc))
+
+
+def _make_plugins(args: argparse.Namespace) -> list[BasePlugin]:
+    """Instantiate the selected plugins, honouring plugin-specific options."""
     plugins: list[BasePlugin] = []
     for name in args.plugins:
         if name == "subdomains":
             plugins.append(SubdomainsPlugin(bruteforce=not args.no_bruteforce))
         else:
             plugins.append(ALL_PLUGINS[name]())
+    return plugins
+
+
+def _write_reports(reporter: Reporter, args: argparse.Namespace) -> None:
+    """Write every requested report format to disk."""
+    writers = {
+        "json": (".json", reporter.to_json),
+        "md": (".md", reporter.to_markdown),
+        "html": (".html", reporter.to_html),
+        "sarif": (".sarif", reporter.to_sarif),
+        "csv": (".csv", reporter.to_csv),
+    }
+    base = Path(args.output)
+    base.parent.mkdir(parents=True, exist_ok=True)
+    for fmt in args.format:
+        suffix, writer = writers[fmt]
+        path = base.with_suffix(suffix)
+        writer(path)
+        if not args.quiet:
+            print(f"  ✍  {fmt.upper():<5} report : {path}")
+    if not args.quiet:
+        print()
+
+
+def _exit_code(report: ScanReport, args: argparse.Namespace) -> int:
+    """Return 1 if any finding meets the (default or --fail-on) threshold."""
+    level = Severity(args.fail_on) if args.fail_on else Severity.HIGH
+    threshold = SEVERITY_ORDER[level]
+    triggered = any(
+        SEVERITY_ORDER.get(f.severity, 99) <= threshold
+        for tr in report.targets
+        for f in tr.findings
+    )
+    return 1 if triggered else 0
+
+
+async def _run(args: argparse.Namespace) -> int:
+    targets = _load_targets(args)
+    if not targets:
+        _die("No targets specified. Use -t URL or -f FILE.")
+
     quiet: bool = args.quiet
+    auth = await _resolve_auth(args)
+    rate_limit = _apply_safe_mode(args)
+    net = _resolve_net(args, rate_limit)
+
+    if not quiet:
+        _print_setup(args, auth, net)
+
+    if args.crawl:
+        if not quiet:
+            print(f"  Crawling {len(targets)} seed(s) (depth={args.depth}) …")
+        targets = await _crawl_targets(targets, args, auth, net)
+        if not quiet:
+            print(f"  Discovered {len(targets)} URL(s) to scan.\n")
+
+    plugins = _make_plugins(args)
 
     def _progress(target: str, done: int, total: int) -> None:
         if not quiet:
@@ -497,14 +533,7 @@ async def _run(args: argparse.Namespace) -> int:
             print(f"\r  [{bar}] {done}/{total} — {target[:60]:<60}", end="", flush=True)
 
     if not quiet:
-        print("╔══════════════════════════════════════════════════════════╗")
-        print("║              WebScan — Security Auditor                 ║")
-        print("╚══════════════════════════════════════════════════════════╝")
-        print(f"  Targets     : {len(targets)}")
-        print(f"  Plugins     : {', '.join(p.name for p in plugins)}")
-        print(f"  Concurrency : {args.concurrency}")
-        print(f"  Timeout     : {args.timeout}s")
-        print()
+        _print_banner(targets, plugins, args)
 
     engine = ScanEngine(
         plugins=plugins,
@@ -519,10 +548,8 @@ async def _run(args: argparse.Namespace) -> int:
         random_delay=net.random_delay,
     )
     report = await engine.scan_all(targets)
-
     if not quiet:
-        print()  # end progress line
-        print()
+        print("\n")
 
     if args.anonymize:
         report = anonymize_report(report)
@@ -531,66 +558,51 @@ async def _run(args: argparse.Namespace) -> int:
 
     reporter = Reporter(report)
 
-    # Print summary / detailed findings to stdout
     if not quiet:
         use_color = not args.no_color and sys.stdout.isatty()
         min_sev = Severity(args.min_severity) if args.min_severity else None
         print(f"  Scan completed  {report.scan_started} → {report.scan_finished}")
-        print(f"  Total findings  {report.total_findings}")
-        print()
+        print(f"  Total findings  {report.total_findings}\n")
         print(reporter.to_console_summary(color=use_color, min_severity=min_sev))
         print()
 
-    # Write report files
     if args.output:
-        base = Path(args.output)
-        base.parent.mkdir(parents=True, exist_ok=True)
+        _write_reports(reporter, args)
 
-        if "json" in args.format:
-            p = base.with_suffix(".json")
-            reporter.to_json(p)
-            if not quiet:
-                print(f"  ✍  JSON report : {p}")
+    return _exit_code(report, args)
 
-        if "md" in args.format:
-            p = base.with_suffix(".md")
-            reporter.to_markdown(p)
-            if not quiet:
-                print(f"  ✍  MD  report  : {p}")
 
-        if "html" in args.format:
-            p = base.with_suffix(".html")
-            reporter.to_html(p)
-            if not quiet:
-                print(f"  ✍  HTML report : {p}")
+def _print_setup(
+    args: argparse.Namespace, auth: PreparedAuth, net: NetConfig
+) -> None:
+    """Print the auth / safe-mode / proxy status lines before scanning."""
+    if (args.cookie or args.header or args.basic_auth or args.login_url) and (
+        auth.cookies or auth.headers
+    ):
+        bits = []
+        if auth.cookies:
+            bits.append(f"{len(auth.cookies)} cookie(s)")
+        if auth.headers:
+            bits.append(f"{len(auth.headers)} header(s)")
+        print(f"  Auth        : {', '.join(bits) or 'configured'}")
+    if args.safe_mode:
+        print("  Safe Mode   : on (polite rate, honest UA, robots respected)")
+    if net.proxy:
+        print(f"  Proxy       : {net.proxy}")
 
-        if "sarif" in args.format:
-            p = base.with_suffix(".sarif")
-            reporter.to_sarif(p)
-            if not quiet:
-                print(f"  ✍  SARIF report: {p}")
 
-        if "csv" in args.format:
-            p = base.with_suffix(".csv")
-            reporter.to_csv(p)
-            if not quiet:
-                print(f"  ✍  CSV report  : {p}")
-
-        if not quiet:
-            print()
-
-    # Non-zero exit when findings meet the failure threshold. Default: any
-    # CRITICAL or HIGH finding. --fail-on LEVEL lowers/raises that bar.
-    if args.fail_on:
-        threshold = SEVERITY_ORDER[Severity(args.fail_on)]
-    else:
-        threshold = SEVERITY_ORDER[Severity.HIGH]
-    triggered = any(
-        SEVERITY_ORDER.get(f.severity, 99) <= threshold
-        for tr in report.targets
-        for f in tr.findings
-    )
-    return 1 if triggered else 0
+def _print_banner(
+    targets: list[str], plugins: list[BasePlugin], args: argparse.Namespace
+) -> None:
+    """Print the scan header banner."""
+    print("╔══════════════════════════════════════════════════════════╗")
+    print("║              WebScan — Security Auditor                 ║")
+    print("╚══════════════════════════════════════════════════════════╝")
+    print(f"  Targets     : {len(targets)}")
+    print(f"  Plugins     : {', '.join(p.name for p in plugins)}")
+    print(f"  Concurrency : {args.concurrency}")
+    print(f"  Timeout     : {args.timeout}s")
+    print()
 
 
 # ──────────────────────────────────────────────────────────────────────────────
