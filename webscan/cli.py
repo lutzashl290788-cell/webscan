@@ -303,6 +303,11 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
         help="Only show findings at or above this severity in the console summary.",
     )
     og.add_argument(
+        "--explain",
+        action="store_true",
+        help="Print a plain-language explanation under each finding (beginner-friendly).",
+    )
+    og.add_argument(
         "--anonymize",
         action="store_true",
         help="Strip local paths, hostname/username and private IPs from reports "
@@ -581,7 +586,9 @@ async def _run(args: argparse.Namespace) -> int:
         min_sev = Severity(args.min_severity) if args.min_severity else None
         print(f"  Scan completed  {report.scan_started} → {report.scan_finished}")
         print(f"  Total findings  {report.total_findings}\n")
-        print(reporter.to_console_summary(color=use_color, min_severity=min_sev))
+        print(reporter.to_console_summary(
+            color=use_color, min_severity=min_sev, explain=args.explain
+        ))
         print()
 
     if args.output:

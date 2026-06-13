@@ -6,6 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from webscan.explanations import explain as plain_explain
 from webscan.models import SEVERITY_ORDER, Finding, ScanReport, Severity
 
 # Console / Markdown severity decorators
@@ -386,11 +387,13 @@ class Reporter:
         self,
         color: bool = False,
         min_severity: Severity | None = None,
+        explain: bool = False,
     ) -> str:
         """One-line-per-finding text for terminal output.
 
         :param color: Wrap severities in ANSI colour codes.
         :param min_severity: Hide findings less severe than this level.
+        :param explain: Print a plain-language explanation under each finding.
         """
         threshold = SEVERITY_ORDER.get(min_severity, 99) if min_severity else 99
         lines: list[str] = []
@@ -419,6 +422,10 @@ class Reporter:
                     )
                 else:
                     lines.append(f"      {emoji} [{badge}] {f.title}")
+                if explain:
+                    blurb = plain_explain(f.plugin, f.remediation)
+                    if blurb:
+                        lines.append(f"        ↳ {blurb}")
             for err in tr.errors:
                 lines.append(f"      ⚡ [ERROR   ] {err}")
         return "\n".join(lines)

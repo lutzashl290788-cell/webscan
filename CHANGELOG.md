@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`--explain`**: prints a plain-language, jargon-free explanation under each
+  finding so non-experts understand what it means and why it matters (offline,
+  no LLM dependency).
 - **`robots_sitemap` plugin**: analyses robots.txt / sitemap.xml for hygiene and
   flags sensitive paths accidentally advertised via `Disallow:`.
 - **`secrets` plugin**: detects leaked API keys / credentials in HTML and served

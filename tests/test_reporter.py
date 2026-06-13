@@ -171,3 +171,40 @@ def test_csv_escapes_commas_in_fields() -> None:
 
     rows = list(csv.reader(io.StringIO(reporter.to_csv())))
     assert rows[1][5] == "a, b, c with commas"
+
+
+def test_console_summary_explain_adds_plain_language() -> None:
+    reporter = Reporter(_make_report())
+
+    plain = reporter.to_console_summary(explain=False)
+    explained = reporter.to_console_summary(explain=True)
+
+    assert "↳" not in plain
+    assert "↳" in explained
+    # The config_files blurb mentions a sensitive file in plain terms.
+    assert "sensitive file" in explained.lower()
+
+
+def test_explain_falls_back_to_remediation() -> None:
+    from webscan.models import Finding, ScanReport, Severity, TargetResult
+
+    report = ScanReport(
+        total_findings=1,
+        targets=[
+            TargetResult(
+                target="https://example.com",
+                findings=[
+                    Finding(
+                        plugin="unknown_plugin",
+                        title="Some finding",
+                        severity=Severity.LOW,
+                        description="x",
+                        url="https://example.com",
+                        remediation="Do the recommended fix.",
+                    )
+                ],
+            )
+        ],
+    )
+    out = Reporter(report).to_console_summary(explain=True)
+    assert "Do the recommended fix." in out

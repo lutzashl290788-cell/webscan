@@ -200,6 +200,8 @@ Plugins & output
   -o PATH                Report base path (no extension)
   --format FMT [...]     json | md | html | sarif | csv  (default: json md)
   --min-severity LEVEL   critical | high | medium | low | info
+  --explain              Plain-language explanation under each finding (beginner-friendly)
+  --fail-on LEVEL        Exit 1 if any finding is at or above LEVEL
   --anonymize            Strip local paths, hostname and private IPs from reports
   --no-color             Disable ANSI colour
   -v                     Verbose
