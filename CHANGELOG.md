@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`robots_sitemap` plugin**: analyses robots.txt / sitemap.xml for hygiene and
+  flags sensitive paths accidentally advertised via `Disallow:`.
 - **`secrets` plugin**: detects leaked API keys / credentials in HTML and served
   JavaScript (AWS, Anthropic, OpenAI, Google, Stripe, GitHub, Slack, HuggingFace,
   private-key blocks). Matched secrets are redacted in the report.

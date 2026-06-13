@@ -2,7 +2,7 @@
 
 <img src="assets/header.svg" alt="WebScan — automated web security auditor" width="820"/>
 
-*Crawl → discover → audit. 15 plugins, 5 report formats, polite defaults.*
+*Crawl → discover → audit. 16 plugins, 5 report formats, polite defaults.*
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lutzashl290788-cell/webscan/ci.yml?style=flat-square&label=CI&logo=githubactions&logoColor=white)](https://github.com/lutzashl290788-cell/webscan/actions)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
@@ -126,6 +126,7 @@ $ webscan -t https://example.com --plugins headers cookies http_methods ssl_tls 
 | `ssl_tls` | Weak protocols (SSLv2/3, TLS 1.0/1.1), expired/expiring certs, missing HSTS |
 | `tech_fingerprint` | Server / framework / CMS detection from headers, cookies & HTML |
 | `subdomains` | DNS brute force + Certificate Transparency logs (crt.sh) |
+| `robots_sitemap` | robots.txt / sitemap.xml hygiene + sensitive paths leaked via Disallow |
 
 > Run `webscan --list-plugins` to see them all, or pick a subset with `--plugins`.
 

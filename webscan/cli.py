@@ -26,6 +26,7 @@ from webscan.plugins.headers import HeadersPlugin
 from webscan.plugins.http_methods import HttpMethodsPlugin
 from webscan.plugins.open_redirect import OpenRedirectPlugin
 from webscan.plugins.path_traversal import PathTraversalPlugin
+from webscan.plugins.robots_sitemap import RobotsSitemapPlugin
 from webscan.plugins.secrets import SecretsPlugin
 from webscan.plugins.security_txt import SecurityTxtPlugin
 from webscan.plugins.sql_injection import SqlInjectionPlugin
@@ -70,6 +71,7 @@ ALL_PLUGINS: dict[str, type[BasePlugin]] = {
     "ssl_tls":       SslTlsPlugin,
     "security_txt":  SecurityTxtPlugin,
     "tech_fingerprint": TechFingerprintPlugin,
+    "robots_sitemap": RobotsSitemapPlugin,
     "subdomains":    SubdomainsPlugin,
 }
 
