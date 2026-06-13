@@ -91,7 +91,17 @@ Examples
 """,
     )
 
-    # --- Targets ---
+    _add_target_args(parser)
+    _add_crawler_args(parser)
+    _add_auth_args(parser)
+    _add_network_args(parser)
+    _add_plugin_args(parser)
+    _add_output_args(parser)
+    _add_performance_args(parser)
+    return parser
+
+
+def _add_target_args(parser: argparse.ArgumentParser) -> None:
     tg = parser.add_argument_group("Targets (at least one required)")
     tg.add_argument(
         "-t", "--target",
@@ -105,7 +115,8 @@ Examples
         help="Plain-text file with one target URL per line (# comments allowed).",
     )
 
-    # --- Crawler ---
+
+def _add_crawler_args(parser: argparse.ArgumentParser) -> None:
     cg = parser.add_argument_group("Crawler")
     cg.add_argument(
         "--crawl",
@@ -144,7 +155,8 @@ Examples
         help="Ignore robots.txt rules while crawling.",
     )
 
-    # --- Authentication ---
+
+def _add_auth_args(parser: argparse.ArgumentParser) -> None:
     ag = parser.add_argument_group("Authentication")
     ag.add_argument(
         "--cookie",
@@ -174,7 +186,8 @@ Examples
         help='URL-encoded login body, e.g. "username=admin&password=secret".',
     )
 
-    # --- Network ---
+
+def _add_network_args(parser: argparse.ArgumentParser) -> None:
     ng = parser.add_argument_group("Network & evasion")
     ng.add_argument(
         "--safe-mode",
@@ -228,7 +241,8 @@ Examples
         help="Disable DNS subdomain brute force (subdomains plugin uses CT only).",
     )
 
-    # --- Plugins ---
+
+def _add_plugin_args(parser: argparse.ArgumentParser) -> None:
     pg = parser.add_argument_group("Plugins")
     pg.add_argument(
         "--plugins",
@@ -247,7 +261,8 @@ Examples
         help="Print available plugins and exit.",
     )
 
-    # --- Output ---
+
+def _add_output_args(parser: argparse.ArgumentParser) -> None:
     og = parser.add_argument_group("Output")
     og.add_argument(
         "-o", "--output",
@@ -297,7 +312,8 @@ Examples
         "(default: critical or high).",
     )
 
-    # --- Performance ---
+
+def _add_performance_args(parser: argparse.ArgumentParser) -> None:
     perfg = parser.add_argument_group("Performance")
     perfg.add_argument(
         "-c", "--concurrency",
@@ -313,8 +329,6 @@ Examples
         metavar="SEC",
         help="Per-request timeout in seconds (default: 10).",
     )
-
-    return parser
 
 
 # ──────────────────────────────────────────────────────────────────────────────
