@@ -15,7 +15,7 @@ from webscan.anonymize import anonymize_report
 from webscan.auth import AuthConfig, LoginError, PreparedAuth, prepare_auth
 from webscan.crawler import CrawlConfig, Crawler
 from webscan.engine import ScanEngine
-from webscan.models import Severity
+from webscan.models import SEVERITY_ORDER, Severity
 from webscan.net import NetConfig, pick_user_agent
 from webscan.plugins.base import BasePlugin
 from webscan.plugins.config_files import ConfigFilesPlugin
@@ -288,6 +288,13 @@ Examples
         action="store_true",
         help="Strip local paths, hostname/username and private IPs from reports "
         "before writing them (GDPR-friendly, safe to share externally).",
+    )
+    og.add_argument(
+        "--fail-on",
+        choices=["critical", "high", "medium", "low", "info"],
+        metavar="LEVEL",
+        help="Exit with code 1 if any finding is at or above LEVEL "
+        "(default: critical or high).",
     )
 
     # --- Performance ---
@@ -572,14 +579,18 @@ async def _run(args: argparse.Namespace) -> int:
         if not quiet:
             print()
 
-    # Non-zero exit if any critical/high findings
-    critical_or_high = sum(
-        1
+    # Non-zero exit when findings meet the failure threshold. Default: any
+    # CRITICAL or HIGH finding. --fail-on LEVEL lowers/raises that bar.
+    if args.fail_on:
+        threshold = SEVERITY_ORDER[Severity(args.fail_on)]
+    else:
+        threshold = SEVERITY_ORDER[Severity.HIGH]
+    triggered = any(
+        SEVERITY_ORDER.get(f.severity, 99) <= threshold
         for tr in report.targets
         for f in tr.findings
-        if f.severity.value in ("critical", "high")
     )
-    return 1 if critical_or_high > 0 else 0
+    return 1 if triggered else 0
 
 
 # ──────────────────────────────────────────────────────────────────────────────
