@@ -327,7 +327,8 @@ pip install -e ".[dev]"
 
 ## 🤝 Contributing
 
-PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Release history lives in
+[CHANGELOG.md](CHANGELOG.md).
 
 ```bash
 pip install -e ".[dev]"
