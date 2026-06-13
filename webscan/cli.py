@@ -26,6 +26,7 @@ from webscan.plugins.headers import HeadersPlugin
 from webscan.plugins.http_methods import HttpMethodsPlugin
 from webscan.plugins.open_redirect import OpenRedirectPlugin
 from webscan.plugins.path_traversal import PathTraversalPlugin
+from webscan.plugins.secrets import SecretsPlugin
 from webscan.plugins.security_txt import SecurityTxtPlugin
 from webscan.plugins.sql_injection import SqlInjectionPlugin
 from webscan.plugins.ssl_tls import SslTlsPlugin
@@ -55,6 +56,7 @@ def _disclaimer_text() -> str:
 # ──────────────────────────────────────────────────────────────────────────────
 ALL_PLUGINS: dict[str, type[BasePlugin]] = {
     "config_files":  ConfigFilesPlugin,
+    "secrets":       SecretsPlugin,
     "headers":       HeadersPlugin,
     "directories":   DirectoriesPlugin,
     "sql_injection": SqlInjectionPlugin,
