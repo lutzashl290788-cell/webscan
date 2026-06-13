@@ -2,7 +2,7 @@
 
 <img src="assets/header.svg" alt="WebScan — automated web security auditor" width="820"/>
 
-*Crawl → discover → audit. 14 plugins, 5 report formats, polite defaults.*
+*Crawl → discover → audit. 15 plugins, 5 report formats, polite defaults.*
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lutzashl290788-cell/webscan/ci.yml?style=flat-square&label=CI&logo=githubactions&logoColor=white)](https://github.com/lutzashl290788-cell/webscan/actions)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
@@ -112,6 +112,7 @@ $ webscan -t https://example.com --plugins headers cookies http_methods ssl_tls 
 | Plugin | Checks |
 |--------|--------|
 | `config_files` | 50+ exposed files: `.env`, `.git/config`, `wp-config.php`, SSH keys, SQL dumps |
+| `secrets` | Leaked API keys in HTML/JS: AWS, Anthropic, OpenAI, Stripe, GitHub, Slack (redacted) |
 | `headers` | CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy |
 | `directories` | `/admin`, `/backup`, `/.git/`, phpMyAdmin and open directory listings |
 | `sql_injection` | Error-based, **boolean-blind** and **time-blind** — MySQL / PostgreSQL / MSSQL / Oracle |

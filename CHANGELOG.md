@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`secrets` plugin**: detects leaked API keys / credentials in HTML and served
+  JavaScript (AWS, Anthropic, OpenAI, Google, Stripe, GitHub, Slack, HuggingFace,
+  private-key blocks). Matched secrets are redacted in the report.
 - **Safe Mode** (`--safe-mode`): polite preset — caps the request rate (~2 req/s),
   uses an honest User-Agent, lowers concurrency and respects `robots.txt`.
 - **Report anonymisation** (`--anonymize`): strips local paths, hostname/username
