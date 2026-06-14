@@ -1,10 +1,18 @@
 """Tests for the subdomain enumeration plugin."""
 from __future__ import annotations
 
+import asyncio
 import json
 
+import aiohttp
+import pytest
+
 from webscan.models import Severity
-from webscan.plugins.subdomains import SubdomainsPlugin, _registrable_domain
+from webscan.plugins.subdomains import (
+    SubdomainsPlugin,
+    _is_hostname,
+    _registrable_domain,
+)
 
 _CRT_JSON = json.dumps(
     [
@@ -101,3 +109,75 @@ async def test_bruteforce_merges_resolved_hits(monkeypatch: object) -> None:
     ev = findings[0].evidence
     assert set(ev["bruteforce_hits"]) == {"www.example.com", "vpn.example.com"}
     assert "www.example.com" in ev["subdomains"]
+
+
+async def test_no_hostname_returns_empty() -> None:
+    plugin = SubdomainsPlugin(resolve=False, bruteforce=False)
+    findings = await plugin.run("https://", _Session("[]"))  # type: ignore[arg-type]
+    assert findings == []
+
+
+async def test_resolve_branch_confirms_ct_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    # With resolve=True, CT-discovered names are checked against DNS.
+    async def fake_resolve(self: object, names: list[str]) -> list[str]:
+        return [n for n in names if n == "api.example.com"]
+
+    monkeypatch.setattr(SubdomainsPlugin, "_resolve_all", fake_resolve)
+    plugin = SubdomainsPlugin(resolve=True, bruteforce=False)
+    session = _Session(_CRT_JSON)
+
+    findings = await plugin.run("https://example.com", session)  # type: ignore[arg-type]
+
+    assert findings[0].evidence["resolved"] == ["api.example.com"]
+
+
+class _RaisingSession:
+    def get(self, _url: str, **_kw: object) -> object:
+        raise aiohttp.ClientError("network down")
+
+
+async def test_crtsh_client_error_returns_no_finding() -> None:
+    plugin = SubdomainsPlugin(resolve=False, bruteforce=False)
+    findings = await plugin.run("https://example.com", _RaisingSession())  # type: ignore[arg-type]
+    assert findings == []
+
+
+async def test_crtsh_invalid_json_returns_no_finding() -> None:
+    plugin = SubdomainsPlugin(resolve=False, bruteforce=False)
+    session = _Session("not json at all {{{")
+    findings = await plugin.run("https://example.com", session)  # type: ignore[arg-type]
+    assert findings == []
+
+
+# ── _resolve_all (real implementation, getaddrinfo faked) ────────────────────────
+
+async def test_resolve_all_keeps_only_resolving_names(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    loop = asyncio.get_running_loop()
+
+    async def fake_getaddrinfo(name: str, _port: object) -> list[object]:
+        if name == "good.example.com":
+            return [("ok",)]
+        raise OSError("NXDOMAIN")
+
+    monkeypatch.setattr(loop, "getaddrinfo", fake_getaddrinfo)
+    plugin = SubdomainsPlugin()
+
+    out = await plugin._resolve_all(["good.example.com", "bad.example.com"])
+
+    assert out == ["good.example.com"]
+
+
+async def test_resolve_all_empty_list_short_circuits() -> None:
+    assert await SubdomainsPlugin()._resolve_all([]) == []
+
+
+# ── _is_hostname ──────────────────────────────────────────────────────────────────
+
+def test_is_hostname_validation() -> None:
+    assert _is_hostname("api.example.com") is True
+    assert _is_hostname("") is False
+    assert _is_hostname("has space.example.com") is False
+    assert _is_hostname("a" * 300) is False  # too long overall
+    assert _is_hostname("a." + "b" * 64 + ".com") is False  # label too long

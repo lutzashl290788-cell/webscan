@@ -191,8 +191,8 @@ warmed up — and every finding it reports is real.
 
 ## 🏆 Comparison
 
-[![Coverage](https://img.shields.io/badge/coverage-84%25-2ea043?style=flat-square&logo=codecov&logoColor=white)](#-code-quality)
-[![Tests](https://img.shields.io/badge/tests-165%20passed-00d26a?style=flat-square&logo=pytest&logoColor=white)](#-code-quality)
+[![Coverage](https://img.shields.io/badge/coverage-94%25-2ea043?style=flat-square&logo=codecov&logoColor=white)](#-code-quality)
+[![Tests](https://img.shields.io/badge/tests-214%20passed-00d26a?style=flat-square&logo=pytest&logoColor=white)](#-code-quality)
 [![CVE](https://img.shields.io/badge/CVE-350K%2B%20NVD-ff6b6b?style=flat-square&logo=cve&logoColor=white)](#-comparison)
 
 How WebScan stacks up against the tools security teams actually reach for:
@@ -218,8 +218,8 @@ How WebScan stacks up against the tools security teams actually reach for:
 
 ## ✅ Code Quality
 
-[![Coverage](https://img.shields.io/badge/coverage-84%25-2ea043?style=flat-square)](#-code-quality)
-[![Tests](https://img.shields.io/badge/tests-165%20passed-00d26a?style=flat-square)](#-code-quality)
+[![Coverage](https://img.shields.io/badge/coverage-94%25-2ea043?style=flat-square)](#-code-quality)
+[![Tests](https://img.shields.io/badge/tests-214%20passed-00d26a?style=flat-square)](#-code-quality)
 [![mypy](https://img.shields.io/badge/mypy-strict%20✓-blue?style=flat-square)](#-code-quality)
 [![ruff](https://img.shields.io/badge/ruff-0%20issues-d7ff64?style=flat-square)](#-code-quality)
 
@@ -227,8 +227,8 @@ Every release is gated on the same checks — no exceptions, no warnings suppres
 
 | Metric | Result |
 |--------|--------|
-| 🧪 **Test coverage** | **84%** — comfortably above the 80% CI gate |
-| ✅ **Tests** | **165 passed, 0 failed** in ~3.7s |
+| 🧪 **Test coverage** | **94%** — comfortably above the 80% CI gate |
+| ✅ **Tests** | **214 passed, 0 failed** in ~3.9s |
 | 🔍 **Type checking** | `mypy --strict` — **0 errors** across 39 source files |
 | 🧹 **Linting** | `ruff` — **0 issues** |
 | 🧩 **Plugins discovered** | **19** via `webscan.plugins` entry-points |
@@ -236,10 +236,10 @@ Every release is gated on the same checks — no exceptions, no warnings suppres
 | 🤖 **CI** | `pytest --cov-fail-under=80` enforced on every push (GitHub Actions) |
 
 ```text
-pytest .......................................... 165 passed  ✅
+pytest .......................................... 214 passed  ✅
 mypy --strict ................................... 0 errors    ✅
 ruff check ..................................... 0 issues     ✅
-coverage ....................................... 84%  ▓▓▓▓▓▓▓▓░  ✅
+coverage ....................................... 94%  ▓▓▓▓▓▓▓▓▓░  ✅
 ```
 
 > 🛡️ The coverage gate (`--cov-fail-under=80`) runs in CI, so the bar can never
