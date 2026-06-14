@@ -53,6 +53,7 @@ webscan -t https://yoursite.com --safe-mode
 | **Request jitter** (`--random-delay`) | Randomises pause between requests (×0.5–×1.5) | Blurs automated traffic patterns against basic WAF rules |
 | **User-Agent rotation** (`--random-agent`) | Rotates browser-like signatures (Chrome, Firefox, mobile) | Bypasses blocks on scanner fingerprints; probes mobile variants |
 | **Proxy / SOCKS5** (`--proxy`) | Routes all traffic through Burp, Tor, or any HTTP/SOCKS proxy | Keeps your real IP off the target's logs |
+| **Soft-404 filter** (`--soft-404`) | Calibrates against a bogus path, drops directory/file hits that just echo the server's "not found" page | Kills the false-positive flood on sites that answer `200` for everything |
 
 ```bash
 webscan -t https://target.com --proxy socks5://127.0.0.1:9050 --random-agent --random-delay
@@ -203,6 +204,8 @@ Network & evasion
   --retry-backoff SEC    Base backoff before first retry, doubles each attempt (default: 0.5)
   --no-verify-ssl        Skip TLS certificate verification
   --no-bruteforce        Disable DNS brute force (subdomains plugin)
+  --soft-404             Calibrate vs. a bogus path; drop directories/config_files
+                         hits that match the server's soft-404 page
 
 Config file
   --config FILE          YAML config with reusable settings (CLI flags override)

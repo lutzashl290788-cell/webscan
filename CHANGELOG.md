@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Soft-404 detection** (`--soft-404`): calibrates against a non-existent path
+  before probing and suppresses `directories`/`config_files` findings that merely
+  echo the server's "not found" template. Cuts the false-positive flood on sites
+  that answer `200`/`403` for every request. Opt-in, offline (stdlib similarity),
+  default behaviour unchanged. (#29)
 - **`cve_lookup` plugin** (opt-in): maps software/version banners (Server,
   X-Powered-By) to known CVEs via the NVD API, reporting the CVE id, year,
   description and CVSS severity, each linked to its official record on

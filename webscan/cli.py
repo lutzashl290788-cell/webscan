@@ -321,6 +321,13 @@ def _add_network_args(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Disable DNS subdomain brute force (subdomains plugin uses CT only).",
     )
+    ng.add_argument(
+        "--soft-404",
+        action="store_true",
+        help="Calibrate against a non-existent path first and suppress "
+        "directories/config_files findings that match the server's soft-404 "
+        "page (cuts false positives on sites that answer 200 for everything).",
+    )
 
 
 def _add_plugin_args(parser: argparse.ArgumentParser) -> None:
@@ -575,6 +582,8 @@ def _make_plugins(args: argparse.Namespace) -> list[BasePlugin]:
             plugins.append(SubdomainsPlugin(bruteforce=not args.no_bruteforce))
         elif name in {"cve_lookup", "graphql"}:
             plugins.append(cls(retry=retry))  # type: ignore[call-arg]
+        elif name in {"directories", "config_files"}:
+            plugins.append(cls(soft_404=args.soft_404))  # type: ignore[call-arg]
         else:
             plugins.append(cls())
     return plugins

@@ -7,6 +7,7 @@ import aiohttp
 
 from webscan.models import Finding, Severity
 from webscan.plugins.base import BasePlugin
+from webscan.plugins.soft404 import calibrate, read_finding_body
 
 # (path, human label)
 _CONFIG_FILES: list[tuple[str, str]] = [
@@ -106,6 +107,9 @@ class ConfigFilesPlugin(BasePlugin):
     name = "config_files"
     description = "Detect publicly accessible config/sensitive files (.env, .git, etc.)"
 
+    def __init__(self, soft_404: bool = False) -> None:
+        self.soft_404 = soft_404
+
     async def run(
         self,
         target: str,
@@ -113,6 +117,8 @@ class ConfigFilesPlugin(BasePlugin):
     ) -> list[Finding]:
         base = target.rstrip("/")
         findings: list[Finding] = []
+
+        baseline = await calibrate(session, base) if self.soft_404 else None
 
         async def _check(path: str, label: str) -> Finding | None:
             url = f"{base}{path}"
@@ -124,6 +130,11 @@ class ConfigFilesPlugin(BasePlugin):
                 ) as resp:
                     if resp.status != 200:
                         return None
+                    # Drop files that merely return the server's soft-404 page.
+                    if baseline is not None:
+                        body = await read_finding_body(resp)
+                        if baseline.matches(resp.status, body):
+                            return None
                     return Finding(
                         plugin=self.name,
                         title=f"Exposed file: {path}",

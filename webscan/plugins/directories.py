@@ -7,6 +7,7 @@ import aiohttp
 
 from webscan.models import Finding, Severity
 from webscan.plugins.base import BasePlugin
+from webscan.plugins.soft404 import calibrate
 
 _READ_LIMIT = 4096  # bytes — enough to detect "Index of /" listings
 
@@ -99,10 +100,19 @@ _LISTING_INDICATORS: tuple[str, ...] = (
 
 
 class DirectoriesPlugin(BasePlugin):
-    """Checks for accessible sensitive directories and directory listing enablement."""
+    """Checks for accessible sensitive directories and directory listing enablement.
+
+    :param soft_404: When ``True``, calibrate against a non-existent path first
+                     and suppress findings that match the server's soft-404
+                     template (a body returned with ``200``/``403`` for paths
+                     that do not actually exist). Off by default.
+    """
 
     name = "directories"
     description = "Probe sensitive directories and detect open directory listings"
+
+    def __init__(self, soft_404: bool = False) -> None:
+        self.soft_404 = soft_404
 
     async def run(
         self,
@@ -111,6 +121,8 @@ class DirectoriesPlugin(BasePlugin):
     ) -> list[Finding]:
         base = target.rstrip("/")
         findings: list[Finding] = []
+
+        baseline = await calibrate(session, base) if self.soft_404 else None
 
         async def _check(path: str, label: str) -> Finding | None:
             url = f"{base}{path}"
@@ -126,11 +138,22 @@ class DirectoriesPlugin(BasePlugin):
 
                     is_listing = False
                     body_preview = ""
+                    body_text = ""
                     if status == 200:
                         raw = await resp.content.read(_READ_LIMIT)
                         body_text = raw.decode("utf-8", errors="ignore").lower()
                         is_listing = any(ind in body_text for ind in _LISTING_INDICATORS)
                         body_preview = body_text[:120].replace("\n", " ")
+
+                    # Suppress paths that merely echo the server's soft-404
+                    # template. A genuine directory listing is never a soft-404,
+                    # so it is always kept.
+                    if (
+                        baseline is not None
+                        and not is_listing
+                        and baseline.matches(status, body_text)
+                    ):
+                        return None
 
                     severity = _classify(path, status, is_listing)
 
