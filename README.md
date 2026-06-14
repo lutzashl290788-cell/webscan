@@ -328,6 +328,46 @@ docker run --rm -v "$(pwd)/reports:/reports" ghcr.io/lutzashl290788-cell/webscan
 
 ---
 
+## 📦 Library mode
+
+WebScan is usable directly from Python — embed it in a recon pipeline, a
+notebook, or CI glue without shelling out to the CLI:
+
+```python
+import asyncio
+import webscan
+
+# Async (native):
+report = asyncio.run(webscan.scan(["https://example.com"]))
+
+# Blocking convenience for scripts / notebooks:
+report = webscan.scan_sync(
+    ["https://example.com"],
+    plugins=["headers", "cookies", "config_files"],
+    soft_404=True,
+)
+
+for tr in report.targets:
+    for f in tr.findings:
+        print(f.severity.value, f.plugin, f.title)
+```
+
+`scan()` / `scan_sync()` return the same `ScanReport` the CLI uses, so you can
+render it in any format with `Reporter`:
+
+```python
+from webscan import Reporter
+
+Reporter(report).to_jsonl("findings.jsonl")   # or to_json / to_sarif / to_html ...
+```
+
+`webscan.scan` accepts `plugins`, `concurrency`, `timeout`, `soft_404`,
+`proxy`, `auth_headers`, `auth_cookies`, `on_progress` and more — see its
+docstring. `webscan.ALL_PLUGINS` / `webscan.DEFAULT_PLUGINS` list what's
+available.
+
+---
+
 ## 🔌 Writing a plugin
 
 ```python
@@ -346,7 +386,8 @@ class MyPlugin(BasePlugin):
         return findings
 ```
 
-Register it in `webscan/cli.py` → `ALL_PLUGINS["my_plugin"] = MyPlugin`. Done.
+Register it in `webscan/registry.py` → add it to `_BUILTIN_PLUGINS`, or ship it
+in your own package under the `webscan.plugins` entry-point group. Done.
 
 ---
 

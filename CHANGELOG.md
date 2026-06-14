@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Library mode**: WebScan can now be used as a Python package —
+  `webscan.scan(targets, ...)` (async) and `webscan.scan_sync(...)` (blocking)
+  return the same `ScanReport` the CLI produces, for embedding in recon
+  pipelines/notebooks. The plugin registry moved to `webscan/registry.py` as the
+  single source of truth shared by the CLI and the API; `__init__.py` now
+  exports `scan`, `scan_sync`, `ScanReport`, `Finding`, `Severity`, `Reporter`
+  and the registry. CLI behaviour is unchanged. (#31)
 - **JSON Lines output** (`--format jsonl`): emits one self-contained JSON
   object per finding (NDJSON), with target/scan context inlined on each line,
   for `jq`/`grep` pipelines and streaming into other tools. (#30)

@@ -6,7 +6,6 @@ import asyncio
 import os
 import ssl as ssl_lib
 import sys
-from importlib.metadata import entry_points
 from pathlib import Path
 from typing import NoReturn
 
@@ -20,25 +19,12 @@ from webscan.engine import ScanEngine
 from webscan.models import SEVERITY_ORDER, ScanReport, Severity
 from webscan.net import NetConfig, pick_user_agent
 from webscan.plugins.base import BasePlugin
-from webscan.plugins.config_files import ConfigFilesPlugin
-from webscan.plugins.cookies import CookiesPlugin
-from webscan.plugins.cors import CorsPlugin
-from webscan.plugins.cve_lookup import CveLookupPlugin
-from webscan.plugins.directories import DirectoriesPlugin
-from webscan.plugins.graphql import GraphqlPlugin
-from webscan.plugins.headers import HeadersPlugin
-from webscan.plugins.http_methods import HttpMethodsPlugin
-from webscan.plugins.open_redirect import OpenRedirectPlugin
-from webscan.plugins.path_traversal import PathTraversalPlugin
-from webscan.plugins.robots_sitemap import RobotsSitemapPlugin
-from webscan.plugins.secrets import SecretsPlugin
-from webscan.plugins.security_txt import SecurityTxtPlugin
-from webscan.plugins.sql_injection import SqlInjectionPlugin
-from webscan.plugins.ssl_tls import SslTlsPlugin
-from webscan.plugins.ssrf import SsrfPlugin
-from webscan.plugins.subdomains import SubdomainsPlugin
-from webscan.plugins.tech_fingerprint import TechFingerprintPlugin
-from webscan.plugins.xss import XssPlugin
+from webscan.registry import (
+    ALL_PLUGINS,
+    DEFAULT_PLUGINS,
+    OPT_IN_PLUGINS,
+    build_plugins,
+)
 from webscan.reporter import Reporter
 from webscan.retry import RetryConfig
 
@@ -57,65 +43,8 @@ def _disclaimer_text() -> str:
         return f"\033[2m{_LEGAL_DISCLAIMER}\033[0m"
     return _LEGAL_DISCLAIMER
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Plugin registry
-# ──────────────────────────────────────────────────────────────────────────────
-# Built-in plugins, shipped in this package. Third parties can register their own
-# under the ``webscan.plugins`` entry-point group (see _discover_plugins); those
-# are merged on top of these at import time.
-_BUILTIN_PLUGINS: dict[str, type[BasePlugin]] = {
-    "config_files":  ConfigFilesPlugin,
-    "secrets":       SecretsPlugin,
-    "headers":       HeadersPlugin,
-    "directories":   DirectoriesPlugin,
-    "sql_injection": SqlInjectionPlugin,
-    "xss":           XssPlugin,
-    "path_traversal": PathTraversalPlugin,
-    "open_redirect": OpenRedirectPlugin,
-    "ssrf":          SsrfPlugin,
-    "cors":          CorsPlugin,
-    "cookies":       CookiesPlugin,
-    "http_methods":  HttpMethodsPlugin,
-    "ssl_tls":       SslTlsPlugin,
-    "security_txt":  SecurityTxtPlugin,
-    "tech_fingerprint": TechFingerprintPlugin,
-    "robots_sitemap": RobotsSitemapPlugin,
-    "subdomains":    SubdomainsPlugin,
-    "graphql":       GraphqlPlugin,
-    "cve_lookup":    CveLookupPlugin,
-}
-
-
-def _discover_plugins() -> dict[str, type[BasePlugin]]:
-    """Discover plugins registered under the ``webscan.plugins`` entry-point group.
-
-    Each entry point must resolve to a :class:`BasePlugin` subclass. Discovery is
-    fully fail-safe: a broken or missing entry point is skipped rather than
-    aborting startup. Built-ins are always available even if metadata is absent
-    (e.g. running from a source checkout that has not been reinstalled).
-    """
-    discovered: dict[str, type[BasePlugin]] = {}
-    try:
-        eps = entry_points(group="webscan.plugins")
-    except Exception:  # noqa: BLE001 — metadata access must never crash the CLI
-        return discovered
-    for ep in eps:
-        try:
-            cls = ep.load()
-        except Exception:  # noqa: BLE001 — skip a single bad plugin, keep the rest
-            continue
-        if isinstance(cls, type) and issubclass(cls, BasePlugin):
-            discovered[ep.name] = cls
-    return discovered
-
-
-# Effective registry: built-ins, with entry-point plugins merged on top.
-ALL_PLUGINS: dict[str, type[BasePlugin]] = {**_BUILTIN_PLUGINS, **_discover_plugins()}
-
-# Plugins excluded from the default run (opt-in only): network-heavy or
-# rate-limited external lookups the user should request explicitly.
-_OPT_IN_PLUGINS = {"cve_lookup", "graphql"}
-_DEFAULT_PLUGINS = [name for name in ALL_PLUGINS if name not in _OPT_IN_PLUGINS]
+# The plugin registry (ALL_PLUGINS, DEFAULT_PLUGINS, OPT_IN_PLUGINS,
+# build_plugins) lives in webscan.registry, shared with the library API.
 
 # Supported report output formats.
 _OUTPUT_FORMATS = ["json", "jsonl", "md", "html", "sarif", "csv"]
@@ -336,11 +265,11 @@ def _add_plugin_args(parser: argparse.ArgumentParser) -> None:
         "--plugins",
         nargs="+",
         choices=list(ALL_PLUGINS.keys()),
-        default=_DEFAULT_PLUGINS,
+        default=DEFAULT_PLUGINS,
         metavar="NAME",
         help=(
             f"Plugins to enable (default: all except opt-in). "
-            f"Opt-in (network-heavy): {', '.join(sorted(_OPT_IN_PLUGINS))}. "
+            f"Opt-in (network-heavy): {', '.join(sorted(OPT_IN_PLUGINS))}. "
             f"Available: {', '.join(ALL_PLUGINS.keys())}."
         ),
     )
@@ -575,18 +504,12 @@ def _make_plugins(args: argparse.Namespace) -> list[BasePlugin]:
         retries=max(0, args.retries),
         base_delay=max(0.0, args.retry_backoff),
     )
-    plugins: list[BasePlugin] = []
-    for name in args.plugins:
-        cls = ALL_PLUGINS[name]
-        if name == "subdomains":
-            plugins.append(SubdomainsPlugin(bruteforce=not args.no_bruteforce))
-        elif name in {"cve_lookup", "graphql"}:
-            plugins.append(cls(retry=retry))  # type: ignore[call-arg]
-        elif name in {"directories", "config_files"}:
-            plugins.append(cls(soft_404=args.soft_404))  # type: ignore[call-arg]
-        else:
-            plugins.append(cls())
-    return plugins
+    return build_plugins(
+        args.plugins,
+        soft_404=args.soft_404,
+        bruteforce=not args.no_bruteforce,
+        retry=retry,
+    )
 
 
 def _write_reports(reporter: Reporter, args: argparse.Namespace) -> None:

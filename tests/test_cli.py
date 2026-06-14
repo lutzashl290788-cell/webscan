@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from webscan import cli
+from webscan import cli, registry
 from webscan.models import Finding, ScanReport, Severity, TargetResult
 from webscan.plugins.cve_lookup import CveLookupPlugin
 from webscan.plugins.graphql import GraphqlPlugin
@@ -77,13 +77,13 @@ def test_registry_includes_new_plugins() -> None:
 
 
 def test_opt_in_plugins_excluded_from_defaults() -> None:
-    assert "cve_lookup" not in cli._DEFAULT_PLUGINS
-    assert "graphql" not in cli._DEFAULT_PLUGINS
-    assert "headers" in cli._DEFAULT_PLUGINS
+    assert "cve_lookup" not in registry.DEFAULT_PLUGINS
+    assert "graphql" not in registry.DEFAULT_PLUGINS
+    assert "headers" in registry.DEFAULT_PLUGINS
 
 
 def test_discover_plugins_returns_baseplugin_subclasses() -> None:
-    discovered = cli._discover_plugins()
+    discovered = registry._discover_plugins()
     # Entry points are only present once the package metadata is installed; the
     # call must always succeed and only ever yield BasePlugin subclasses.
     from webscan.plugins.base import BasePlugin
@@ -94,6 +94,7 @@ def test_make_plugins_wires_special_constructors() -> None:
     args = _ns(
         plugins=["subdomains", "cve_lookup", "graphql", "headers"],
         no_bruteforce=True,
+        soft_404=False,
         retries=3,
         retry_backoff=0.7,
     )
