@@ -70,6 +70,50 @@ class Reporter:
         return json_str
 
     # ------------------------------------------------------------------
+    # JSON Lines (NDJSON)
+    # ------------------------------------------------------------------
+
+    def to_jsonl(self, output_path: Path | None = None) -> str:
+        """Render findings as JSON Lines: one self-contained object per line.
+
+        Unlike :meth:`to_json` (a single nested document), each line carries the
+        target and scan context inline, so the stream is trivially consumable by
+        ``jq``, ``grep`` or any line-oriented tool without walking the report
+        tree. Findings are ordered by severity within each target. A scan that
+        produced no findings yields an empty string (zero lines).
+
+        :param output_path: If provided, the JSONL text is also written here.
+        :returns: Newline-terminated JSONL string (empty if there are no findings).
+        """
+        lines: list[str] = []
+        for tr in self.report.targets:
+            sorted_findings = sorted(
+                tr.findings, key=lambda f: SEVERITY_ORDER.get(f.severity, 99)
+            )
+            for f in sorted_findings:
+                row = {
+                    "target": tr.target,
+                    "scanned_at": tr.scanned_at,
+                    "plugin": f.plugin,
+                    "severity": f.severity.value,
+                    "title": f.title,
+                    "url": f.url,
+                    "description": f.description,
+                    "remediation": f.remediation,
+                    "evidence": f.evidence,
+                }
+                lines.append(
+                    json.dumps(row, ensure_ascii=False, default=_json_default)
+                )
+
+        jsonl_str = "\n".join(lines)
+        if jsonl_str:
+            jsonl_str += "\n"
+        if output_path is not None:
+            output_path.write_text(jsonl_str, encoding="utf-8")
+        return jsonl_str
+
+    # ------------------------------------------------------------------
     # Markdown
     # ------------------------------------------------------------------
 

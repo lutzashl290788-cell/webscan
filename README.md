@@ -167,6 +167,10 @@ webscan -t https://example.com --min-severity high -o ./reports/scan --format ht
 # Pick specific plugins / read targets from a file
 webscan -t https://example.com --plugins xss sql_injection headers
 webscan -f targets.txt --format json csv
+
+# JSON Lines for jq / pipelines — one finding per line
+webscan -t https://example.com --format jsonl -o scan
+jq 'select(.severity=="critical")' scan.jsonl
 ```
 
 <details>
@@ -215,7 +219,7 @@ Plugins & output
   --plugins NAME [...]   Plugins to run (default: all except opt-in)
   --list-plugins         List plugins and exit
   -o PATH                Report base path (no extension)
-  --format FMT [...]     json | md | html | sarif | csv  (default: json md)
+  --format FMT [...]     json | jsonl | md | html | sarif | csv  (default: json md)
   --min-severity LEVEL   critical | high | medium | low | info
   --explain              Plain-language explanation under each finding (beginner-friendly)
   --fail-on LEVEL        Exit 1 if any finding is at or above LEVEL
@@ -270,6 +274,7 @@ default profile. Recognised keys: `plugins`, `concurrency`, `timeout`, `format`,
 | Format | Flag | Use case |
 |--------|------|----------|
 | JSON | `--format json` | CI/CD, scripting, integrations |
+| JSON Lines | `--format jsonl` | `jq`/`grep` pipelines — one finding per line |
 | Markdown | `--format md` | Human review, GitHub PRs |
 | HTML | `--format html` | Self-contained stakeholder reports |
 | SARIF | `--format sarif` | GitHub Code Scanning, VS Code |

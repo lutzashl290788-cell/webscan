@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **JSON Lines output** (`--format jsonl`): emits one self-contained JSON
+  object per finding (NDJSON), with target/scan context inlined on each line,
+  for `jq`/`grep` pipelines and streaming into other tools. (#30)
 - **Soft-404 detection** (`--soft-404`): calibrates against a non-existent path
   before probing and suppresses `directories`/`config_files` findings that merely
   echo the server's "not found" template. Cuts the false-positive flood on sites

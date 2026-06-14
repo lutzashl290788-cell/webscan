@@ -208,3 +208,72 @@ def test_explain_falls_back_to_remediation() -> None:
     )
     out = Reporter(report).to_console_summary(explain=True)
     assert "Do the recommended fix." in out
+
+
+def _make_multi_finding_report() -> ScanReport:
+    return ScanReport(
+        scan_started="2025-01-01T00:00:00+00:00",
+        total_findings=2,
+        targets=[
+            TargetResult(
+                target="https://example.com",
+                scanned_at="2025-01-01T00:00:05+00:00",
+                findings=[
+                    Finding(
+                        plugin="headers",
+                        title="Missing HSTS",
+                        severity=Severity.MEDIUM,
+                        description="No HSTS header.",
+                        url="https://example.com",
+                        evidence={"header": "Strict-Transport-Security"},
+                        remediation="Add HSTS.",
+                    ),
+                    Finding(
+                        plugin="config_files",
+                        title="Exposed file: /.env",
+                        severity=Severity.CRITICAL,
+                        description="Sensitive file exposed.",
+                        url="https://example.com/.env",
+                        evidence={"http_status": 200},
+                        remediation="Block access.",
+                    ),
+                ],
+            )
+        ],
+    )
+
+
+def test_jsonl_one_object_per_finding() -> None:
+    reporter = Reporter(_make_multi_finding_report())
+    out = reporter.to_jsonl()
+
+    lines = out.splitlines()
+    assert len(lines) == 2
+    rows = [json.loads(line) for line in lines]
+    # Each line is a self-contained, valid JSON object.
+    for row in rows:
+        assert row["target"] == "https://example.com"
+        assert "severity" in row and "plugin" in row and "evidence" in row
+
+
+def test_jsonl_sorted_by_severity_within_target() -> None:
+    reporter = Reporter(_make_multi_finding_report())
+    rows = [json.loads(line) for line in reporter.to_jsonl().splitlines()]
+    # CRITICAL must come before MEDIUM.
+    assert rows[0]["severity"] == "critical"
+    assert rows[1]["severity"] == "medium"
+
+
+def test_jsonl_trailing_newline_and_inlined_context() -> None:
+    reporter = Reporter(_make_multi_finding_report())
+    out = reporter.to_jsonl()
+    assert out.endswith("\n")
+    first = json.loads(out.splitlines()[0])
+    # Target/scan context is inlined on every row (not nested).
+    assert first["scanned_at"] == "2025-01-01T00:00:05+00:00"
+    assert first["url"] == "https://example.com/.env"
+
+
+def test_jsonl_empty_report_is_empty_string() -> None:
+    empty = ScanReport(scan_started="2025-01-01T00:00:00+00:00", targets=[])
+    assert Reporter(empty).to_jsonl() == ""

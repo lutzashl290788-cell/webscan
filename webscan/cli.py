@@ -118,7 +118,7 @@ _OPT_IN_PLUGINS = {"cve_lookup", "graphql"}
 _DEFAULT_PLUGINS = [name for name in ALL_PLUGINS if name not in _OPT_IN_PLUGINS]
 
 # Supported report output formats.
-_OUTPUT_FORMATS = ["json", "md", "html", "sarif", "csv"]
+_OUTPUT_FORMATS = ["json", "jsonl", "md", "html", "sarif", "csv"]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -364,7 +364,7 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
         choices=_OUTPUT_FORMATS,
         default=["json", "md"],
         metavar="FMT",
-        help="Output format(s): json, md, html, sarif, csv (default: json md).",
+        help="Output format(s): json, jsonl, md, html, sarif, csv (default: json md).",
     )
     og.add_argument(
         "-v", "--verbose",
@@ -593,6 +593,7 @@ def _write_reports(reporter: Reporter, args: argparse.Namespace) -> None:
     """Write every requested report format to disk."""
     writers = {
         "json": (".json", reporter.to_json),
+        "jsonl": (".jsonl", reporter.to_jsonl),
         "md": (".md", reporter.to_markdown),
         "html": (".html", reporter.to_html),
         "sarif": (".sarif", reporter.to_sarif),
