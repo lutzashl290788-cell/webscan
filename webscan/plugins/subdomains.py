@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 import aiohttp
 
-from webscan.models import Finding, Severity
+from webscan.models import Confidence, Finding, Severity
 from webscan.plugins.base import BasePlugin
 
 _CRT_SH = "https://crt.sh/?q=%.{domain}&output=json"
@@ -72,6 +72,7 @@ class SubdomainsPlugin(BasePlugin):
                 plugin=self.name,
                 title=f"{len(names)} subdomain(s) discovered for {domain}",
                 severity=Severity.INFO,
+                confidence=Confidence.INFORMATIONAL,
                 description=(
                     f"Discovered {len(names)} subdomain(s) of '{domain}' via "
                     "Certificate Transparency logs (crt.sh) and DNS brute force. "

@@ -7,7 +7,15 @@ from pathlib import Path
 from typing import Any
 
 from webscan.explanations import explain as plain_explain
-from webscan.models import SEVERITY_ORDER, Finding, ScanReport, Severity
+from webscan.models import (
+    CONFIDENCE_ORDER,
+    SEVERITY_ORDER,
+    Confidence,
+    Finding,
+    ScanReport,
+    Severity,
+    TargetResult,
+)
 
 # Console / Markdown severity decorators
 _SEVERITY_EMOJI: dict[Severity, str] = {
@@ -96,6 +104,7 @@ class Reporter:
                     "scanned_at": tr.scanned_at,
                     "plugin": f.plugin,
                     "severity": f.severity.value,
+                    "confidence": f.confidence.value,
                     "title": f.title,
                     "url": f.url,
                     "description": f.description,
@@ -195,6 +204,7 @@ class Reporter:
                     "| | |",
                     "|---|---|",
                     f"| **Plugin** | `{f.plugin}` |",
+                    f"| **Confidence** | `{f.confidence.value}` |",
                     f"| **URL** | {f.url} |",
                     "",
                     f"**Description:** {f.description}",
@@ -312,7 +322,7 @@ class Reporter:
         buffer = io.StringIO()
         writer = csv.writer(buffer)
         writer.writerow(
-            ["target", "plugin", "severity", "title", "url",
+            ["target", "plugin", "severity", "confidence", "title", "url",
              "description", "remediation", "evidence"]
         )
         for tr in self.report.targets:
@@ -325,6 +335,7 @@ class Reporter:
                         tr.target,
                         f.plugin,
                         f.severity.value,
+                        f.confidence.value,
                         f.title,
                         f.url,
                         f.description,
@@ -404,6 +415,11 @@ class Reporter:
 
     def _finding_html(self, f: Finding) -> str:
         sev = f.severity.value
+        conf = (
+            ""
+            if f.confidence == Confidence.FIRM
+            else f' <span class="conf">~{_esc(f.confidence.value)}</span>'
+        )
         evidence = ""
         if f.evidence:
             dumped = json.dumps(f.evidence, indent=2, default=_json_default)
@@ -417,7 +433,7 @@ class Reporter:
         return (
             f'<article class="finding {sev}">'
             f'<div class="fh"><span class="badge {sev}">{sev.upper()}</span>'
-            f"<span class=\"ftitle\">{_esc(f.title)}</span></div>"
+            f"<span class=\"ftitle\">{_esc(f.title)}</span>{conf}</div>"
             f'<div class="fmeta"><code>{_esc(f.plugin)}</code> · '
             f'<a href="{_esc(f.url)}">{_esc(f.url)}</a></div>'
             f"<p>{_esc(f.description)}</p>{evidence}{remediation}</article>"
@@ -459,13 +475,16 @@ class Reporter:
             for f in sorted_findings:
                 badge = _SEVERITY_BADGE.get(f.severity, "?       ")
                 emoji = _SEVERITY_EMOJI.get(f.severity, " ")
+                # Flag heuristic findings so the reader knows which results
+                # warrant manual confirmation before acting on them.
+                tag = "" if f.confidence == Confidence.FIRM else f" (~{f.confidence.value})"
                 if color:
                     tint = _SEVERITY_ANSI.get(f.severity, "")
                     lines.append(
-                        f"      {emoji} {tint}[{badge}]{_ANSI_RESET} {f.title}"
+                        f"      {emoji} {tint}[{badge}]{_ANSI_RESET} {f.title}{tag}"
                     )
                 else:
-                    lines.append(f"      {emoji} [{badge}] {f.title}")
+                    lines.append(f"      {emoji} [{badge}] {f.title}{tag}")
                 if explain:
                     blurb = plain_explain(f.plugin, f.remediation)
                     if blurb:
@@ -514,6 +533,8 @@ border-radius:8px;padding:14px 16px;margin:10px 0}
 .finding.info{border-left-color:#484f58}
 .fh{display:flex;align-items:center;gap:10px;margin-bottom:6px}
 .ftitle{font-weight:600}.fmeta{font-size:13px;color:#8b949e;margin-bottom:8px}
+.conf{font-size:11px;color:#d29922;border:1px solid #d29922;border-radius:10px;
+padding:1px 7px;font-weight:600}
 .fmeta a{color:#79c0ff;text-decoration:none}
 pre{background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:10px;
 overflow:auto;font-size:12px;color:#c9d1d9}
@@ -522,6 +543,40 @@ overflow:auto;font-size:12px;color:#c9d1d9}
 padding:8px 12px;font-size:13px;color:#ff7b72}
 .errors ul{margin:4px 0 0;padding-left:18px}
 """
+
+
+def filter_report_by_confidence(
+    report: ScanReport, min_confidence: Confidence
+) -> ScanReport:
+    """Return a copy of *report* keeping only findings at or above *min_confidence*.
+
+    Confidence is ordered FIRM > TENTATIVE > INFORMATIONAL. Passing
+    :attr:`~webscan.models.Confidence.FIRM` keeps only directly-observed
+    findings (the strongest false-positive filter); INFORMATIONAL keeps
+    everything. Errors and target structure are preserved; ``total_findings``
+    is recomputed.
+    """
+    ceiling = CONFIDENCE_ORDER[min_confidence]
+    filtered = ScanReport(
+        scan_started=report.scan_started,
+        scan_finished=report.scan_finished,
+    )
+    for tr in report.targets:
+        kept = [
+            f
+            for f in tr.findings
+            if CONFIDENCE_ORDER.get(f.confidence, 99) <= ceiling
+        ]
+        filtered.targets.append(
+            TargetResult(
+                target=tr.target,
+                findings=kept,
+                errors=list(tr.errors),
+                scanned_at=tr.scanned_at,
+            )
+        )
+    filtered.total_findings = sum(len(t.findings) for t in filtered.targets)
+    return filtered
 
 
 def _count_severities(findings: list[Finding]) -> dict[Severity, int]:

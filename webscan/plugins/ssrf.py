@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.parse import parse_qs, quote, urlencode, urlparse
 
 import aiohttp
 
@@ -34,12 +34,17 @@ _URL_PARAMS = {
     "proxy", "u", "link", "request",
 }
 
-# Signatures that only appear if an internal service actually responded.
+# Signatures that only appear if an internal service actually *responded*.
+# Deliberately limited to fields present in a real metadata/service reply and
+# NOT in the probe URL itself — the reflected payload is also stripped from the
+# body before matching (see ``_matched_signature``), so an app that merely echoes
+# the URL back can never trigger these.
 _SIGNATURES: list[tuple[str, re.Pattern[str]]] = [
-    ("AWS metadata", re.compile(r"\b(ami-id|instance-id|iam/security-credentials|"
-                                r"meta-data)\b", re.IGNORECASE)),
-    ("GCP metadata", re.compile(r"computeMetadata|metadata\.google\.internal",
-                                re.IGNORECASE)),
+    ("AWS metadata", re.compile(r"\b(ami-id|instance-id|instance-action|"
+                                r"iam/security-credentials|reservation-id|"
+                                r"security-groups)\b", re.IGNORECASE)),
+    ("GCP metadata", re.compile(r"\b(computeMetadata|numeric-project-id|"
+                                r"service-accounts)\b", re.IGNORECASE)),
     ("Redis", re.compile(r"-ERR wrong number|redis_version:", re.IGNORECASE)),
     ("Internal service", re.compile(r"\bConnection refused\b|"
                                     r"\bfailed to connect to (127\.0\.0\.1|localhost)",
@@ -82,7 +87,7 @@ class SsrfPlugin(BasePlugin):
                 except (aiohttp.ClientError, asyncio.TimeoutError):
                     continue
 
-                signal = _matched_signature(body)
+                signal = _matched_signature(body, payload)
                 if signal is None:
                     continue
 
@@ -114,8 +119,16 @@ class SsrfPlugin(BasePlugin):
         return findings
 
 
-def _matched_signature(body: str) -> str | None:
+def _matched_signature(body: str, payload: str) -> str | None:
+    """Match an internal-service signature against the response.
+
+    The payload (and its URL-encoded form) is removed from the body first, so a
+    page that merely *reflects* the injected URL — which itself contains strings
+    like ``meta-data`` or ``metadata.google.internal`` — cannot trigger a match.
+    Only content the server fetched from the internal endpoint remains.
+    """
+    cleaned = body.replace(payload, " ").replace(quote(payload, safe=""), " ")
     for label, pattern in _SIGNATURES:
-        if pattern.search(body):
+        if pattern.search(cleaned):
             return label
     return None

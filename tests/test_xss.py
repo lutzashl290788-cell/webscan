@@ -8,8 +8,9 @@ from webscan.plugins.xss import XssPlugin
 
 
 class _Resp:
-    def __init__(self, body: str) -> None:
+    def __init__(self, body: str, ctype: str = "text/html; charset=utf-8") -> None:
         self._body = body
+        self.headers = {"Content-Type": ctype}
 
     async def __aenter__(self) -> _Resp:
         return self
@@ -24,8 +25,9 @@ class _Resp:
 class _ReflectSession:
     """Reflects the raw query value back into the body (vulnerable app)."""
 
-    def __init__(self, *, escape: bool = False) -> None:
+    def __init__(self, *, escape: bool = False, ctype: str = "text/html") -> None:
         self.escape = escape
+        self.ctype = ctype
         self.calls = 0
 
     def get(self, url: str, **_kw: object) -> _Resp:
@@ -38,7 +40,7 @@ class _ReflectSession:
             value = vals[0]
         if self.escape:
             value = html_lib.escape(value, quote=True)
-        return _Resp(f"<html><body>Hello {value}</body></html>")
+        return _Resp(f"<html><body>Hello {value}</body></html>", ctype=self.ctype)
 
 
 async def test_detects_reflected_payload() -> None:

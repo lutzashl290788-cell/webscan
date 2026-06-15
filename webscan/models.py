@@ -25,6 +25,32 @@ SEVERITY_ORDER: dict[Severity, int] = {
 }
 
 
+class Confidence(str, Enum):
+    """How sure a plugin is that a finding is real (not a false positive).
+
+    Severity answers "how bad if true"; confidence answers "how likely true".
+    Separating the two lets a user filter out noise (``--min-confidence firm``)
+    without lowering the severity bar, so a tentative-but-critical result is
+    still surfaced — just marked as needing confirmation.
+    """
+
+    #: Directly observed / proven (e.g. payload reflected unescaped, DB error
+    #: returned, header literally absent). Very low false-positive rate.
+    FIRM = "firm"
+    #: Heuristic or inferred — a strong signal that still warrants manual
+    #: confirmation (version-based CVE guesses, timing-based blind SQLi, etc.).
+    TENTATIVE = "tentative"
+    #: Informational / best-practice note rather than a confirmed weakness.
+    INFORMATIONAL = "informational"
+
+
+CONFIDENCE_ORDER: dict[Confidence, int] = {
+    Confidence.FIRM: 0,
+    Confidence.TENTATIVE: 1,
+    Confidence.INFORMATIONAL: 2,
+}
+
+
 @dataclass
 class Finding:
     """A single security finding produced by a plugin."""
@@ -36,6 +62,10 @@ class Finding:
     url: str
     evidence: dict[str, Any] = field(default_factory=dict)
     remediation: str = ""
+    #: How likely this finding is a true positive. Defaults to FIRM so existing
+    #: plugins that observe a condition directly need no change; heuristic
+    #: checks downgrade to TENTATIVE / INFORMATIONAL explicitly.
+    confidence: Confidence = Confidence.FIRM
 
 
 @dataclass

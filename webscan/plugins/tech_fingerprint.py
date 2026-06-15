@@ -6,7 +6,7 @@ import re
 
 import aiohttp
 
-from webscan.models import Finding, Severity
+from webscan.models import Confidence, Finding, Severity
 from webscan.plugins.base import BasePlugin
 
 # (label, compiled body regex) — matched against the response HTML.
@@ -93,6 +93,7 @@ class TechFingerprintPlugin(BasePlugin):
                 plugin=self.name,
                 title=f"Technologies detected: {', '.join(sorted(detected))}",
                 severity=Severity.INFO,
+                confidence=Confidence.INFORMATIONAL,
                 description=(
                     "The target exposes technology fingerprints in its response "
                     "headers, cookies or HTML. This information helps attackers "

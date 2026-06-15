@@ -27,6 +27,9 @@ htmlcov/
 reports/
 *.report.json
 *.report.md
+audit_*.json
+audit_*.md
+audit_*.html
 
 # OS / editor
 .DS_Store

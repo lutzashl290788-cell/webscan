@@ -56,7 +56,7 @@ class OpenRedirectPlugin(BasePlugin):
                 ).geturl()
 
                 location = await self._redirect_location(session, test_url)
-                if location is None or _EVIL not in location:
+                if location is None or not _points_to_evil(location):
                     continue
 
                 findings.append(
@@ -98,3 +98,15 @@ class OpenRedirectPlugin(BasePlugin):
         except (aiohttp.ClientError, asyncio.TimeoutError):
             return None
         return None
+
+
+def _points_to_evil(location: str) -> bool:
+    """True only if *location*'s actual destination host is the sentinel host.
+
+    Checking the parsed host — not a substring — avoids the false positive where
+    the sentinel merely appears inside a query string of a same-site redirect,
+    e.g. ``Location: /login?next=https://evil-webscan.example/`` (which keeps the
+    victim on the original host and is therefore safe).
+    """
+    host = (urlparse(location).hostname or "").lower()
+    return host == _EVIL

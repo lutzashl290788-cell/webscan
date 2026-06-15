@@ -18,7 +18,7 @@ Render a report in any supported format with :class:`~webscan.reporter.Reporter`
 from __future__ import annotations
 
 from webscan.api import scan, scan_sync
-from webscan.models import Finding, ScanReport, Severity, TargetResult
+from webscan.models import Confidence, Finding, ScanReport, Severity, TargetResult
 from webscan.registry import ALL_PLUGINS, DEFAULT_PLUGINS, OPT_IN_PLUGINS
 from webscan.reporter import Reporter
 
@@ -32,6 +32,7 @@ __all__ = [
     "TargetResult",
     "Finding",
     "Severity",
+    "Confidence",
     "Reporter",
     "ALL_PLUGINS",
     "DEFAULT_PLUGINS",

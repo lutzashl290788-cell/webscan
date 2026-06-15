@@ -16,7 +16,7 @@ from webscan.auth import AuthConfig, LoginError, PreparedAuth, prepare_auth
 from webscan.config import ConfigError, load_profile
 from webscan.crawler import CrawlConfig, Crawler
 from webscan.engine import ScanEngine
-from webscan.models import SEVERITY_ORDER, ScanReport, Severity
+from webscan.models import SEVERITY_ORDER, Confidence, ScanReport, Severity
 from webscan.net import NetConfig, pick_user_agent
 from webscan.plugins.base import BasePlugin
 from webscan.registry import (
@@ -25,7 +25,7 @@ from webscan.registry import (
     OPT_IN_PLUGINS,
     build_plugins,
 )
-from webscan.reporter import Reporter
+from webscan.reporter import Reporter, filter_report_by_confidence
 from webscan.retry import RetryConfig
 
 # Shown on every interactive run. WebScan is an authorised-testing tool; this
@@ -317,6 +317,14 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
         help="Only show findings at or above this severity in the console summary.",
     )
     og.add_argument(
+        "--min-confidence",
+        choices=["firm", "tentative", "informational"],
+        metavar="LEVEL",
+        help="Drop findings below this confidence from ALL output (reports too). "
+        "'firm' keeps only directly-observed results (strongest false-positive "
+        "filter); 'tentative' also keeps heuristic ones; default keeps all.",
+    )
+    og.add_argument(
         "--explain",
         action="store_true",
         help="Print a plain-language explanation under each finding (beginner-friendly).",
@@ -592,6 +600,11 @@ async def _run(args: argparse.Namespace) -> int:
     report = await engine.scan_all(targets)
     if not quiet:
         print("\n")
+
+    if args.min_confidence:
+        report = filter_report_by_confidence(report, Confidence(args.min_confidence))
+        if not quiet:
+            print(f"  Confidence  : ≥ {args.min_confidence} (lower-confidence findings dropped)")
 
     if args.anonymize:
         report = anonymize_report(report)

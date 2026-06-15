@@ -36,9 +36,26 @@ class _FakeSession:
         return _FakeResponse(self._body)
 
 
+class _ErrorSession:
+    """Models real error-based SQLi: a DB error surfaces only when a quote/SQL
+    payload is injected; the untouched baseline value returns a clean page."""
+
+    _ERROR = "You have an error in your SQL syntax; check the manual"
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def get(self, url: str, **_kw: object) -> _FakeResponse:
+        self.calls += 1
+        # Injected payloads contain a URL-encoded quote (%27) or comment marker.
+        if "%27" in url or "%22" in url or "ORDER+BY" in url or "--" in url:
+            return _FakeResponse(self._ERROR)
+        return _FakeResponse("<html>all good</html>")
+
+
 async def test_detects_database_error() -> None:
     plugin = SqlInjectionPlugin()
-    session = _FakeSession("You have an error in your SQL syntax; check the manual")
+    session = _ErrorSession()
 
     findings = await plugin.run("https://example.com/?id=1", session)  # type: ignore[arg-type]
 
@@ -47,6 +64,16 @@ async def test_detects_database_error() -> None:
     assert finding.plugin == "sql_injection"
     assert finding.severity is Severity.CRITICAL
     assert finding.evidence["parameter"] == "id"
+
+
+async def test_db_error_already_in_baseline_is_not_flagged() -> None:
+    """A page that always contains a DB-error string (docs, WAF page) is not SQLi."""
+    plugin = SqlInjectionPlugin()
+    session = _FakeSession("You have an error in your SQL syntax; see our FAQ")
+
+    findings = await plugin.run("https://example.com/?id=1", session)  # type: ignore[arg-type]
+
+    assert findings == []
 
 
 async def test_no_query_params_skips_scan() -> None:

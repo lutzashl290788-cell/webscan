@@ -52,8 +52,15 @@ class XssPlugin(BasePlugin):
 
                 try:
                     async with session.get(test_url, ssl=False) as resp:
+                        ctype = resp.headers.get("Content-Type", "").lower()
                         body = await resp.text(errors="ignore")
                 except (aiohttp.ClientError, asyncio.TimeoutError):
+                    continue
+
+                # Markup only executes when the browser parses the response as
+                # HTML. A reflection inside application/json, text/plain, an
+                # image, etc. is inert — flagging it is a false positive.
+                if "html" not in ctype:
                     continue
 
                 # Reflected verbatim → dangerous. If only the HTML-escaped form
@@ -62,6 +69,12 @@ class XssPlugin(BasePlugin):
                     continue
                 if payload == html_lib.escape(payload):
                     continue  # payload had nothing to escape; skip noise
+
+                # The breakout characters must survive *unescaped* in the body.
+                # If every occurrence of the payload is HTML-entity-encoded the
+                # context is safe even though the raw substring also appears.
+                if not _has_unescaped_reflection(body, payload):
+                    continue
 
                 findings.append(
                     Finding(
@@ -90,3 +103,28 @@ class XssPlugin(BasePlugin):
                 break
 
         return findings
+
+
+def _has_unescaped_reflection(body: str, payload: str) -> bool:
+    """True if the payload appears with its breakout characters intact.
+
+    A correctly-encoding app turns ``<`` into ``&lt;`` and ``"`` into
+    ``&quot;``. If *every* reflection of the payload sits next to such encoded
+    forms — i.e. the dangerous characters are gone — the reflection is inert.
+    We confirm at least one of the payload's active characters (``<``, ``>``,
+    ``"``, ``'``) is present raw in a window around a literal reflection.
+    """
+    active = {"<", ">", '"', "'"}.intersection(payload)
+    if not active:
+        return False
+    # The literal payload survived in the body (already checked by the caller),
+    # and the payload itself carries the raw active characters — so a verbatim
+    # match is by definition unescaped. Guard against the pathological case of
+    # the payload only appearing as a substring of an encoded sequence.
+    idx = body.find(payload)
+    while idx != -1:
+        window = body[max(0, idx - 6):idx]
+        if not window.endswith("&"):  # not the tail of an entity like &lt;
+            return True
+        idx = body.find(payload, idx + 1)
+    return False

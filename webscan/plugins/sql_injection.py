@@ -7,7 +7,7 @@ from urllib.parse import ParseResult, parse_qs, urlencode, urlparse
 
 import aiohttp
 
-from webscan.models import Finding, Severity
+from webscan.models import Confidence, Finding, Severity
 from webscan.plugins.base import BasePlugin
 
 # Classic error signatures emitted by popular database engines when a
@@ -56,6 +56,12 @@ _TIME_PAYLOADS: list[str] = [
 # (i.e. similarity below it) are treated as a boolean-blind signal.
 _SIMILARITY_THRESHOLD = 0.95
 
+# A page is only stable enough to boolean-test if two *identical* requests come
+# back at least this similar. Pages below this carry too much per-request noise
+# (CSRF tokens, timestamps, ads, randomised ordering) to compare reliably, so we
+# skip them rather than emit a false positive.
+_STABLE_THRESHOLD = 0.98
+
 
 class SqlInjectionPlugin(BasePlugin):
     """Probes URL query parameters for error-, boolean- and time-based SQLi."""
@@ -79,7 +85,7 @@ class SqlInjectionPlugin(BasePlugin):
             original_value = values[0] if values else ""
 
             error_finding = await self._check_error_based(
-                parsed, params, param_name, session
+                parsed, params, param_name, original_value, session
             )
             if error_finding is not None:
                 findings.append(error_finding)
@@ -109,14 +115,27 @@ class SqlInjectionPlugin(BasePlugin):
         parsed: ParseResult,
         params: dict[str, list[str]],
         param_name: str,
+        original_value: str,
         session: aiohttp.ClientSession,
     ) -> Finding | None:
+        # Baseline with the untouched value: any DB-error string already present
+        # here is part of the normal page (docs, a WAF block page, a help article
+        # mentioning "SQLSTATE", …) and must NOT be treated as our injection.
+        baseline = await self._get_text(
+            session, _build_url(parsed, params, param_name, original_value)
+        )
+        baseline_lower = baseline.lower() if baseline is not None else ""
+
         for payload in _PAYLOADS:
             url = _build_url(parsed, params, param_name, payload)
             body = await self._get_text(session, url)
             if body is None:
                 continue
-            matched = next((e for e in _SQL_ERRORS if e in body.lower()), None)
+            lowered = body.lower()
+            matched = next(
+                (e for e in _SQL_ERRORS if e in lowered and e not in baseline_lower),
+                None,
+            )
             if matched is None:
                 continue
             return Finding(
@@ -150,6 +169,17 @@ class SqlInjectionPlugin(BasePlugin):
         original_value: str,
         session: aiohttp.ClientSession,
     ) -> Finding | None:
+        # Noise floor: two identical requests. If the page differs from *itself*
+        # between requests it is too dynamic to boolean-test reliably, so bail
+        # out rather than risk a false positive on every parameter.
+        base_url = _build_url(parsed, params, param_name, original_value)
+        base1 = await self._get_text(session, base_url)
+        base2 = await self._get_text(session, base_url)
+        if base1 is None or base2 is None:
+            return None
+        if _similarity(base1, base2) < _STABLE_THRESHOLD:
+            return None
+
         for true_suffix, false_suffix in _BOOLEAN_PAIRS:
             true_url = _build_url(
                 parsed, params, param_name, original_value + true_suffix
@@ -164,12 +194,21 @@ class SqlInjectionPlugin(BasePlugin):
                 continue
 
             true_false_sim = _similarity(true_body, false_body)
-            # TRUE differs meaningfully from FALSE → conditional SQL evaluation.
-            if true_false_sim < _SIMILARITY_THRESHOLD:
+            true_base_sim = _similarity(true_body, base1)
+            # Genuine boolean SQLi: the TRUE condition leaves the page like the
+            # (stable) baseline, while the FALSE condition clearly diverges. Both
+            # must hold — a page that simply differs for any altered input (a
+            # generic error page, an echo of the value) fails the TRUE≈baseline
+            # leg and is rejected.
+            if (
+                true_base_sim >= _STABLE_THRESHOLD
+                and true_false_sim < _SIMILARITY_THRESHOLD
+            ):
                 return Finding(
                     plugin=self.name,
                     title=f"Boolean-based blind SQL injection in '{param_name}'",
                     severity=Severity.CRITICAL,
+                    confidence=Confidence.TENTATIVE,
                     description=(
                         f"Parameter '{param_name}' produces different responses for "
                         "logically TRUE vs FALSE SQL conditions, indicating "
@@ -181,7 +220,8 @@ class SqlInjectionPlugin(BasePlugin):
                         "parameter": param_name,
                         "true_payload": true_suffix,
                         "false_payload": false_suffix,
-                        "similarity": round(true_false_sim, 3),
+                        "true_false_similarity": round(true_false_sim, 3),
+                        "true_baseline_similarity": round(true_base_sim, 3),
                     },
                     remediation=(
                         "Use parameterized queries (prepared statements) and strictly "
@@ -198,24 +238,34 @@ class SqlInjectionPlugin(BasePlugin):
         original_value: str,
         session: aiohttp.ClientSession,
     ) -> Finding | None:
-        # Establish a quick baseline; if the site is already slow, skip to avoid
-        # false positives.
+        # Establish a quick baseline from the fastest of two probes (robust to a
+        # single jittery request); if the site is already slow, skip.
         baseline_url = _build_url(parsed, params, param_name, original_value)
-        baseline = await self._timed_get(session, baseline_url)
-        if baseline is None or baseline >= _DELAY_SECONDS:
+        b1 = await self._timed_get(session, baseline_url)
+        b2 = await self._timed_get(session, baseline_url)
+        samples = [s for s in (b1, b2) if s is not None]
+        if not samples:
             return None
+        baseline = min(samples)
+        if baseline >= _DELAY_SECONDS:
+            return None
+
+        threshold = baseline + (_DELAY_SECONDS * 0.8)
 
         for payload in _TIME_PAYLOADS:
             url = _build_url(parsed, params, param_name, original_value + payload)
             elapsed = await self._timed_get(session, url)
-            if elapsed is None:
+            if elapsed is None or elapsed < threshold:
                 continue
-            # Require the delay to clearly exceed baseline by most of DELAY.
-            if elapsed >= baseline + (_DELAY_SECONDS * 0.8):
+            # Re-confirm: a one-off network latency spike must not be reported.
+            # A real sleep payload delays *every* time it is sent.
+            confirm = await self._timed_get(session, url)
+            if confirm is not None and confirm >= threshold:
                 return Finding(
                     plugin=self.name,
                     title=f"Time-based blind SQL injection in '{param_name}'",
                     severity=Severity.CRITICAL,
+                    confidence=Confidence.TENTATIVE,
                     description=(
                         f"Parameter '{param_name}' delayed the response by "
                         f"~{_DELAY_SECONDS}s when injected with a database sleep "

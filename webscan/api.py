@@ -24,8 +24,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from webscan.engine import ProgressCallback, ScanEngine
-from webscan.models import ScanReport
+from webscan.models import Confidence, ScanReport
 from webscan.registry import DEFAULT_PLUGINS, build_plugins
+from webscan.reporter import filter_report_by_confidence
 from webscan.retry import RetryConfig
 from webscan.utils.http import normalise_url
 
@@ -48,6 +49,7 @@ async def scan(
     auth_headers: dict[str, str] | None = None,
     auth_cookies: dict[str, str] | None = None,
     on_progress: ProgressCallback | None = None,
+    min_confidence: Confidence | None = None,
 ) -> ScanReport:
     """Scan *targets* and return a :class:`~webscan.models.ScanReport`.
 
@@ -69,6 +71,9 @@ async def scan(
     :param auth_headers: Extra headers attached to every request (e.g. bearer token).
     :param auth_cookies: Cookies attached to every request.
     :param on_progress: Optional ``(target, done, total) -> None`` callback.
+    :param min_confidence: If set, drop findings below this confidence from the
+        returned report (``FIRM`` is the strongest false-positive filter). ``None``
+        keeps every finding.
     :returns: A populated :class:`~webscan.models.ScanReport`.
     :raises ValueError: If *targets* is empty or no plugins are selected.
     :raises KeyError: If an unknown plugin name is requested.
@@ -100,7 +105,10 @@ async def scan(
         delay=delay,
         random_delay=random_delay,
     )
-    return await engine.scan_all(normalised)
+    report = await engine.scan_all(normalised)
+    if min_confidence is not None:
+        report = filter_report_by_confidence(report, min_confidence)
+    return report
 
 
 def scan_sync(targets: Sequence[str], **kwargs: object) -> ScanReport:

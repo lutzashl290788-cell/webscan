@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import aiohttp
 
-from webscan.models import Finding, Severity
+from webscan.models import Confidence, Finding, Severity
 from webscan.plugins.base import BasePlugin
 
 
@@ -137,6 +137,7 @@ class HeadersPlugin(BasePlugin):
                                 plugin=self.name,
                                 title=f"Information disclosure: {hdr}",
                                 severity=Severity.LOW,
+                                confidence=Confidence.INFORMATIONAL,
                                 description=(
                                     f"Header '{hdr}: {headers[hdr]}' "
                                     f"is present in the response. {note}"

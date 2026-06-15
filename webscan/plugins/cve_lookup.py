@@ -16,7 +16,7 @@ import re
 
 import aiohttp
 
-from webscan.models import Finding, Severity
+from webscan.models import Confidence, Finding, Severity
 from webscan.plugins.base import BasePlugin
 from webscan.retry import RetryConfig, request_with_retry
 
@@ -119,6 +119,9 @@ class CveLookupPlugin(BasePlugin):
             plugin=self.name,
             title=f"{cve_id} affects {product} {version}",
             severity=severity,
+            # Matched by product + advertised version string, which can be
+            # spoofed, back-ported or simply wrong — always confirm manually.
+            confidence=Confidence.TENTATIVE,
             description=(
                 f"{product} {version} is associated with {cve_id} "
                 f"({year}). {description}"
