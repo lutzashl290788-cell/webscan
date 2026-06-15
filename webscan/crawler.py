@@ -7,7 +7,6 @@ URLs so injection plugins can fuzz them later.
 from __future__ import annotations
 
 import asyncio
-from collections import deque
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
@@ -28,6 +27,7 @@ class CrawlConfig:
     scope: str = ""  # registrable host to stay within; defaults to seed host
     respect_robots: bool = True
     exclude: list[str] = field(default_factory=list)  # substrings to skip
+    concurrency: int = 10  # max simultaneous page fetches per depth level
 
 
 @dataclass
@@ -51,40 +51,62 @@ class Crawler:
         self._robots: RobotFileParser | None = None
 
     async def crawl(self, seed: str) -> CrawlResult:
-        """Crawl outward from *seed* and return discovered URLs and forms."""
+        """Crawl outward from *seed* and return discovered URLs and forms.
+
+        Traversal is breadth-first, processed one depth level at a time. All
+        pages in a level are fetched concurrently (bounded by
+        ``config.concurrency``), which is far faster than the serial
+        URL-at-a-time walk while preserving identical depth/scope/robots/cap
+        semantics.
+        """
         scope = self.config.scope or urlparse(seed).netloc
         result = CrawlResult()
         visited: set[str] = set()
-        queue: deque[tuple[str, int]] = deque([(seed, 0)])
+        frontier: list[str] = [seed]
+        depth = 0
+        sem = asyncio.Semaphore(max(1, self.config.concurrency))
 
         if self.config.respect_robots:
             await self._load_robots(seed)
 
-        while queue and len(visited) < self.config.max_urls:
-            url, depth = queue.popleft()
-            if url in visited:
-                continue
-            if not self._in_scope(url, scope) or self._excluded(url):
-                continue
-            if not self._robots_allows(url):
-                continue
+        while frontier and len(visited) < self.config.max_urls:
+            # Admit this level's in-scope, unvisited, robots-allowed URLs,
+            # honouring the global max-URL cap.
+            current: list[str] = []
+            for url in frontier:
+                if len(visited) >= self.config.max_urls:
+                    break
+                if url in visited:
+                    continue
+                if not self._in_scope(url, scope) or self._excluded(url):
+                    continue
+                if not self._robots_allows(url):
+                    continue
+                visited.add(url)
+                result.urls.append(url)
+                current.append(url)
 
-            visited.add(url)
-            result.urls.append(url)
+            if depth >= self.config.max_depth or not current:
+                break
 
-            if depth >= self.config.max_depth:
-                continue
+            async def _fetch(u: str) -> ParsedPage | None:
+                async with sem:
+                    return await self._fetch_and_parse(u)
 
-            page = await self._fetch_and_parse(url)
-            if page is None:
-                continue
+            pages = await asyncio.gather(*(_fetch(u) for u in current))
 
-            if page.forms:
-                result.forms[url] = page.forms
+            next_frontier: list[str] = []
+            for url, page in zip(current, pages):
+                if page is None:
+                    continue
+                if page.forms:
+                    result.forms[url] = page.forms
+                for link in page.links:
+                    if link not in visited:
+                        next_frontier.append(link)
 
-            for link in page.links:
-                if link not in visited:
-                    queue.append((link, depth + 1))
+            frontier = next_frontier
+            depth += 1
 
         return result
 

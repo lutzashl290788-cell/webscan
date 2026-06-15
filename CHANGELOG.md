@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`config_files`: no more false-positive CRITICALs on executed scripts** (#32).
+  A request for `/wp-config.php`, `/config.php`, `/settings.py` etc. that the
+  server *executes* returns `200` with an empty (or rendered-HTML) body and
+  discloses nothing. The plugin previously flagged any `200` as exposed.
+  Detection is now content-aware: empty bodies are never flagged, executable
+  scripts are reported only when their raw source actually leaks (source markers
+  like `<?php`, `define(`, `import ` present), and a genuine source leak is still
+  caught as CRITICAL.
+
+### Performance
+- **Plugins now run concurrently per target** instead of one after another.
+  Single- and few-target scans are dramatically faster; request pressure stays
+  bounded by the shared connector's per-host connection limit, so scans are no
+  less polite.
+- **Crawler fetches each depth level in parallel** (bounded by a new
+  `CrawlConfig.concurrency`, wired to `--concurrency`) instead of one URL at a
+  time, greatly speeding up `--crawl` on larger sites.
+
 ## [2.0.0] - 2026-06-15
 
 The **2.0** milestone: WebScan grows from a configuration checker into a complete

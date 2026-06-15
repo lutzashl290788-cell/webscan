@@ -9,6 +9,21 @@ from webscan.models import Finding, Severity
 from webscan.plugins.base import BasePlugin
 from webscan.plugins.soft404 import calibrate, read_finding_body
 
+# Extensions the server may *execute* instead of serving as source. A request
+# for one of these that returns 200 with an empty body (or rendered HTML)
+# means the script ran and disclosed nothing — NOT an exposure. We only flag
+# these when the body actually contains source markers (see ``_SOURCE_MARKERS``).
+_EXECUTABLE_EXT: tuple[str, ...] = (
+    ".php", ".py", ".cgi", ".pl", ".rb", ".asp", ".aspx", ".jsp",
+)
+
+# Substrings that betray leaked *source* of an executable script (lower-cased).
+# Their presence means the file was served verbatim rather than executed.
+_SOURCE_MARKERS: tuple[str, ...] = (
+    "<?php", "<?=", "<%", "#!/", "import ", "define(", "require(", "require_once",
+    "db_password", "db_name", "db_user", "secret_key", "django",
+)
+
 # (path, human label)
 _CONFIG_FILES: list[tuple[str, str]] = [
     ("/.env", "Environment variables file"),
@@ -130,11 +145,16 @@ class ConfigFilesPlugin(BasePlugin):
                 ) as resp:
                     if resp.status != 200:
                         return None
+
+                    body = await read_finding_body(resp)
+
                     # Drop files that merely return the server's soft-404 page.
-                    if baseline is not None:
-                        body = await read_finding_body(resp)
-                        if baseline.matches(resp.status, body):
-                            return None
+                    if baseline is not None and baseline.matches(resp.status, body):
+                        return None
+
+                    if not _is_exposed(path, body):
+                        return None
+
                     return Finding(
                         plugin=self.name,
                         title=f"Exposed file: {path}",
@@ -148,6 +168,7 @@ class ConfigFilesPlugin(BasePlugin):
                             "http_status": resp.status,
                             "content_type": resp.headers.get("Content-Type", ""),
                             "content_length": resp.headers.get("Content-Length", ""),
+                            "body_bytes": len(body),
                         },
                         remediation=(
                             f"Block access to '{path}' in your web-server config "
@@ -160,6 +181,30 @@ class ConfigFilesPlugin(BasePlugin):
         results = await asyncio.gather(*[_check(p, lbl) for p, lbl in _CONFIG_FILES])
         findings = [f for f in results if f is not None]
         return findings
+
+
+def _is_exposed(path: str, body: str) -> bool:
+    """Decide whether a 200 response genuinely *discloses* the file.
+
+    The naive "status == 200 means exposed" rule produces false positives on
+    server-executable scripts: a request for ``/wp-config.php`` runs the PHP
+    interpreter, which emits an **empty body** (or rendered HTML) and leaks
+    nothing. A real disclosure either serves the raw source or returns actual
+    file contents. Concretely:
+
+    * Empty / whitespace-only body  -> never an exposure.
+    * Executable script (.php, .py, ...) -> exposed only if the body carries a
+      source marker (``<?php``, ``import ``, ``define(`` …), proving the source
+      was served verbatim rather than executed.
+    * Any other file with a non-empty body -> exposed (soft-404 echoes are
+      already filtered upstream by the calibrated baseline).
+    """
+    if not body.strip():
+        return False
+    if path.endswith(_EXECUTABLE_EXT):
+        lowered = body.lower()
+        return any(marker in lowered for marker in _SOURCE_MARKERS)
+    return True
 
 
 def _classify(path: str) -> Severity:

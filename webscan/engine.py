@@ -145,14 +145,23 @@ class ScanEngine:
     ) -> TargetResult:
         result = TargetResult(target=target, scanned_at=_utcnow())
 
-        for plugin in self.plugins:
-            try:
-                findings = await plugin.run(target, session)
-                result.findings.extend(findings)
-            except Exception as exc:  # noqa: BLE001 — intentional wide catch
+        # Plugins are independent and almost entirely network-bound, so run them
+        # concurrently rather than one after another. Actual request pressure
+        # stays bounded by the shared connector's per-host connection limit, so
+        # this speeds up scans (especially single-target ones) without making
+        # them less polite. Each plugin's failure is isolated via gather's
+        # return_exceptions so one crash never aborts the others.
+        outcomes = await asyncio.gather(
+            *(plugin.run(target, session) for plugin in self.plugins),
+            return_exceptions=True,
+        )
+        for plugin, outcome in zip(self.plugins, outcomes):
+            if isinstance(outcome, BaseException):
                 result.errors.append(
-                    f"[plugin:{plugin.name}] {type(exc).__name__}: {exc}"
+                    f"[plugin:{plugin.name}] {type(outcome).__name__}: {outcome}"
                 )
+            else:
+                result.findings.extend(outcome)
 
         return result
 

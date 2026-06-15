@@ -419,6 +419,7 @@ async def _crawl_targets(
         scope=args.scope or "",
         respect_robots=not args.ignore_robots,
         exclude=args.exclude,
+        concurrency=max(1, args.concurrency),
     )
 
     crawl_headers = dict(auth.headers)
