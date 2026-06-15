@@ -7,7 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-06-15
+
+The **2.0** milestone: WebScan grows from a configuration checker into a complete
+async web-security auditor — **19 plugins**, a crawler, authentication, polite
+**Safe Mode**, proxy/SOCKS5 evasion, five report formats (incl. SARIF & CSV),
+live **CVE lookup against the NVD's 350,000+ records**, and a library API. Backed
+by **214 tests at 94% coverage** and a reproducible benchmark where it finishes a
+full scan in **7.3s — 4.7× faster than Nuclei, 5.8× faster than Nikto, with zero
+false positives**.
+
+### Highlights since 1.0
+- **19 plugins total** (up from 7): added `xss`, `path_traversal`, `open_redirect`,
+  `tech_fingerprint`, `ssl_tls`, `ssrf`, `subdomains`, `robots_sitemap`, `secrets`,
+  `graphql` and `cve_lookup`, plus blind (boolean/time) SQL injection.
+- **Crawler/spider** with depth, scope, exclusion and `robots.txt` support.
+- **Authentication**: cookie, header, basic-auth and form-login.
+- **Safe Mode** (`--safe-mode`) — polite preset for site owners.
+- **Proxy / SOCKS5, User-Agent rotation and request pacing** for stealth.
+- **SARIF 2.1.0**, **HTML**, **CSV** and **JSON Lines** report formats.
+- **CVE integration** — maps detected software/versions to NVD CVEs (~350K records).
+- **Library mode** — `webscan.scan()` / `scan_sync()` for embedding.
+- **Quality bar**: 214 tests, 94% coverage, `mypy --strict` clean, ruff clean,
+  enforced by an `--cov-fail-under=80` CI gate.
+- **Benchmark**: 7.3s end-to-end, 28 findings, 0 false positives — see the
+  [README benchmark](README.md#-benchmark).
+
 ### Added
+- **Test suite expanded to 214 tests at 94% line coverage**, including full
+  coverage of the CLI, TLS probing, auth/form-login, subdomain resolution and the
+  shared HTTP helpers.
+- **Benchmark, feature comparison and code-quality sections** in the README,
+  documenting WebScan's speed and accuracy against Nuclei, Nikto, OWASP ZAP and
+  Burp Suite Pro.
 - **Library mode**: WebScan can now be used as a Python package —
   `webscan.scan(targets, ...)` (async) and `webscan.scan_sync(...)` (blocking)
   return the same `ScanReport` the CLI produces, for embedding in recon
@@ -98,7 +130,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Plugins: `config_files`, `headers`, `directories`, `sql_injection` (error-based),
   `cors`, `cookies`, `http_methods`.
 
-[Unreleased]: https://github.com/lutzashl290788-cell/webscan/compare/v1.3...HEAD
+[Unreleased]: https://github.com/lutzashl290788-cell/webscan/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/lutzashl290788-cell/webscan/compare/v1.3...v2.0.0
 [1.3.0]: https://github.com/lutzashl290788-cell/webscan/compare/v1.2...v1.3
 [1.2.0]: https://github.com/lutzashl290788-cell/webscan/compare/v1.1...v1.2
 [1.1.0]: https://github.com/lutzashl290788-cell/webscan/releases/tag/v1.1

@@ -22,7 +22,7 @@ from webscan.models import Finding, ScanReport, Severity, TargetResult
 from webscan.registry import ALL_PLUGINS, DEFAULT_PLUGINS, OPT_IN_PLUGINS
 from webscan.reporter import Reporter
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 __author__ = "WebScan contributors"
 
 __all__ = [
