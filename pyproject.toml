@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "webscan"
+name = "webscan-security"
 version = "2.0.0"
 description = "CLI security auditing tool for web configuration vulnerabilities"
 readme = "README.md"

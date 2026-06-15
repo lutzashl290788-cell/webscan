@@ -545,6 +545,9 @@ Runtime dependency: **`aiohttp` only**. Everything else is the Python standard l
 ## 📦 Installation
 
 ```bash
+# from PyPI (distribution name: webscan-security; CLI/import stay 'webscan')
+pip install webscan-security
+
 # from source
 git clone https://github.com/lutzashl290788-cell/webscan
 cd webscan && pip install .
