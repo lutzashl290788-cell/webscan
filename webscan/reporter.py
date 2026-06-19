@@ -55,6 +55,26 @@ _SARIF_LEVEL: dict[Severity, str] = {
 }
 
 
+
+def _csv_sanitize(value: str) -> str:
+    """Prevent CSV formula injection by prefixing dangerous characters.
+
+    Excel and LibreOffice interpret cells starting with ``=``, ``+``,
+    ``-``, or ``@`` as formulas. An attacker who controls a finding's
+    title or description can craft a value like ``=cmd|'/c calc'!A1``
+    that executes a command when the CSV is opened in Excel.
+
+    We prefix any such cell with a single quote (``'``), which Excel
+    interprets as "treat this as text".
+    """
+    if not value:
+        return value
+    # Only sanitize string values that start with a dangerous character.
+    if value[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return f"'{value}"
+    return value
+
+
 class Reporter:
     """Renders a :class:`~webscan.models.ScanReport` in one or more formats."""
 
@@ -332,15 +352,15 @@ class Reporter:
             for f in sorted_findings:
                 writer.writerow(
                     [
-                        tr.target,
-                        f.plugin,
-                        f.severity.value,
-                        f.confidence.value,
-                        f.title,
-                        f.url,
-                        f.description,
-                        f.remediation,
-                        json.dumps(f.evidence, default=_json_default),
+                        _csv_sanitize(tr.target),
+                        _csv_sanitize(f.plugin),
+                        _csv_sanitize(f.severity.value),
+                        _csv_sanitize(f.confidence.value),
+                        _csv_sanitize(f.title),
+                        _csv_sanitize(f.url),
+                        _csv_sanitize(f.description),
+                        _csv_sanitize(f.remediation),
+                        _csv_sanitize(json.dumps(f.evidence, default=_json_default)),
                     ]
                 )
 
