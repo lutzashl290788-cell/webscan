@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Four new security plugins** (20 → 24 total), all with content-verified
+  detection to keep the false-positive rate low. Every new plugin uses the
+  `Confidence` dimension introduced in `8c6d765` so operators can filter
+  heuristic findings with `--min-confidence firm`.
+
+- **`csrf` plugin** (passive): audits HTML forms for missing CSRF protection.
+  Flags only **state-changing** forms (POST/PUT/PATCH/DELETE) that lack a
+  CSRF token in their fields, AND where the page declares no global
+  `<meta name="csrf-token">` tag. To cut false positives, the plugin skips
+  login forms (detected via `password` + `username`/`email` field heuristic),
+  search forms (POST `/search`, `/filter`, `/sort` actions, or fields named
+  `q`/`query`/`search`), cross-origin forms, and forms with no fields. A
+  global CSRF meta tag in `<head>` suppresses all findings on the page (the
+  token is intended to be picked up by client-side JS).
+
+- **`lfi_rfi` plugin** (active, content-verified): probes file-like URL
+  parameters (`file`, `page`, `include`, `path`, `template`, `cat`, …) for
+  Local/Remote File Inclusion. Linux path-traversal chains (`../../../etc/passwd`,
+  URL-encoded, double-encoded, null-byte), Windows chains (`..\..\windows\win.ini`),
+  and PHP wrappers (`php://filter/convert.base64-encode/resource=index.php`).
+  **Findings are content-verified**: a CRITICAL is only emitted when the
+  response contains actual `/etc/passwd` markers (`root:x:0:0:`), `win.ini`
+  markers (`[fonts]`), or the PHP-wrapper response decodes to valid PHP
+  source. A heuristic TENTATIVE finding covers the case where the response
+  size differs from the baseline by ≥50 bytes without matching any marker.
+
+- **`xxe` plugin** (active, content-verified): probes XML-accepting endpoints
+  (detected via `Content-Type: application/xml`, body starting with `<?xml`,
+  or URL params named `xml`/`data`/`payload`/`soap`) for XML External Entity
+  injection. Sends a per-scan randomised internal-entity probe first; if the
+  parser inlines the marker value, escalates to an external-entity probe
+  referencing `file:///etc/passwd` (Linux) or `file:///c:/windows/win.ini`
+  (Windows). CRITICAL only when actual file markers appear in the response;
+  HIGH when internal entities resolve but external didn't leak in-band (could
+  still be blind XXE); INFO when the endpoint accepts XML POST without echoing
+  the entity (manual review needed). The probe marker is generated fresh per
+  scan with `secrets.token_hex(8)` so a fixed string in the response can't
+  produce a false positive.
+
+- **`idor` plugin** (active, TENTATIVE): probes API endpoints
+  (`/api/`, `/v1/`, `/admin/`, `/graphql`, …) with numeric object IDs shifted
+  by ±1. A finding is emitted only when ALL of the following hold: baseline
+  returns 200, probe returns 200, probe response has no auth-error markers
+  (`unauthorized`, `forbidden`, `access denied`, JSON `{"status": 401}`, …),
+  length ratio is within 0.5–2.0× the baseline, Content-Type matches, and
+  sequence similarity ≥ 0.75. All findings are TENTATIVE because IDOR is
+  semantic — a public API legitimately exposing object N+1 is not IDOR.
+  Public-content URLs (no `/api/` in path) are skipped entirely to avoid
+  the obvious false-positive category.
+
+### False-positive reduction (cross-cutting)
+- The new plugins consistently use `Confidence.FIRM` only when a content
+  marker is directly observed, `Confidence.TENTATIVE` for heuristic signals,
+  and `Confidence.INFORMATIONAL` for "manual review needed" cases. This
+  matches the pattern established by `jwt_audit` and lets operators
+  filter with `--min-confidence firm` to keep only directly-verified findings.
+
 ### Fixed
 - **`config_files`: no more false-positive CRITICALs on executed scripts** (#32).
   A request for `/wp-config.php`, `/config.php`, `/settings.py` etc. that the

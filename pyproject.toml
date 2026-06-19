@@ -73,6 +73,11 @@ robots_sitemap = "webscan.plugins.robots_sitemap:RobotsSitemapPlugin"
 subdomains = "webscan.plugins.subdomains:SubdomainsPlugin"
 graphql = "webscan.plugins.graphql:GraphqlPlugin"
 cve_lookup = "webscan.plugins.cve_lookup:CveLookupPlugin"
+jwt_audit = "webscan.plugins.jwt_audit:JwtAuditPlugin"
+csrf = "webscan.plugins.csrf:CsrfPlugin"
+lfi_rfi = "webscan.plugins.lfi_rfi:LfiRfiPlugin"
+xxe = "webscan.plugins.xxe:XxePlugin"
+idor = "webscan.plugins.idor:IdorPlugin"
 
 [tool.setuptools.packages.find]
 where = ["."]
