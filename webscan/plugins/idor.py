@@ -36,7 +36,6 @@ For low false positives:
 """
 from __future__ import annotations
 
-import asyncio
 import re
 from difflib import SequenceMatcher
 from urllib.parse import urlparse
@@ -88,8 +87,11 @@ _AUTH_ERROR_MARKERS: tuple[str, ...] = (
 
 # Response-similarity threshold: if probe response is THIS similar to the
 # baseline (as a ratio 0..1), it suggests the same kind of object was
-# returned (i.e. no auth check on the shifted ID).
-_SIMILARITY_THRESHOLD = 0.75
+# returned (i.e. no auth check on the shifted ID). 0.85 is stricter than
+# the previous 0.75 — the higher bar cuts false positives on endpoints
+# where the response template is generic (e.g. paginated lists where every
+# page has the same HTML skeleton with just a row swapped).
+_SIMILARITY_THRESHOLD = 0.85
 
 # Length-ratio thresholds — the probe response should be in the same ballpark
 # as the baseline. If it's 10x smaller (error stub) or 10x larger (different
@@ -108,6 +110,16 @@ _MIN_BASELINE_LENGTH = 100
 
 # Cap on baseline/probe body length for similarity comparison (perf bound).
 _MAX_COMPARE_LENGTH = 100_000
+
+# Pattern to extract a numeric ``id`` (or ``Id``, ``ID``, ``"_id"``) field
+# from a JSON response body. Used to check that the shifted ID actually
+# changed the returned object — if the probe response still contains the
+# original ID, the server is returning the same object regardless of the
+# URL ID (e.g. it uses the session user, not the URL param).
+_JSON_ID_RE = re.compile(
+    r'"(?:_?id|user[_-]?id|object[_-]?id|guid|uuid)"\s*:\s*"?(\d+)',
+    re.IGNORECASE,
+)
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -215,6 +227,23 @@ def _length_ratio(baseline: str, probe: str) -> float:
     return len(probe) / len(baseline)
 
 
+def _extract_object_id(body: str) -> int | None:
+    """Extract a numeric object id from a JSON response body, if present.
+
+    Looks for the first ``"id": <number>`` (or ``"user_id"``, ``"_id"``) in
+    the body. Returns ``None`` if no such field is found, or if the body
+    isn't JSON-like (we don't fully parse — just regex-match, which is
+    robust against partial / pretty-printed JSON).
+    """
+    m = _JSON_ID_RE.search(body)
+    if m is None:
+        return None
+    try:
+        return int(m.group(1))
+    except ValueError:
+        return None
+
+
 # ─── Plugin ───────────────────────────────────────────────────────────────────
 
 
@@ -246,7 +275,8 @@ class IdorPlugin(BasePlugin):
         # Cap the number of IDs to probe.
         ids = ids[:_MAX_IDS_PER_TARGET]
 
-        # Fetch the baseline response (original URL).
+        # Fetch the baseline response (original URL) with retry on transient
+        # 5xx/429 responses.
         baseline_body, baseline_status, baseline_ct = await self._fetch(session, target)
         if baseline_body is None or baseline_status != 200:
             # If the baseline itself isn't 200, we can't tell what a "successful"
@@ -258,6 +288,18 @@ class IdorPlugin(BasePlugin):
         # so any further probe will also fail auth, which isn't IDOR.
         if _has_auth_error(baseline_body):
             return findings
+
+        # Calibrate soft-404 for this target. Some servers answer every URL
+        # with the same templated 200 page — we don't want to flag those as
+        # IDOR just because the shifted ID also got 200.
+        from webscan.plugins._active_helpers import calibrate_target, is_soft404
+        soft_baseline = await calibrate_target(session, target)
+
+        # Extract the object id from the baseline body, if present. Used to
+        # check that the shifted-ID probe actually returns a *different*
+        # object — if the probe's id field matches the original id, the
+        # server is using the session user, not the URL param (not IDOR).
+        baseline_object_id = _extract_object_id(baseline_body)
 
         seen_probes: set[str] = set()
 
@@ -296,6 +338,12 @@ class IdorPlugin(BasePlugin):
                 if _has_auth_error(probe_body):
                     continue
 
+                # Soft-404: probe response matches the calibrated soft-404
+                # template — server answered 200 with a generic "not found"
+                # page. Not an IDOR signal.
+                if is_soft404(probe_body, probe_status, soft_baseline):
+                    continue
+
                 # Length check — wildly different sizes suggest a different
                 # kind of response (error page, empty result), not IDOR.
                 lr = _length_ratio(baseline_body, probe_body)
@@ -305,6 +353,19 @@ class IdorPlugin(BasePlugin):
                 # Content-Type mismatch (e.g. baseline JSON, probe HTML) —
                 # suspicious in a different way; skip to avoid noise.
                 if baseline_ct and probe_ct and baseline_ct.lower() != probe_ct.lower():
+                    continue
+
+                # Object-id check: if the probe response still contains the
+                # baseline's object id, the server is using the session user
+                # (not the URL param) — not IDOR. This catches endpoints
+                # like /api/users/123 that always return the current user
+                # regardless of the path.
+                probe_object_id = _extract_object_id(probe_body)
+                if (
+                    baseline_object_id is not None
+                    and probe_object_id is not None
+                    and baseline_object_id == probe_object_id
+                ):
                     continue
 
                 # Similarity check — if the probe is structurally similar to
@@ -366,14 +427,15 @@ class IdorPlugin(BasePlugin):
         session: aiohttp.ClientSession,
         url: str,
     ) -> tuple[str | None, int, str]:
-        """GET *url*. Returns ``(body, status, content_type)`` or ``(None, 0, '')``."""
-        try:
-            async with session.get(url, allow_redirects=True, ssl=False) as resp:
-                body = await resp.text(errors="ignore")
-                ct = resp.headers.get("Content-Type", "")
-                return body, resp.status, ct
-        except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
-            return None, 0, ""
+        """GET *url* with retry on transient failures.
+
+        Returns ``(body, status, content_type)`` or ``(None, 0, '')`` if every
+        retry attempt failed. Uses :func:`webscan.plugins._active_helpers.fetch_with_headers`
+        so transient ``5xx`` / ``429`` responses ride out with exponential
+        backoff instead of aborting the whole plugin.
+        """
+        from webscan.plugins._active_helpers import fetch_with_headers
+        return await fetch_with_headers(session, url, method="GET") or (None, 0, "")
 
     def _make_finding(
         self,

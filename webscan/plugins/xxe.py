@@ -180,14 +180,16 @@ class XxePlugin(BasePlugin):
         marker = f"{_MARKER_PREFIX}{token}{_MARKER_SUFFIX}"
         probe_body = _INTERNAL_ENTITY_TEMPLATE.format(token=token)
 
-        probe_response_body, probe_status = await self._post_xml(session, target, probe_body)
+        probe_response_body, probe_status, probe_content_type = await self._post_xml(
+            session, target, probe_body
+        )
         if probe_response_body is None:
             return findings
 
         # Step 3: check if the marker was inlined (entity resolution works).
         if marker in probe_response_body:
             # Internal entities resolve. Now try external entities.
-            ext_response_body, ext_status = await self._post_xml(
+            ext_response_body, ext_status, _ext_ct = await self._post_xml(
                 session, target, _EXTERNAL_ENTITY_LINUX_TEMPLATE
             )
             if (
@@ -269,8 +271,16 @@ class XxePlugin(BasePlugin):
         # (b) Parser is entity-unaware but accepts XML (unusual, suspicious)
         # (c) Blind XXE — entities resolve but content isn't echoed
         # If the server returned 2xx to a POST with an XML body, that's worth
-        # an INFO finding — manual review needed.
-        if 200 <= probe_status < 300 and len(probe_response_body) >= _MIN_RESPONSE_LENGTH:
+        # an INFO finding — manual review needed. But only if the response
+        # looks like XML or JSON (an HTML error page is not an XML-parser
+        # signal — most web frameworks return HTML for any unhandled route).
+        from webscan.plugins._active_helpers import looks_like_xml_or_json
+        if (
+            200 <= probe_status < 300
+            and len(probe_response_body) >= _MIN_RESPONSE_LENGTH
+            # Response must look like XML/JSON — HTML error pages are noise.
+            and looks_like_xml_or_json(probe_content_type, probe_response_body)
+        ):
             # Don't fire if the response is identical to the GET baseline —
             # that means the POST body was ignored entirely (not an XML parser).
             if probe_response_body != baseline_body:
@@ -283,11 +293,13 @@ class XxePlugin(BasePlugin):
                         "The endpoint accepted a POST request with "
                         "`Content-Type: application/xml` and an XML body "
                         "containing entity declarations, but did not echo the "
-                        "entity value in the response. This could mean the "
-                        "parser is safely configured, OR that blind (out-of-band) "
-                        "XXE is possible. Manual verification recommended: send "
-                        "a payload with an external entity pointing to your "
-                        "Collaborator and watch for the callback."
+                        "entity value in the response. The response is XML/JSON "
+                        "(not an HTML error page), suggesting the server did "
+                        "process the body. This could mean the parser is safely "
+                        "configured, OR that blind (out-of-band) XXE is possible. "
+                        "Manual verification recommended: send a payload with an "
+                        "external entity pointing to your Collaborator and watch "
+                        "for the callback."
                     ),
                     evidence={
                         "probe_method": "POST",
@@ -317,20 +329,24 @@ class XxePlugin(BasePlugin):
         session: aiohttp.ClientSession,
         url: str,
         body: str,
-    ) -> tuple[str | None, int]:
-        """POST *body* as ``application/xml``. Returns ``(response_body, status)``."""
-        try:
-            async with session.post(
-                url,
-                data=body.encode("utf-8"),
-                headers={"Content-Type": "application/xml"},
-                allow_redirects=True,
-                ssl=False,
-            ) as resp:
-                text = await resp.text(errors="ignore")
-                return text, resp.status
-        except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
-            return None, 0
+    ) -> tuple[str | None, int, str]:
+        """POST *body* as ``application/xml`` with retry on transient failures.
+
+        Returns ``(response_body, status, content_type)`` or ``(None, 0, "")``
+        if every retry attempt failed.
+        """
+        from webscan.plugins._active_helpers import fetch_with_headers
+        result = await fetch_with_headers(
+            session,
+            url,
+            method="POST",
+            data=body.encode("utf-8"),
+            headers={"Content-Type": "application/xml"},
+        )
+        if result is None:
+            return None, 0, ""
+        body_text, status, content_type = result
+        return body_text, status, content_type
 
     def _make_finding(
         self,

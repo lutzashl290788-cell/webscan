@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — false-positive reduction across all 4 new plugins
+
+- **`lfi_rfi`: replaced size-delta heuristic with structural similarity
+  ratio.** The old logic fired a TENTATIVE finding whenever the probe
+  response differed from the baseline by ≥50 bytes — but ad rotation,
+  CSRF-token rotation, and per-request timestamps easily produce 50-byte
+  deltas on legitimate pages. The new logic uses `SequenceMatcher.ratio()`
+  (the same approach as the IDOR plugin) and only flags when the response
+  is structurally *different* (similarity < 0.65), with a length-ratio
+  sanity check (0.2–5.0×) to suppress wildly different responses.
+- **`lfi_rfi`: added soft-404 calibration.** Servers that answer every
+  path with the same templated 200 page no longer produce a flood of
+  TENTATIVE findings — the plugin calibrates against a bogus path up
+  front and suppresses probes that match the soft-404 template.
+- **`lfi_rfi`: added "file not found" marker suppression.** A probe
+  response containing `file not found`, `failed to open stream`,
+  `Warning: include(…):`, etc. is now treated as an explicit error (the
+  server did process the path but the file doesn't exist) and is not
+  flagged TENTATIVE — interesting but not exploitable.
+- **`xxe`: INFO finding now requires XML/JSON response shape.** Previously,
+  any 200 response to a POST XML probe triggered an INFO finding. Now the
+  response must look like XML or JSON (per Content-Type or body prefix),
+  not an HTML error page. This cuts the most common FP category (web
+  frameworks returning HTML 404 pages for unhandled POST routes).
+- **`idor`: raised similarity threshold from 0.75 to 0.85.** The previous
+  bar was too permissive — paginated API responses with the same HTML
+  skeleton but one row swapped produced false positives. 0.85 is closer
+  to "same object returned" while still catching IDOR.
+- **`idor`: added object-id equality check.** If the probe response's
+  `id`/`user_id`/`_id` JSON field equals the baseline's, the server is
+  returning the same object regardless of the URL ID (e.g. it uses the
+  session user) — not IDOR. The check uses a regex
+  (`"(?:_?id|user_id|…)"`) to be robust against pretty-printed and
+  partial JSON.
+- **`idor`: added soft-404 calibration.** Same pattern as `lfi_rfi` —
+  suppresses IDOR findings when the shifted-ID probe matches the
+  calibrated soft-404 template.
+- **`csrf`: added SameSite cookie check.** A page that sets a session
+  cookie with `SameSite=Strict` or `SameSite=Lax` is already CSRF-protected
+  at the browser level — flagging its forms would be a false positive.
+  `SameSite=None` does *not* suppress findings (it explicitly opts out).
+
+### Changed — online resilience for all active plugins
+
+- **`lfi_rfi`, `xxe`, `idor`: probes now use retry-with-backoff.** Transient
+  `5xx` / `429` responses and network errors no longer abort the whole
+  plugin — they ride out with exponential backoff via the existing
+  `webscan.retry.request_with_retry` helper. Two retries, 0.3s base delay,
+  capped at 4s — enough to ride out a flaky 502/503 without making scans
+  slow.
+- **New shared helper module: `webscan/plugins/_active_helpers.py`.**
+  Centralises `fetch_with_retry`, `fetch_with_headers`, `calibrate_target`,
+  `is_soft404`, `body_similarity`, and `looks_like_xml_or_json` so all four
+  active plugins use the same retry/soft-404/similarity logic. Reduces code
+  duplication and makes future FP-reduction changes easier to apply across
+  the board.
+
 ### Added
 - **Four new security plugins** (20 → 24 total), all with content-verified
   detection to keep the false-positive rate low. Every new plugin uses the
