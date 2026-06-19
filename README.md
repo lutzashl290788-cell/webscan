@@ -2,7 +2,7 @@
 
 <img src="assets/header.svg" alt="WebScan — automated web security auditor" width="820"/>
 
-*Crawl → discover → audit. 20 plugins, 5 report formats, polite defaults.*
+*Crawl → discover → audit. 24 plugins, 5 report formats, polite defaults.*
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lutzashl290788-cell/webscan/ci.yml?style=flat-square&label=CI&logo=githubactions&logoColor=white)](https://github.com/lutzashl290788-cell/webscan/actions)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
@@ -131,6 +131,10 @@ $ webscan -t https://example.com --plugins headers cookies http_methods ssl_tls 
 | `graphql` | GraphQL endpoints with introspection enabled (schema disclosure) — *opt-in* |
 | `cve_lookup` | Maps detected software/versions to known CVEs via NVD, linked to [cve.org](https://www.cve.org) — *opt-in* |
 | `jwt_audit` | Passive JWT audit: `alg=none`, weak HMAC secrets, missing/expired `exp`, sensitive claims, `kid`/`jku`/`x5u` injection vectors |
+| `csrf` | POST/PUT/PATCH forms missing CSRF tokens (skips login/search forms, respects global `<meta csrf-token>` tag) |
+| `lfi_rfi` | Path-traversal probes (`/etc/passwd`, `win.ini`) + PHP wrappers (`php://filter`); **content-verified** — only flags when actual file markers are present in the response |
+| `xxe` | XML endpoints probed with internal + external entity payloads; flags when entity value is inlined or `/etc/passwd` content leaks |
+| `idor` | API endpoints (`/api/`, `/v1/`, …) probed with ±1 object IDs; flags when shifted-ID response is 200 with similar shape (TENTATIVE) |
 
 > Run `webscan --list-plugins` to see them all, or pick a subset with `--plugins`.
 >
@@ -232,7 +236,7 @@ Every release is gated on the same checks — no exceptions, no warnings suppres
 | ✅ **Tests** | **214 passed, 0 failed** in ~3.9s |
 | 🔍 **Type checking** | `mypy --strict` — **0 errors** across 39 source files |
 | 🧹 **Linting** | `ruff` — **0 issues** |
-| 🧩 **Plugins discovered** | **20** via `webscan.plugins` entry-points |
+| 🧩 **Plugins discovered** | **24** via `webscan.plugins` entry-points |
 | 📄 **Report formats** | **5** — JSON · Markdown · HTML · SARIF · CSV |
 | 🤖 **CI** | `pytest --cov-fail-under=80` enforced on every push (GitHub Actions) |
 
