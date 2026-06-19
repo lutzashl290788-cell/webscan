@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — 3 new plugins (24 → 27 total)
+
+- **`clickjacking` plugin** (passive): audits response headers for
+  clickjacking protection. Flags pages with neither `X-Frame-Options` nor
+  `Content-Security-Policy: frame-ancestors` as MEDIUM; pages with only the
+  legacy X-Frame-Options (CSP missing) as LOW (migration nudge); pages using
+  the obsolete `ALLOW-FROM` directive as INFO. Skips non-HTML responses,
+  error pages, and short bodies to keep the FP rate low.
+
+- **`cache_poisoning` plugin** (active, content-verified): probes for
+  cache-poisoning via Host / X-Forwarded-Host / X-Original-URL /
+  X-Rewrite-URL / X-Forwarded-Server header injection. CRITICAL when the
+  injected sentinel is reflected in a dangerous location (`<link href>`,
+  `<script src>`, `<a href>`, `<form action>`, `<iframe src>`, meta
+  refresh, CSS `url()`); MEDIUM for plain-text reflection. Per-scan
+  random sentinel so a fixed string in the response can't produce a FP.
+
+- **`host_header_injection` plugin** (active, content-verified): probes
+  password-reset endpoints (`/reset`, `/forgot`, `/password-reset`,
+  `/account/recover`, `/wp-login.php?action=lostpassword`, etc.) for
+  host-header injection. CRITICAL when the injected host appears in a URL
+  context (proving the reset link would be poisoned); HIGH (TENTATIVE) for
+  plain reflection; INFO for blind poisoning (server accepted the header
+  but didn't reflect it — manual email verification needed).
+
+### Changed — open_redirect improvements
+
+- **`open_redirect`: 3 payloads → 13 payloads.** Added protocol-relative
+  (`//evil`), backslash (`/\\evil`), triple-slash (`///evil`), URL-encoded
+  (`https://evil%2f`), CRLF (`https://evil/\n`), and at-sign variants that
+  bypass naïve host validation.
+- **`open_redirect`: 16 → 30+ recognised parameter names.** Added `from`,
+  `ref`, `referer`, `referrer`, `back`, `redir`, `go`, `out`, `exit`,
+  `link`, `site`, `to`, `view`, `location`, `page`, `nav`, `navigate`.
+- **`open_redirect`: now uses `Confidence.FIRM`** (content-verified via
+  parsed `Location` host, not substring).
+- **`open_redirect`: cap of 5 params per target** to bound request pressure.
+
+### Changed — full README refresh
+
+- Updated plugin count from 24 to **27** everywhere (header tagline, Code
+  Quality table, Comparison table).
+- Updated test count from 214 to **478** and source-file count from 39 to
+  **48** in the Code Quality section.
+- Added a **Confidence dimension** subsection explaining `firm` / `tentative`
+  / `informational` and the `--min-confidence` flag.
+- Added rows for all 3 new plugins and the improved `open_redirect` to the
+  plugins table, with FP-reduction notes (content verification, soft-404,
+  similarity threshold, etc.).
+- Added new features to the "Bug hunters" and "Site owners" audience
+  tables (retry with backoff, 5-header cache-poisoning probes, passive-first
+  design, `--explain` mode, confidence dimension).
+- Refreshed the **Comparison** table: added "Confidence dimension",
+  "Soft-404 filter", and "Retry with backoff" rows where WebScan leads.
+- Refreshed the **Architecture** diagram to list all 27 plugins and the new
+  `_active_helpers.py` shared module.
+
 ### Changed — false-positive reduction across all 4 new plugins
 
 - **`lfi_rfi`: replaced size-delta heuristic with structural similarity

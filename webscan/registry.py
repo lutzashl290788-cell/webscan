@@ -12,6 +12,8 @@ from __future__ import annotations
 from importlib.metadata import entry_points
 
 from webscan.plugins.base import BasePlugin
+from webscan.plugins.cache_poisoning import CachePoisoningPlugin
+from webscan.plugins.clickjacking import ClickjackingPlugin
 from webscan.plugins.config_files import ConfigFilesPlugin
 from webscan.plugins.cookies import CookiesPlugin
 from webscan.plugins.cors import CorsPlugin
@@ -20,6 +22,7 @@ from webscan.plugins.cve_lookup import CveLookupPlugin
 from webscan.plugins.directories import DirectoriesPlugin
 from webscan.plugins.graphql import GraphqlPlugin
 from webscan.plugins.headers import HeadersPlugin
+from webscan.plugins.host_header_injection import HostHeaderInjectionPlugin
 from webscan.plugins.http_methods import HttpMethodsPlugin
 from webscan.plugins.idor import IdorPlugin
 from webscan.plugins.jwt_audit import JwtAuditPlugin
@@ -66,6 +69,9 @@ _BUILTIN_PLUGINS: dict[str, type[BasePlugin]] = {
     "lfi_rfi":       LfiRfiPlugin,
     "xxe":           XxePlugin,
     "idor":          IdorPlugin,
+    "clickjacking":  ClickjackingPlugin,
+    "cache_poisoning": CachePoisoningPlugin,
+    "host_header_injection": HostHeaderInjectionPlugin,
 }
 
 
