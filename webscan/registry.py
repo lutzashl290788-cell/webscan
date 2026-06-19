@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from importlib.metadata import entry_points
 
+from webscan.plugins.backup_files import BackupFilesPlugin
 from webscan.plugins.base import BasePlugin
 from webscan.plugins.cache_poisoning import CachePoisoningPlugin
 from webscan.plugins.clickjacking import ClickjackingPlugin
@@ -20,23 +21,31 @@ from webscan.plugins.cors import CorsPlugin
 from webscan.plugins.csrf import CsrfPlugin
 from webscan.plugins.cve_lookup import CveLookupPlugin
 from webscan.plugins.directories import DirectoriesPlugin
+from webscan.plugins.file_upload import FileUploadPlugin
 from webscan.plugins.graphql import GraphqlPlugin
+from webscan.plugins.graphql_depth import GraphqlDepthPlugin
 from webscan.plugins.headers import HeadersPlugin
 from webscan.plugins.host_header_injection import HostHeaderInjectionPlugin
 from webscan.plugins.http_methods import HttpMethodsPlugin
 from webscan.plugins.idor import IdorPlugin
 from webscan.plugins.jwt_audit import JwtAuditPlugin
 from webscan.plugins.lfi_rfi import LfiRfiPlugin
+from webscan.plugins.mass_assignment import MassAssignmentPlugin
 from webscan.plugins.open_redirect import OpenRedirectPlugin
 from webscan.plugins.path_traversal import PathTraversalPlugin
+from webscan.plugins.prototype_pollution import PrototypePollutionPlugin
+from webscan.plugins.race_condition import RaceConditionPlugin
+from webscan.plugins.request_smuggling import RequestSmugglingPlugin
 from webscan.plugins.robots_sitemap import RobotsSitemapPlugin
 from webscan.plugins.secrets import SecretsPlugin
 from webscan.plugins.security_txt import SecurityTxtPlugin
 from webscan.plugins.sql_injection import SqlInjectionPlugin
 from webscan.plugins.ssl_tls import SslTlsPlugin
 from webscan.plugins.ssrf import SsrfPlugin
+from webscan.plugins.ssti import SstiPlugin
 from webscan.plugins.subdomains import SubdomainsPlugin
 from webscan.plugins.tech_fingerprint import TechFingerprintPlugin
+from webscan.plugins.verbose_errors import VerboseErrorsPlugin
 from webscan.plugins.xss import XssPlugin
 from webscan.plugins.xxe import XxePlugin
 from webscan.retry import RetryConfig
@@ -72,6 +81,15 @@ _BUILTIN_PLUGINS: dict[str, type[BasePlugin]] = {
     "clickjacking":  ClickjackingPlugin,
     "cache_poisoning": CachePoisoningPlugin,
     "host_header_injection": HostHeaderInjectionPlugin,
+    "ssti":              SstiPlugin,
+    "backup_files":     BackupFilesPlugin,
+    "verbose_errors":   VerboseErrorsPlugin,
+    "mass_assignment":  MassAssignmentPlugin,
+    "prototype_pollution": PrototypePollutionPlugin,
+    "graphql_depth":    GraphqlDepthPlugin,
+    "file_upload":      FileUploadPlugin,
+    "race_condition":   RaceConditionPlugin,
+    "request_smuggling": RequestSmugglingPlugin,
 }
 
 

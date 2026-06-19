@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "webscan-security"
-version = "2.1.0"
+version = "2.2.0"
 description = "CLI security auditing tool for web configuration vulnerabilities"
 readme = "README.md"
 license = { text = "MIT" }
@@ -81,6 +81,15 @@ idor = "webscan.plugins.idor:IdorPlugin"
 clickjacking = "webscan.plugins.clickjacking:ClickjackingPlugin"
 cache_poisoning = "webscan.plugins.cache_poisoning:CachePoisoningPlugin"
 host_header_injection = "webscan.plugins.host_header_injection:HostHeaderInjectionPlugin"
+ssti = "webscan.plugins.ssti:SstiPlugin"
+backup_files = "webscan.plugins.backup_files:BackupFilesPlugin"
+verbose_errors = "webscan.plugins.verbose_errors:VerboseErrorsPlugin"
+mass_assignment = "webscan.plugins.mass_assignment:MassAssignmentPlugin"
+prototype_pollution = "webscan.plugins.prototype_pollution:PrototypePollutionPlugin"
+graphql_depth = "webscan.plugins.graphql_depth:GraphqlDepthPlugin"
+file_upload = "webscan.plugins.file_upload:FileUploadPlugin"
+race_condition = "webscan.plugins.race_condition:RaceConditionPlugin"
+request_smuggling = "webscan.plugins.request_smuggling:RequestSmugglingPlugin"
 
 [tool.setuptools.packages.find]
 where = ["."]
