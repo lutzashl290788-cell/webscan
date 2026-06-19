@@ -20,6 +20,7 @@ from webscan.plugins.directories import DirectoriesPlugin
 from webscan.plugins.graphql import GraphqlPlugin
 from webscan.plugins.headers import HeadersPlugin
 from webscan.plugins.http_methods import HttpMethodsPlugin
+from webscan.plugins.jwt_audit import JwtAuditPlugin
 from webscan.plugins.open_redirect import OpenRedirectPlugin
 from webscan.plugins.path_traversal import PathTraversalPlugin
 from webscan.plugins.robots_sitemap import RobotsSitemapPlugin
@@ -56,6 +57,7 @@ _BUILTIN_PLUGINS: dict[str, type[BasePlugin]] = {
     "subdomains":    SubdomainsPlugin,
     "graphql":       GraphqlPlugin,
     "cve_lookup":    CveLookupPlugin,
+    "jwt_audit":     JwtAuditPlugin,
 }
 
 
