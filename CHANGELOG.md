@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`jwt_audit` plugin** (20th plugin, passive): decodes JSON Web Tokens
+  observed in HTTP responses — `Set-Cookie`, `Authorization`, custom
+  `X-Auth-Token` / `X-Access-Token` headers, URL query string, or response
+  body — and audits them for well-known configuration weaknesses without
+  sending any forged tokens back to the target. Findings cover:
+  - `alg: none` (CRITICAL) — token explicitly disables signature verification.
+  - Trivially-guessable HMAC secret (CRITICAL) — signature verifies against a
+    built-in wordlist of common secrets (`secret`, `password`, `your-256-bit-secret`, …).
+  - Sensitive claims in the payload (HIGH) — `password`, `api_key`, `ssn`,
+    credit-card-shaped numbers; JWT payloads are base64, not encrypted.
+  - `kid` header containing SQL / path-traversal / template-injection patterns (HIGH).
+  - `jku` / `x5u` header pointing at an external URL (HIGH, tentative) —
+    potential key-source hijack.
+  - Missing `exp` claim (HIGH), already-expired (MEDIUM), expiring soon (LOW).
+  - Missing `nbf` / `iat` claims (INFO).
+  - Asymmetric token (`RS*`/`ES*`/`PS*`) with no `kid` (MEDIUM, tentative) —
+    possible algorithm-confusion exposure.
+  Each finding records the source location (which header/cookie/body the JWT
+  was extracted from) so an operator can trace it back without re-scanning.
+
 ### Fixed
 - **`config_files`: no more false-positive CRITICALs on executed scripts** (#32).
   A request for `/wp-config.php`, `/config.php`, `/settings.py` etc. that the
