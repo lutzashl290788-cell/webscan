@@ -78,6 +78,9 @@ csrf = "webscan.plugins.csrf:CsrfPlugin"
 lfi_rfi = "webscan.plugins.lfi_rfi:LfiRfiPlugin"
 xxe = "webscan.plugins.xxe:XxePlugin"
 idor = "webscan.plugins.idor:IdorPlugin"
+clickjacking = "webscan.plugins.clickjacking:ClickjackingPlugin"
+cache_poisoning = "webscan.plugins.cache_poisoning:CachePoisoningPlugin"
+host_header_injection = "webscan.plugins.host_header_injection:HostHeaderInjectionPlugin"
 
 [tool.setuptools.packages.find]
 where = ["."]
