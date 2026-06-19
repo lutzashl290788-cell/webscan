@@ -29,7 +29,6 @@ path traversal.
 """
 from __future__ import annotations
 
-import asyncio
 import base64
 import binascii
 import re
@@ -119,10 +118,20 @@ _PHP_MARKERS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\$_(GET|POST|SERVER|COOKIE)\b"),
 )
 
-# Response-size heuristic for TENTATIVE findings: a payload that produces a
-# response differing from the baseline by at least this many bytes (in either
-# direction) is worth flagging.
-_SIZE_DELTA_THRESHOLD = 50
+# Response-similarity heuristic for TENTATIVE findings. We compare the probe
+# response to the baseline using SequenceMatcher (the same approach as the
+# IDOR plugin): a high similarity means the server returned the same page
+# (probably ignored the payload); a *low* similarity with no markers and no
+# auth error suggests the payload changed something — worth a TENTATIVE flag.
+# 0.65 is deliberately stricter than the old size-delta heuristic, which
+# fired on any 50-byte delta (one extra ad banner, CSRF token rotation, etc.).
+_SIMILARITY_THRESHOLD = 0.65
+
+# Hard cap on length ratio: if probe is 5x bigger or 5x smaller than baseline,
+# it's almost certainly an error page or a completely different response, not
+# a meaningful LFI signal.
+_MIN_LENGTH_RATIO = 0.2
+_MAX_LENGTH_RATIO = 5.0
 
 # Cap probes per parameter so we don't hammer the server. Must be high
 # enough to let all three probe classes (Linux paths, Windows paths, PHP
@@ -132,6 +141,21 @@ _MAX_PROBES_PER_PARAM = 30
 
 # Cap total parameters to probe per target — bound request pressure.
 _MAX_PARAMS_PER_TARGET = 5
+
+# A probe response containing one of these substrings is treated as an
+# explicit "file not found" error and is never a TENTATIVE finding (the
+# server did process the payload but the file doesn't exist — interesting
+# but not exploitable).
+_FILE_NOT_FOUND_MARKERS: tuple[str, ...] = (
+    "file not found",
+    "no such file",
+    "failed to open stream",
+    "failed opening",
+    "include():",
+    "require():",
+    "warning: include",
+    "warning: require",
+)
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -191,6 +215,19 @@ def _has_php_marker(text: str) -> bool:
     return any(p.search(text) for p in _PHP_MARKERS)
 
 
+def _has_file_not_found_marker(body: str) -> bool:
+    """True if the response looks like an explicit "file not found" error.
+
+    PHP/Python/Ruby include errors emit specific markers that we can detect
+    cheaply. Suppressing these as TENTATIVE findings keeps the FP rate low
+    because they indicate the server *did* process the path (it tried to
+    open the file) but the file doesn't exist — interesting but not
+    exploitable on its own.
+    """
+    lowered = body[:4000].lower()
+    return any(m in lowered for m in _FILE_NOT_FOUND_MARKERS)
+
+
 # ─── Plugin ───────────────────────────────────────────────────────────────────
 
 
@@ -212,10 +249,18 @@ class LfiRfiPlugin(BasePlugin):
             return findings
 
         # Fetch a baseline response (the original URL) so we can compare.
+        # Uses the shared retry-enabled helper so transient 5xx/429s don't
+        # abort the whole plugin.
         baseline_body, baseline_status = await self._fetch(session, target)
         if baseline_body is None:
             # Can't establish baseline — every finding would be ambiguous.
             return findings
+
+        # Calibrate soft-404 for this target. If the server answers every
+        # bogus path with the same templated 200 page, we want to suppress
+        # TENTATIVE findings that just match the soft-404 template.
+        from webscan.plugins._active_helpers import calibrate_target, is_soft404
+        soft_baseline = await calibrate_target(session, target)
 
         seen_payloads: set[str] = set()
 
@@ -269,12 +314,29 @@ class LfiRfiPlugin(BasePlugin):
                     # Found a CRITICAL — no point probing more paths for this param.
                     break
 
-                # TENTATIVE finding: significant size delta but no marker.
-                # Could be a soft-404, a custom error page that leaks the path,
-                # or a different response than the baseline that warrants manual
-                # review.
-                delta = abs(len(body) - len(baseline_body))
-                if delta >= _SIZE_DELTA_THRESHOLD and status != 404:
+                # Skip probes that look like a soft-404 template (server
+                # answers 200 for every bogus path with the same page).
+                if is_soft404(body, status, soft_baseline):
+                    continue
+
+                # Skip explicit "file not found" errors — the server processed
+                # the payload but the file doesn't exist. Not exploitable.
+                if _has_file_not_found_marker(body):
+                    continue
+
+                # TENTATIVE finding: response is structurally *different* from
+                # the baseline (low similarity), no markers, no auth error,
+                # not a 404. This is much more precise than the old
+                # size-delta heuristic, which fired on any 50-byte delta
+                # (ad rotation, CSRF token change, timestamp).
+                from webscan.plugins._active_helpers import body_similarity
+                sim = body_similarity(body, baseline_body)
+                lr = len(baseline_body) / len(body) if body else 0.0
+                if (
+                    sim < _SIMILARITY_THRESHOLD
+                    and status != 404
+                    and _MIN_LENGTH_RATIO <= lr <= _MAX_LENGTH_RATIO
+                ):
                     findings.append(self._make_finding(
                         target=target,
                         param=param,
@@ -285,10 +347,11 @@ class LfiRfiPlugin(BasePlugin):
                         description=(
                             f"The `{param}` parameter accepts a path-traversal "
                             f"payload (`{payload}`) and the response differs from "
-                            f"the baseline by {delta} bytes (HTTP {status} vs "
-                            f"baseline {baseline_status}). No /etc/passwd marker "
-                            "matched, but the size delta suggests the server may "
-                            "have processed the path. Manual verification needed."
+                            f"the baseline structurally (similarity {sim:.2f}, "
+                            f"length ratio {lr:.2f}, HTTP {status} vs baseline "
+                            f"{baseline_status}). No /etc/passwd marker matched, "
+                            "but the structural delta suggests the server may have "
+                            "processed the path. Manual verification needed."
                         ),
                         evidence={
                             "probe_url": probe_url,
@@ -296,7 +359,8 @@ class LfiRfiPlugin(BasePlugin):
                             "baseline_status": baseline_status,
                             "baseline_length": len(baseline_body),
                             "response_length": len(body),
-                            "size_delta": delta,
+                            "similarity": round(sim, 3),
+                            "length_ratio": round(lr, 3),
                         },
                         remediation=(
                             "Treat user input as untrusted. Use an allow-list of "
@@ -406,13 +470,19 @@ class LfiRfiPlugin(BasePlugin):
         session: aiohttp.ClientSession,
         url: str,
     ) -> tuple[str | None, int]:
-        """GET *url*, return ``(body, status)`` or ``(None, 0)`` on error."""
-        try:
-            async with session.get(url, allow_redirects=True, ssl=False) as resp:
-                body = await resp.text(errors="ignore")
-                return body, resp.status
-        except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
+        """GET *url* with retry on transient failures.
+
+        Returns ``(body, status)`` or ``(None, 0)`` if every retry attempt
+        failed. Uses :func:`webscan.retry.request_with_retry` so transient
+        ``5xx`` / ``429`` responses ride out with exponential backoff
+        instead of aborting the whole plugin.
+        """
+        from webscan.plugins._active_helpers import fetch_with_retry
+        result = await fetch_with_retry(session, url, method="GET")
+        if result is None:
             return None, 0
+        body, status, _ct = result
+        return body, status
 
     def _make_finding(
         self,

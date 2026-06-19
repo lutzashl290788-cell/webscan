@@ -7,6 +7,7 @@ from webscan.plugins.csrf import (
     CsrfPlugin,
     _action_is_read_only,
     _has_csrf_meta,
+    _has_samesite_protection,
     _is_csrf_token,
     _is_login_form,
     _is_search_form,
@@ -144,6 +145,38 @@ class TestHasCsrfMeta:
         assert _has_csrf_meta(html) is False
 
 
+class TestHasSamesiteProtection:
+    def test_samesite_strict(self) -> None:
+        cookies = ["session=abc; Path=/; SameSite=Strict"]
+        assert _has_samesite_protection(cookies) is True
+
+    def test_samesite_lax(self) -> None:
+        cookies = ["session=abc; Path=/; SameSite=Lax"]
+        assert _has_samesite_protection(cookies) is True
+
+    def test_samesite_none_not_protected(self) -> None:
+        cookies = ["session=abc; Path=/; SameSite=None; Secure"]
+        assert _has_samesite_protection(cookies) is False
+
+    def test_no_samesite_not_protected(self) -> None:
+        cookies = ["session=abc; Path=/; HttpOnly"]
+        assert _has_samesite_protection(cookies) is False
+
+    def test_case_insensitive(self) -> None:
+        cookies = ["session=abc; Path=/; samesite=STRICT"]
+        assert _has_samesite_protection(cookies) is True
+
+    def test_multiple_cookies_one_protected(self) -> None:
+        cookies = [
+            "tracking=xyz; Path=/; SameSite=None",
+            "session=abc; Path=/; SameSite=Lax; HttpOnly",
+        ]
+        assert _has_samesite_protection(cookies) is True
+
+    def test_empty_list(self) -> None:
+        assert _has_samesite_protection([]) is False
+
+
 # ─── Plugin end-to-end tests ─────────────────────────────────────────────────
 
 
@@ -214,6 +247,66 @@ class TestPluginRun:
         resp = FakeResponse(body=body, headers=[("Content-Type", "text/html")])
         findings = await plugin.run(_TARGET, FakeSession(resp))  # type: ignore[arg-type]
         assert findings == []
+
+    async def test_samesite_strict_cookie_skips_all_forms(self) -> None:
+        """A page that sets a SameSite=Strict cookie is already CSRF-protected."""
+        plugin = CsrfPlugin()
+        body = """
+        <html><body>
+        <form method="post" action="/save">
+            <input type="text" name="amount">
+        </form>
+        </body></html>
+        """
+        resp = FakeResponse(
+            body=body,
+            headers=[
+                ("Content-Type", "text/html"),
+                ("Set-Cookie", "session=abc; Path=/; SameSite=Strict; HttpOnly"),
+            ],
+        )
+        findings = await plugin.run(_TARGET, FakeSession(resp))  # type: ignore[arg-type]
+        assert findings == []
+
+    async def test_samesite_lax_cookie_skips_all_forms(self) -> None:
+        """SameSite=Lax is enough protection for POST forms."""
+        plugin = CsrfPlugin()
+        body = """
+        <html><body>
+        <form method="post" action="/save">
+            <input type="text" name="amount">
+        </form>
+        </body></html>
+        """
+        resp = FakeResponse(
+            body=body,
+            headers=[
+                ("Content-Type", "text/html"),
+                ("Set-Cookie", "session=abc; Path=/; SameSite=Lax"),
+            ],
+        )
+        findings = await plugin.run(_TARGET, FakeSession(resp))  # type: ignore[arg-type]
+        assert findings == []
+
+    async def test_samesite_none_cookie_does_not_skip(self) -> None:
+        """SameSite=None explicitly opts out of protection — forms must still be flagged."""
+        plugin = CsrfPlugin()
+        body = """
+        <html><body>
+        <form method="post" action="/save">
+            <input type="text" name="amount">
+        </form>
+        </body></html>
+        """
+        resp = FakeResponse(
+            body=body,
+            headers=[
+                ("Content-Type", "text/html"),
+                ("Set-Cookie", "session=abc; Path=/; SameSite=None; Secure"),
+            ],
+        )
+        findings = await plugin.run(_TARGET, FakeSession(resp))  # type: ignore[arg-type]
+        assert len(findings) == 1
 
     async def test_login_form_not_flagged(self) -> None:
         plugin = CsrfPlugin()

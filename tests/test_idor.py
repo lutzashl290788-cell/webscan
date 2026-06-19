@@ -179,22 +179,33 @@ class _MultiResponseSession:
     """Returns the baseline for the original URL; probes for shifted URLs.
 
     Each probe URL is mapped to a specific response via the ``probes`` dict.
-    URLs NOT in the dict raise (so tests catch missing probe mappings).
+    URLs NOT in the dict (including the soft-404 calibration URL) return a
+    404 — this mirrors a well-behaved server that doesn't soft-404 every URL.
     """
 
     def __init__(
         self,
         baseline: FakeResponse,
         probes: dict[str, FakeResponse],
+        baseline_url: str | None = None,
     ) -> None:
         self._baseline = baseline
         self._probes = probes
+        self._baseline_url = baseline_url
         self.requests: list[tuple[str, str, dict[str, Any]]] = []
 
     def get(self, url: str, **kwargs: object) -> FakeResponse:
         self.requests.append(("GET", url, kwargs))
+        # Soft-404 calibration URL — return 404 (well-behaved server).
+        if "webscan-soft404-probe" in url:
+            return FakeResponse(body="", status=404)
         if url in self._probes:
             return self._probes[url]
+        # If a baseline URL is specified, return baseline for it; 404 otherwise.
+        if self._baseline_url is not None:
+            if url == self._baseline_url:
+                return self._baseline
+            return FakeResponse(body="Not Found", status=404)
         return self._baseline
 
 

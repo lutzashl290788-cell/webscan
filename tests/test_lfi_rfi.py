@@ -168,20 +168,46 @@ class _TwoResponseSession:
 
 
 class _AllProbesReturnSession:
-    """Returns the baseline response for the *first* URL, then probe_resp for all others.
+    """Returns the baseline response for the *original* URL, then probe_resp for all others.
 
     This mirrors how a real vulnerable target behaves: the original URL returns
     the page, and any modified probe URL returns the (different) probe response.
+
+    The ``baseline_url`` parameter is the original target URL; the session
+    returns ``baseline`` for that URL and ``probe`` for everything else
+    (including the soft-404 calibration URL, which a real server would
+    answer with its 404 page, not with the probe response).
     """
 
-    def __init__(self, baseline: FakeResponse, probe: FakeResponse) -> None:
+    def __init__(
+        self,
+        baseline: FakeResponse,
+        probe: FakeResponse,
+        baseline_url: str | None = None,
+        calibration_response: FakeResponse | None = None,
+    ) -> None:
         self._baseline = baseline
         self._probe = probe
+        self._baseline_url = baseline_url
+        # What to return for soft-404 calibration URLs. Defaults to a 404
+        # (well-behaved server). Override to test soft-404 filtering.
+        self._calibration = calibration_response or FakeResponse(body="", status=404)
         self._first_call = True
         self.requests: list[tuple[str, str, dict[str, Any]]] = []
 
     def get(self, url: str, **kwargs: object) -> FakeResponse:
         self.requests.append(("GET", url, kwargs))
+        # Soft-404 calibration URL — return the configured calibration response.
+        if "webscan-soft404-probe" in url:
+            return self._calibration
+        # If a baseline URL was specified, match against it (more precise than
+        # the first-call heuristic, which gets confused by the soft-404
+        # calibration request that the plugin makes between baseline and probe).
+        if self._baseline_url is not None:
+            if url == self._baseline_url:
+                return self._baseline
+            return self._probe
+        # Fall back to first-call heuristic (preserves backward compat).
         if self._first_call:
             self._first_call = False
             return self._baseline
@@ -233,7 +259,7 @@ class TestPluginRun:
             body="root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\n",
             status=200,
         )
-        session = _AllProbesReturnSession(baseline, probe_resp)
+        session = _AllProbesReturnSession(baseline, probe_resp, baseline_url="https://example.com/?file=about")
         findings = await plugin.run("https://example.com/?file=about", session)  # type: ignore[arg-type]
 
         critical = _findings_with(findings, title_contains="/etc/passwd leaked")
@@ -247,7 +273,7 @@ class TestPluginRun:
         baseline = FakeResponse(body="<html>normal page here</html>", status=200)
         probe_body = "; for 16-bit app compatibility\n[fonts]\nCourier=...\n[extensions]\n"
         probe_resp = FakeResponse(body=probe_body, status=200)
-        session = _AllProbesReturnSession(baseline, probe_resp)
+        session = _AllProbesReturnSession(baseline, probe_resp, baseline_url="https://example.com/?file=foo")
         findings = await plugin.run("https://example.com/?file=foo", session)  # type: ignore[arg-type]
 
         critical = _findings_with(findings, title_contains="win.ini leaked")
@@ -262,7 +288,7 @@ class TestPluginRun:
         encoded = base64.b64encode(php_src.encode()).decode()
         baseline = FakeResponse(body="<html>normal page here, not base64</html>", status=200)
         probe_resp = FakeResponse(body=encoded, status=200)
-        session = _AllProbesReturnSession(baseline, probe_resp)
+        session = _AllProbesReturnSession(baseline, probe_resp, baseline_url="https://example.com/?file=index")
         findings = await plugin.run("https://example.com/?file=index", session)  # type: ignore[arg-type]
 
         php_findings = _findings_with(findings, title_contains="php://filter")
@@ -286,19 +312,72 @@ class TestPluginRun:
         assert findings == []
 
     async def test_tentative_finding_with_distinct_responses(self) -> None:
-        """A probe that returns a different-sized response without markers → TENTATIVE."""
+        """A probe that returns a structurally-different response → TENTATIVE.
+
+        The new heuristic (v2) compares response *similarity*, not size delta.
+        A probe whose body has low similarity to the baseline (and is not a
+        soft-404, not a file-not-found error, not 404) is flagged TENTATIVE.
+        """
         plugin = LfiRfiPlugin()
-        baseline = FakeResponse(body="<html>normal page here</html>", status=200)
-        # Make probe much larger so size delta > 50
-        probe_body = "<html>error: file not found " + "x" * 200 + "</html>"
+        # Make baseline substantial so length-ratio is within bounds.
+        baseline = FakeResponse(
+            body="<html><body><h1>Welcome to Example Corp</h1>"
+            "<p>This is the main landing page with some substantive content "
+            "so the baseline body length is meaningful.</p></body></html>",
+            status=200,
+        )
+        # Probe body must be structurally different (low similarity) but NOT
+        # contain "file not found" markers (those get filtered out by the
+        # new FP-reduction logic).
+        probe_body = (
+            "<html><body><h1>Application Error</h1>"
+            "<p>Stack trace: /var/www/app/handlers.py line 42</p>"
+            "<p>Failed to load resource: ../etc/something</p>"
+            "</body></html>"
+        )
         probe_resp = FakeResponse(body=probe_body, status=200)
-        session = _AllProbesReturnSession(baseline, probe_resp)
+        session = _AllProbesReturnSession(baseline, probe_resp, baseline_url="https://example.com/?file=about")
         findings = await plugin.run("https://example.com/?file=about", session)  # type: ignore[arg-type]
 
         tentative = _findings_with(findings, title_contains="Possible LFI")
         assert len(tentative) == 1
         assert tentative[0].severity is Severity.MEDIUM
         assert tentative[0].confidence is Confidence.TENTATIVE
+        # New evidence fields
+        assert "similarity" in tentative[0].evidence
+        assert "length_ratio" in tentative[0].evidence
+
+    async def test_no_tentative_when_probe_contains_file_not_found_marker(self) -> None:
+        """A probe response with 'file not found' markers → no TENTATIVE finding.
+
+        This is the new FP-reduction: a server that *did* process the path
+        but the file doesn't exist is not exploitable, so we don't flag it.
+        """
+        plugin = LfiRfiPlugin()
+        baseline = FakeResponse(body="<html>normal page here</html>", status=200)
+        # Body contains "file not found" — should be filtered out.
+        probe_body = (
+            "<html><body>Error: file not found at /etc/passwd</body></html>"
+        )
+        probe_resp = FakeResponse(body=probe_body, status=200)
+        session = _AllProbesReturnSession(baseline, probe_resp, baseline_url="https://example.com/?file=about")
+        findings = await plugin.run("https://example.com/?file=about", session)  # type: ignore[arg-type]
+
+        tentative = _findings_with(findings, title_contains="Possible LFI")
+        # Should NOT fire — file-not-found marker suppresses TENTATIVE.
+        assert tentative == []
+
+    async def test_no_tentative_when_probe_identical_to_baseline(self) -> None:
+        """If probe response is identical to baseline (server ignored payload), no finding."""
+        plugin = LfiRfiPlugin()
+        identical_body = "<html>same page</html>"
+        baseline = FakeResponse(body=identical_body, status=200)
+        # _AllProbesReturnSession returns baseline for the first URL, probe
+        # for the rest. If probe == baseline, similarity is 1.0 — no finding.
+        probe_resp = FakeResponse(body=identical_body, status=200)
+        session = _AllProbesReturnSession(baseline, probe_resp, baseline_url="https://example.com/?file=about")
+        findings = await plugin.run("https://example.com/?file=about", session)  # type: ignore[arg-type]
+        assert findings == []
 
     async def test_no_finding_when_404(self) -> None:
         """404 on probe should NOT trigger a TENTATIVE finding."""
@@ -327,7 +406,7 @@ class TestPluginRun:
         plugin = LfiRfiPlugin()
         baseline = FakeResponse(body="<html>page</html>", status=200)
         probe_resp = FakeResponse(body="root:x:0:0:root:/root:/bin/bash\n", status=200)
-        session = _AllProbesReturnSession(baseline, probe_resp)
+        session = _AllProbesReturnSession(baseline, probe_resp, baseline_url="https://example.com/?file=x")
         findings = await plugin.run("https://example.com/?file=x", session)  # type: ignore[arg-type]
         crit = _findings_with(findings, title_contains="/etc/passwd leaked")[0]
         ev = crit.evidence

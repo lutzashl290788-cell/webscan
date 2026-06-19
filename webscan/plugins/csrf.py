@@ -142,6 +142,30 @@ def _has_csrf_meta(html: str) -> bool:
     return bool(re.search(r'(?i)<meta[^>]+name=["\']?csrf[_-]?token["\']?', html))
 
 
+def _has_samesite_protection(set_cookie_values: list[str]) -> bool:
+    """True if at least one cookie on the page has SameSite=Strict or Lax.
+
+    Modern browsers enforce CSRF protection at the cookie level when a cookie
+    is set with ``SameSite=Strict`` or ``SameSite=Lax``. A page that sets a
+    session cookie with one of these attributes is already protected against
+    cross-site POST requests for that cookie's scope — so flagging its forms
+    as CSRF-vulnerable would be a false positive.
+
+    We only return True for Strict/Lax (not ``SameSite=None``), because None
+    explicitly opts out of the protection.
+    """
+    for raw in set_cookie_values:
+        # Parse attributes (case-insensitive).
+        attrs = [a.strip().lower() for a in raw.split(";")]
+        for attr in attrs:
+            # Match `samesite=strict` or `samesite=lax` (with or without spaces).
+            if attr.startswith("samesite="):
+                value = attr.split("=", 1)[1].strip()
+                if value in ("strict", "lax"):
+                    return True
+    return False
+
+
 # ─── Plugin ───────────────────────────────────────────────────────────────────
 
 
@@ -164,6 +188,8 @@ class CsrfPlugin(BasePlugin):
                 # Only inspect HTML — JSON/XML responses have no forms.
                 if "html" not in content_type.lower() and not target.endswith((".html", ".htm")):
                     return findings
+                # Capture Set-Cookie headers for SameSite check.
+                set_cookies = resp.headers.getall("Set-Cookie", [])
                 body = await resp.text(errors="ignore")
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return findings
@@ -178,6 +204,12 @@ class CsrfPlugin(BasePlugin):
         # The token is intended to be picked up by JS for every state-changing
         # request, so individual forms not having a hidden field is by design.
         if _has_csrf_meta(body):
+            return findings
+
+        # If at least one cookie on the page is set with SameSite=Strict or
+        # SameSite=Lax, modern browsers already enforce CSRF protection at the
+        # cookie level. Flagging the forms would be a false positive.
+        if _has_samesite_protection(set_cookies):
             return findings
 
         for form in page.forms:
