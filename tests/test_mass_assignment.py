@@ -68,5 +68,49 @@ class TestPluginRun:
     async def test_non_api_skipped(self) -> None:
         plugin = MassAssignmentPlugin()
         resp = FakeResponse(body='<html>blog post</html>', status=200)
-        findings = await plugin.run("https://example.com/blog/post-1", FakeSession(resp))  # type: ignore[arg-type]
+        findings = await plugin.run("https://example.com/blog/post-1", FakeSession(resp))  # type: ignore[arg-type]  # noqa: E501
         assert findings == []
+
+
+class TestCoverageGaps:
+    """Tests targeting uncovered lines."""
+
+    async def test_short_body_skipped(self) -> None:
+        """Lines 101-102: short body returns empty."""
+        plugin = MassAssignmentPlugin()
+        get_resp = FakeResponse(body="short", status=200)
+        put_resp = FakeResponse(body="{}", status=200)
+        session = _GetPutSession(get_resp, put_resp)
+        findings = await plugin.run(_TARGET, session)  # type: ignore[arg-type]
+        assert findings == []
+
+    async def test_put_network_error(self) -> None:
+        """Lines 122-123: network error on PUT."""
+        plugin = MassAssignmentPlugin()
+        get_resp = FakeResponse(body='{"id":123,"name":"Alice"}' + "x" * 60, status=200)
+
+        class _BoomPutSession:
+            def get(self, url: str, **_kw: object) -> FakeResponse:
+                return get_resp
+            def put(self, url: str, **_kw: object) -> _BoomResp:
+                return _BoomResp()
+            def post(self, url: str, **_kw: object) -> _BoomResp:
+                return _BoomResp()
+
+        class _BoomResp:
+            async def __aenter__(self) -> _BoomResp:
+                raise _ClientError("boom")
+            async def __aexit__(self, *_exc: object) -> bool:
+                return False
+
+        class _ClientError(Exception):
+            pass
+
+        import aiohttp
+        orig = aiohttp.ClientError
+        try:
+            aiohttp.ClientError = _ClientError  # type: ignore[misc,assignment]
+            findings = await plugin.run(_TARGET, _BoomPutSession())  # type: ignore[arg-type]
+            assert findings == []
+        finally:
+            aiohttp.ClientError = orig  # type: ignore[misc,assignment]

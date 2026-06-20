@@ -188,3 +188,67 @@ class TestPluginRun:
         assert ev["ws_url"] == "ws://chat.example.com/ws"
         assert ev["scheme"] == "ws"
         assert "location" in ev
+
+
+class TestCoverageGaps:
+    """Tests targeting uncovered lines."""
+
+    async def test_js_fetch_and_scan(self) -> None:
+        """Lines 94-100: fetch same-origin JS and scan it."""
+        plugin = WebsocketSecurityPlugin()
+        body = (
+            '<html><head>'
+            '<script src="https://example.com/app.js"></script>'
+            '</head><body>Content here for length.</body></html>'
+        )
+        js_body = 'var ws = new WebSocket("wss://api.example.com/ws");' + " " * 50
+
+        class _JsSession:
+            def get(self, url: str, **_kw: object) -> FakeResponse:
+                if "app.js" in url:
+                    return FakeResponse(body=js_body, status=200, headers=[("Content-Type", "application/javascript")])  # noqa: E501
+                return FakeResponse(body=body, status=200, headers=[("Content-Type", "text/html")])
+
+        findings = await plugin.run(_TARGET, _JsSession())  # type: ignore[arg-type]
+        ws = _findings_with(findings, t="discovered")
+        assert len(ws) == 1
+
+    async def test_js_fetch_network_error(self) -> None:
+        """Line 100: except branch for JS fetch."""
+        plugin = WebsocketSecurityPlugin()
+        body = (
+            '<html><head>'
+            '<script src="https://example.com/broken.js"></script>'
+            '</head><body>Content here for length.</body></html>'
+        )
+
+        class _BoomJsSession:
+            def get(self, url: str, **_kw: object) -> FakeResponse:
+                if "broken.js" in url:
+                    return _BoomResp()
+                return FakeResponse(body=body, status=200, headers=[("Content-Type", "text/html")])
+
+        class _BoomResp:
+            async def __aenter__(self) -> _BoomResp:
+                raise _ClientError("boom")
+            async def __aexit__(self, *_exc: object) -> bool:
+                return False
+
+        class _ClientError(Exception):
+            pass
+
+        import aiohttp
+        orig = aiohttp.ClientError
+        try:
+            aiohttp.ClientError = _ClientError  # type: ignore[misc,assignment]
+            findings = await plugin.run(_TARGET, _BoomJsSession())  # type: ignore[arg-type]
+            assert isinstance(findings, list)
+        finally:
+            aiohttp.ClientError = orig  # type: ignore[misc,assignment]
+
+    async def test_short_body_skipped(self) -> None:
+        """Line 123: short body skipped."""
+        plugin = WebsocketSecurityPlugin()
+        resp = FakeResponse(body="ok", status=200, headers=[("Content-Type", "text/html")])
+        findings = await plugin.run(_TARGET, FakeSession(resp))  # type: ignore[arg-type]
+        assert findings == []

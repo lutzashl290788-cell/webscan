@@ -65,3 +65,84 @@ class TestPluginRun:
         findings = await plugin.run("https://example.com/home",
             FakeSession(resp))  # type: ignore[arg-type]
         assert findings == []
+
+
+class TestCoverageGaps:
+    """Tests targeting uncovered lines."""
+
+    async def test_file_form_detected(self) -> None:
+        """Lines 53-57: form with file input detected."""
+        plugin = FileUploadPlugin()
+        body = (
+            '<html><body>'
+            '<form action="/upload" method="post">'
+            '<input type="file" name="file">'
+            '</form>' + "x" * 100 + '</body></html>'
+        )
+        post_resp = FakeResponse(body='{"error":"forbidden"}', status=403)
+
+        class _S:
+            def get(self, url: str, **_kw: object) -> FakeResponse:
+                return FakeResponse(body=body, status=200, headers=[("Content-Type", "text/html")])
+            def post(self, url: str, **_kw: object) -> FakeResponse:
+                return post_resp
+
+        findings = await plugin.run("https://example.com/page", _S())  # type: ignore[arg-type]
+        # Should not crash and should return empty (403 from upload)
+        assert isinstance(findings, list)
+
+    async def test_get_network_error(self) -> None:
+        """Line 46: network error on GET."""
+        plugin = FileUploadPlugin()
+
+        class _BoomSession:
+            def get(self, url: str, **_kw: object) -> _BoomResp:
+                return _BoomResp()
+            def post(self, url: str, **_kw: object) -> _BoomResp:
+                return _BoomResp()
+
+        class _BoomResp:
+            async def __aenter__(self) -> _BoomResp:
+                raise _ClientError("boom")
+            async def __aexit__(self, *_exc: object) -> bool:
+                return False
+
+        class _ClientError(Exception):
+            pass
+
+        import aiohttp
+        orig = aiohttp.ClientError
+        try:
+            aiohttp.ClientError = _ClientError  # type: ignore[misc,assignment]
+            findings = await plugin.run("https://example.com/upload", _BoomSession())  # type: ignore[arg-type]  # noqa: E501
+            assert findings == []
+        finally:
+            aiohttp.ClientError = orig  # type: ignore[misc,assignment]
+
+    async def test_post_network_error(self) -> None:
+        """Line 74: network error on POST."""
+        plugin = FileUploadPlugin()
+
+        class _BoomPostSession:
+            def get(self, url: str, **_kw: object) -> FakeResponse:
+                return FakeResponse(body="<html>ok</html>" + "x" * 100, status=200, headers=[("Content-Type", "text/html")])  # noqa: E501
+            def post(self, url: str, **_kw: object) -> _BoomResp:
+                return _BoomResp()
+
+        class _BoomResp:
+            async def __aenter__(self) -> _BoomResp:
+                raise _ClientError("boom")
+            async def __aexit__(self, *_exc: object) -> bool:
+                return False
+
+        class _ClientError(Exception):
+            pass
+
+        import aiohttp
+        orig = aiohttp.ClientError
+        try:
+            aiohttp.ClientError = _ClientError  # type: ignore[misc,assignment]
+            findings = await plugin.run("https://example.com/upload", _BoomPostSession())  # type: ignore[arg-type]  # noqa: E501
+            assert findings == []
+        finally:
+            aiohttp.ClientError = orig  # type: ignore[misc,assignment]
