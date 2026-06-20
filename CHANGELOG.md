@@ -5,6 +5,20 @@ All notable changes to WebScan are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] - 2026-06-20
+
+### Changed
+- **Coverage boost**: 94% → 95%. Added 13 new tests
+  covering error branches in 5 plugins (prototype_pollution,
+  request_smuggling, file_upload, websocket_security, mass_assignment).
+  Total tests: 688 → 701.
+
+### Fixed
+- **README**: Added 11 missing plugins to the plugins table
+  (ssti, backup_files, verbose_errors, mass_assignment,
+  prototype_pollution, graphql_depth, file_upload, race_condition,
+  request_smuggling, web_cache_deception, websocket_security).
+
 ## [2.4.0] - 2026-06-20
 
 ### Added
