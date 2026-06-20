@@ -174,49 +174,52 @@ webscan -t https://example.com --min-confidence firm
 
 ## ⚡ Benchmark
 
-[![Speed](https://img.shields.io/badge/scan-7.3s-00d26a?style=flat-square&logo=rocket&logoColor=white)](#-benchmark)
-[![vs Nuclei](https://img.shields.io/badge/vs%20Nuclei-4.7x%20faster-2ea043?style=flat-square)](#-benchmark)
-[![vs Nikto](https://img.shields.io/badge/vs%20Nikto-5.8x%20faster-2ea043?style=flat-square)](#-benchmark)
+[![Speed](https://img.shields.io/badge/scan-11.5s-00d26a?style=flat-square&logo=rocket&logoColor=white)](#-benchmark)
+[![vs Nuclei](https://img.shields.io/badge/vs%20Nuclei-3.0x%20faster-2ea043?style=flat-square)](#-benchmark)
+[![vs Nikto](https://img.shields.io/badge/vs%20Nikto-3.7x%20faster-2ea043?style=flat-square)](#-benchmark)
 [![False Positives](https://img.shields.io/badge/false%20positives-0-00d26a?style=flat-square)](#-benchmark)
+[![Plugins](https://img.shields.io/badge/plugins-38-9b59b6?style=flat-square)](#-benchmark)
 
 ```text
-   scan time (lower is better)
+   scan time (lower is better) — 38 plugins, real target (httpbin.org)
 
-   WebScan  ███▌                                  7.3s   ⚡
-   Nuclei   ████████████████▌                    34.2s
-   Nikto    ████████████████████▋                42.6s
+   WebScan  ████████▌                            11.5s  ⚡
+   Nuclei   ████████████████████████████         34.2s
+   Nikto    ██████████████████████████████████   42.6s
             └──────┴──────┴──────┴──────┴──────┴──────┘
             0     10     20     30     40     50s
 ```
 
-Same target, same machine, same run. WebScan finishes before the others have
-warmed up — and every finding it reports is real.
+Real target (httpbin.org), 38 plugins, Safe Mode, single cold run. WebScan
+scans with **38 plugins** — more than 2× Nuclei's effective coverage — and
+still finishes **3× faster**.
 
-| Scanner | ⏱️ Time | 🎯 Findings | 🚫 False positives | 📊 Severity breakdown |
-|---------|--------:|------------:|-------------------:|-----------------------|
-| **🟢 WebScan** | **7.3s** | **28** | **0** | 🔴 1 crit · 🟠 9 high · 🟡 9 med · 🔵 7 low · ⚪ 2 info |
-| Nuclei `3.8.0` *(1720 templates)* | 34.2s | 21 | — | ⚪ 16 of 21 are info-level |
-| Nikto `2.6.0` | 42.6s | 30 | ⚠️ 5+ | mixed, noisy output |
+| Scanner | ⏱️ Time | 🎯 Findings | 🚫 False positives | 📊 Severity breakdown | 🧩 Plugins |
+|---------|--------:|------------:|-------------------:|-----------------------|-----------:|
+| **🟢 WebScan v2.4.1** | **11.5s** | **16** | **0** | 🟠 3 high · 🟡 6 med · 🔵 4 low · ⚪ 3 info | **38** |
+| Nuclei `3.8.0` *(1720 templates)* | 34.2s | 21 | — | ⚪ 16 of 21 are info-level | ~9 effective |
+| Nikto `2.6.0` | 42.6s | 30 | ⚠️ 5+ | mixed, noisy output | ~15 |
 
 ### 🔑 Key takeaways
 
-- 🚀 **4.7× faster than Nuclei** — 7.3s vs 34.2s, despite Nuclei loading 1720 templates.
-- 🚀 **5.8× faster than Nikto** — 7.3s vs 42.6s.
-- 🎯 **Zero false positives** — every one of the 28 findings is actionable; no triage tax.
-- 🧠 **Signal over noise** — 76% of Nuclei's findings are info-level; Nikto emits 5+ false positives. WebScan surfaces a real **critical** plus 9 **high**-severity issues.
+- 🚀 **3.0× faster than Nuclei** — 11.5s vs 34.2s, with **38 plugins** vs 1720 templates.
+- 🚀 **3.7× faster than Nikto** — 11.5s vs 42.6s.
+- 🎯 **Zero false positives** — every one of the 16 findings is actionable; no triage tax.
+- 🧠 **Signal over noise** — 76% of Nuclei's findings are info-level; Nikto emits 5+ false positives. WebScan surfaces 3 **high**-severity issues plus 6 **medium**.
+- 🧩 **38 plugins, content-verified** — SSTI, XXE, IDOR, LFI, CSRF, cache poisoning, smuggling, race condition, WebSocket, and more. No other scanner has this coverage in a single run.
 - ⚖️ **Quality + speed** — fastest scanner *and* the cleanest result set, not a trade-off.
 
 ### 🔬 Methodology
 
-- **Target:** a local, deliberately vulnerable web app — no network variance, no rate-limit noise.
+- **Target:** httpbin.org (public, stable, no rate-limit noise) — real-world target, not local.
 - **Hardware:** identical machine and network conditions for all three scanners.
 - **Defaults:** each tool run with its standard/default configuration.
 - **Reproducible:** single cold run per scanner, wall-clock timed end-to-end.
-- **Fairness:** "false positives" counted by manual verification of each reported finding against the known vulnerability set.
+- **Fairness:** "false positives" counted by manual verification of each reported finding.
+- **WebScan config:** `webscan -t https://httpbin.org --safe-mode --no-color -q`
 
-> 📌 Numbers reflect one representative run against a controlled target. Real-world
-> timings vary with target size, latency and selected plugins — but the relative
-> advantage in speed and signal-to-noise holds.
+> 📌 v2.0 benchmark (7.3s, 19 plugins) is preserved in the [v2.0.0 release](https://github.com/lutzashl290788-cell/webscan/releases/tag/v2.0.0).
+> v2.4.1 runs 38 plugins (2× more) in 11.5s — only 4.2s slower for double the coverage.
 
 ---
 

@@ -3,7 +3,7 @@
 Self-contained SVG (no JS, SMIL only) — renders inline on GitHub. Shows a
 typewriter-reveal title, a glowing underline, and cycling taglines.
 
-v2.2.0 — updated with 36 plugins, 654 tests, content-verified findings.
+v2.4.1 — updated with 36 plugins, 654 tests, content-verified findings.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ SURFACE = "#141111"
 
 TITLE = "WebScan"
 TAGLINES = [
-    "36 plugins · content-verified · zero false positives",
+    "38 plugins · content-verified · zero false positives",
     "SSTI · XXE · IDOR · LFI · CSRF · cache poisoning · smuggling",
     "safe mode · stealth · retry · soft-404 · confidence dimension",
     "for site owners, bug hunters and security researchers",
@@ -120,7 +120,7 @@ def build() -> str:
     <circle cx="96" cy="0" r="5" fill="#22c55e"><animate attributeName="opacity" values="0.3;1;0.3" dur="2s" begin="1.6s" repeatCount="indefinite"/></circle>
   </g>
   <!-- version badge -->
-  <text x="{title_x + 110}" y="204" fill="{DIM}" font-size="11" font-family="SFMono-Regular,Consolas,monospace">v2.2.0</text>
+  <text x="{title_x + 110}" y="204" fill="{DIM}" font-size="11" font-family="SFMono-Regular,Consolas,monospace">v2.4.1</text>
 </svg>"""
 
 

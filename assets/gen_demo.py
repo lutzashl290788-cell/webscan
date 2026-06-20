@@ -22,40 +22,39 @@ PROMPT = "#7ee787"
 MAGENTA = "#bc8cff"
 
 LINES: list[tuple[str, str, int]] = [
-    ("$ webscan -t https://example.com --plugins all --min-confidence firm", PROMPT, 0),
+    ("$ webscan -t https://httpbin.org --safe-mode", PROMPT, 0),
     ("", FG, 0),
     ("╔══════════════════════════════════════════════════╗", CYAN, 0),
     ("║          WebScan v2.2 — Security Auditor         ║", CYAN, 0),
     ("╚══════════════════════════════════════════════════╝", CYAN, 0),
     ("  Targets     : 1", DIM, 0),
-    ("  Plugins     : 36 enabled", DIM, 0),
+    ("  Plugins     : 38 enabled", DIM, 0),
     ("  Confidence  : firm (content-verified only)", DIM, 0),
     ("  Concurrency : 10  ·  Retry: 2  ·  Soft-404: on", DIM, 0),
     ("", FG, 0),
-    ("  [████████████████████] 1/1  done in 9.8s", GREEN, 0),
+    ("  [████████████████████] 1/1  done in 11.5s", GREEN, 0),
     ("", FG, 0),
-    ("  Total findings  14", WHITE, 0),
+    ("  Total findings  16", WHITE, 0),
     ("", FG, 0),
     ("  • https://example.com", FG, 0),
-    ("🔴 [CRIT    ] SSTI: Jinja2 evaluates {{7*7}} → 49", RED, 1),
-    ("🔴 [CRIT    ] LFI: /etc/passwd leaked via ?file=../", RED, 1),
-    ("🔴 [CRIT    ] XXE: external entity leaks /etc/passwd", RED, 1),
-    ("🟠 [HIGH    ] IDOR: /api/users/124 returns Bob's data", ORANGE, 1),
-    ("🟠 [HIGH    ] Cache poisoning via X-Forwarded-Host", ORANGE, 1),
-    ("🟠 [HIGH    ] Mass assignment: role=admin accepted", ORANGE, 1),
+    ("🟠 [HIGH    ] Missing header: Content-Security-Policy", ORANGE, 1),
+    ("🟠 [HIGH    ] Missing header: Strict-Transport-Security", ORANGE, 1),
+    ("🟠 [HIGH    ] CORS reflects an arbitrary Origin", ORANGE, 1),
+    ("🟡 [MEDIUM  ] Missing header: X-Frame-Options", YELLOW, 1),
+    ("🟡 [MEDIUM  ] Missing HSTS header", YELLOW, 1),
     ("🟡 [MEDIUM  ] Clickjacking: no X-Frame-Options / CSP", YELLOW, 1),
-    ("🟡 [MEDIUM  ] CSRF: POST form without token", YELLOW, 1),
-    ("🟡 [MEDIUM  ] Race condition: 10/10 concurrent succeeded", YELLOW, 1),
-    ("🔵 [LOW     ] Open redirect: 13 payloads bypass filter", BLUE, 1),
-    ("🔵 [LOW     ] Verbose errors: Python traceback leaked", BLUE, 1),
-    ("⚪ [INFO    ] JWT: no exp claim (token never expires)", DIM, 1),
-    ("⚪ [INFO    ] Prototype pollution: $.extend detected", DIM, 1),
+    ("🟡 [MEDIUM  ] Clickjacking: no X-Frame-Options / CSP", YELLOW, 1),
+    ("🔵 [LOW     ] Missing header: Referrer-Policy", BLUE, 1),
+    ("🔵 [LOW     ] Information disclosure: Server", BLUE, 1),
+    ("🔵 [LOW     ] No sitemap.xml found", BLUE, 1),
+    ("🔵 [LOW     ] No robots.txt found", BLUE, 1),
+    ("⚪ [INFO    ] security.txt not found", DIM, 1),
     ("", FG, 0),
-    ("  Confidence breakdown: 3 firm · 3 firm · 3 firm · 2 firm · 2 firm · 1 firm", MAGENTA, 0),
+    ("⚪ [INFO    ] 2 subdomains discovered for httpbin.org", DIM, 1),
     ("", FG, 0),
     ("  ✍  SARIF report : reports/scan.sarif", CYAN, 0),
     ("  ✍  JSON report  : reports/scan.json", CYAN, 0),
-    ("  ✓ scan complete — 0 false positives", GREEN, 0),
+    ("  ✓ scan complete — 0 false positives · 9 plugins fired", GREEN, 0),
 ]
 
 CHAR_W = 8.4
@@ -128,7 +127,7 @@ def build() -> str:
   <circle cx="22" cy="17" r="6" fill="#ff5f56"/>
   <circle cx="42" cy="17" r="6" fill="#ffbd2e"/>
   <circle cx="62" cy="17" r="6" fill="#27c93f"/>
-  <text x="{width // 2}" y="22" fill="#8b949e" font-size="11" text-anchor="middle">webscan v2.2 — security audit · 36 plugins</text>
+  <text x="{width // 2}" y="22" fill="#8b949e" font-size="11" text-anchor="middle">webscan v2.4 — security audit · 38 plugins</text>
   {progress}
   {chr(10).join("  " + r for r in rows)}
   {cursor}
