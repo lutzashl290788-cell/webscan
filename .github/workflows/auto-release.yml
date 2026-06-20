@@ -1,0 +1,41 @@
+name: Auto Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          echo "Creating release for $TAG"
+
+          # Try to load release notes from .github/release-notes/
+          NOTES_FILE=".github/release-notes/${TAG}.md"
+          if [ -f "$NOTES_FILE" ]; then
+            echo "Using release notes from $NOTES_FILE"
+            gh release create "$TAG" \
+              --title "WebScan $TAG" \
+              --notes-file "$NOTES_FILE" \
+              --latest
+          else
+            # Fallback: extract from CHANGELOG
+            echo "No release notes file, generating from CHANGELOG"
+            gh release create "$TAG" \
+              --title "WebScan $TAG" \
+              --generate-notes \
+              --latest
+          fi
