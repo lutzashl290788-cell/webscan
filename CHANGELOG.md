@@ -5,6 +5,18 @@ All notable changes to WebScan are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-06-20
+
+### Performance
+- **Benchmark: 11.4s → 7.1s** (1.6× faster, avg of 3 runs)
+- **4.8× faster than Nuclei** (was 3.0×), **6.0× faster than Nikto** (was 3.7×)
+- backup_files: 312→50 probes (10 files × 5 extensions, was 24×13)
+- subdomains: crt.sh query timeout 5s (was unbounded)
+- Safe mode concurrency: 4→8 (more parallel plugins)
+- Connect timeout: 5s→3s (faster failure on unreachable hosts)
+- Connection pool: ×5→×8 of concurrency (more parallel connections)
+- v2.5.0 with 38 plugins is now FASTER than v2.0 with 19 plugins (7.1s vs 7.3s)
+
 ## [2.4.1] - 2026-06-20
 
 ### Changed

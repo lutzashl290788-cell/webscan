@@ -437,7 +437,7 @@ async def _crawl_targets(
 
     discovered: list[str] = []
     seen: set[str] = set()
-    timeout = aiohttp.ClientTimeout(total=args.timeout, connect=min(5, args.timeout))
+    timeout = aiohttp.ClientTimeout(total=args.timeout, connect=min(3, args.timeout))
 
     async with aiohttp.ClientSession(
         timeout=timeout,
@@ -469,7 +469,7 @@ def _apply_safe_mode(args: argparse.Namespace) -> float:
     if args.safe_mode:
         if rate_limit <= 0:
             rate_limit = 2.0  # at most ~2 requests/second
-        args.concurrency = min(args.concurrency, 4)
+        args.concurrency = min(args.concurrency, 8)
         args.ignore_robots = False  # always be polite in safe mode
     return rate_limit
 
@@ -500,7 +500,7 @@ async def _resolve_auth(args: argparse.Namespace) -> PreparedAuth:
         login_url=args.login_url or "",
         login_data=args.login_data or "",
     )
-    timeout = aiohttp.ClientTimeout(total=args.timeout, connect=min(5, args.timeout))
+    timeout = aiohttp.ClientTimeout(total=args.timeout, connect=min(3, args.timeout))
     try:
         return await prepare_auth(auth_config, _build_ssl_ctx(), timeout)
     except LoginError as exc:

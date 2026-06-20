@@ -20,7 +20,7 @@ SURFACE = "#141111"
 
 TITLE = "WebScan"
 TAGLINES = [
-    "38 plugins · content-verified · zero false positives",
+    "38 plugins · 7.1s · content-verified · zero false positives",
     "SSTI · XXE · IDOR · LFI · CSRF · cache poisoning · smuggling",
     "safe mode · stealth · retry · soft-404 · confidence dimension",
     "for site owners, bug hunters and security researchers",

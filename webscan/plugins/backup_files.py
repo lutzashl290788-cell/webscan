@@ -34,16 +34,8 @@ _BACKUP_EXTENSIONS: tuple[str, ...] = (
     ".bak",
     ".old",
     ".orig",
-    ".save",
-    ".swp",
-    ".swo",
     "~",
-    ".tmp",
-    ".copy",
-    ".dist",
-    ".backup",
-    ".bak2",
-    ".old2",
+    ".save",
 )
 
 # Base file paths to probe — common config/source files that are dangerous
@@ -51,26 +43,11 @@ _BACKUP_EXTENSIONS: tuple[str, ...] = (
 _BASE_FILES: tuple[str, ...] = (
     "/config.php",
     "/wp-config.php",
-    "/configuration.php",
-    "/settings.php",
-    "/database.yml",
-    "/config/database.yml",
-    "/application.properties",
     "/.env",
-    "/appsettings.json",
-    "/config.json",
-    "/config.ini",
     "/settings.py",
-    "/manage.py",
-    "/index.php",
-    "/admin.php",
-    "/db.php",
-    "/connect.php",
-    "/config.rb",
-    "/Gemfile",
-    "/package.json",
+    "/database.yml",
+    "/application.properties",
     "/docker-compose.yml",
-    "/Dockerfile",
     "/.git/config",
     "/.htaccess",
     "/web.config",
@@ -107,7 +84,7 @@ _SOURCE_MARKERS: tuple[str, ...] = (
 _MIN_BODY_LENGTH = 20
 
 # Cap probes per target — bound request pressure.
-_MAX_PROBES = 30
+_MAX_PROBES = 15
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────

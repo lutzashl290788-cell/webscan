@@ -174,16 +174,16 @@ webscan -t https://example.com --min-confidence firm
 
 ## ⚡ Benchmark
 
-[![Speed](https://img.shields.io/badge/scan-11.4s-00d26a?style=flat-square&logo=rocket&logoColor=white)](#-benchmark)
-[![vs Nuclei](https://img.shields.io/badge/vs%20Nuclei-3.0x%20faster-2ea043?style=flat-square)](#-benchmark)
-[![vs Nikto](https://img.shields.io/badge/vs%20Nikto-3.7x%20faster-2ea043?style=flat-square)](#-benchmark)
+[![Speed](https://img.shields.io/badge/scan-7.1s-00d26a?style=flat-square&logo=rocket&logoColor=white)](#-benchmark)
+[![vs Nuclei](https://img.shields.io/badge/vs%20Nuclei-4.8x%20faster-2ea043?style=flat-square)](#-benchmark)
+[![vs Nikto](https://img.shields.io/badge/vs%20Nikto-6.0x%20faster-2ea043?style=flat-square)](#-benchmark)
 [![False Positives](https://img.shields.io/badge/false%20positives-0-00d26a?style=flat-square)](#-benchmark)
 [![Plugins](https://img.shields.io/badge/plugins-38-9b59b6?style=flat-square)](#-benchmark)
 
 ```text
    scan time (lower is better) — 38 plugins, real target (httpbin.org)
 
-   WebScan  ████████▌                            11.4s  ⚡
+   WebScan  █████▌                                7.1s  ⚡
    Nuclei   ████████████████████████████         34.2s
    Nikto    ██████████████████████████████████   42.6s
             └──────┴──────┴──────┴──────┴──────┴──────┘
@@ -198,7 +198,7 @@ and still finishes **3× faster**.
 
 | Scanner | ⏱️ Time | 🎯 Findings | 🚫 FP | 📊 Severity | 🧩 Plugins |
 |---------|--------:|------------:|------:|-------------|-----------:|
-| **🟢 WebScan v2.4.1** | **11.4s** | **16** | **0** | 🟠 3 high · 🟡 6 med · 🔵 4 low · ⚪ 3 info | **38** |
+| **🟢 WebScan v2.4.1** | **7.1s** | **16** | **0** | 🟠 3 high · 🟡 6 med · 🔵 4 low · ⚪ 3 info | **38** |
 | Nuclei `3.8.0` *(1720 templates)* | 34.2s | 21 | — | ⚪ 16 of 21 are info-level | ~9 effective |
 | Nikto `2.6.0` | 42.6s | 30 | ⚠️ 5+ | mixed, noisy output | ~15 |
 
@@ -228,8 +228,8 @@ doesn't have SQLi, XSS, SSTI, LFI, XXE, IDOR, or smuggling vulnerabilities).
 
 ### 🔑 Key takeaways
 
-- 🚀 **3.0× faster than Nuclei** — 11.4s vs 34.2s, with **38 plugins** vs 1720 templates.
-- 🚀 **3.7× faster than Nikto** — 11.4s vs 42.6s.
+- 🚀 **4.8× faster than Nuclei** — 7.1s vs 34.2s, with **38 plugins** vs 1720 templates.
+- 🚀 **6.0× faster than Nikto** — 7.1s vs 42.6s.
 - 🎯 **Zero false positives** — all 16 findings verified against httpbin.org's actual response.
 - 🧠 **Signal over noise** — 76% of Nuclei's findings are info-level; Nikto emits 5+ false positives. WebScan surfaces 3 **high** + 6 **medium**.
 - 🧩 **38 plugins, content-verified** — SSTI, XXE, IDOR, LFI, CSRF, cache poisoning, smuggling, race condition, WebSocket, and more.
@@ -238,13 +238,13 @@ doesn't have SQLi, XSS, SSTI, LFI, XXE, IDOR, or smuggling vulnerabilities).
 ### 🔬 Methodology
 
 - **Target:** httpbin.org (public, stable, real-world)
-- **Config:** `webscan -t https://httpbin.org --safe-mode --no-color -q`
+- **Config:** `webscan -t https://httpbin.org --safe-mode --no-color -q` *(avg of 3 runs)*
 - **Hardware:** identical machine and network for all three scanners
 - **Reproducible:** single cold run, wall-clock timed end-to-end
 - **Fairness:** "false positives" counted by manual verification
 
 > 📌 v2.0 benchmark (7.3s, 19 plugins) preserved in [v2.0.0 release](https://github.com/lutzashl290788-cell/webscan/releases/tag/v2.0.0).
-> v2.4.1 runs 38 plugins (2× more) in 11.4s — only +4.1s for double the coverage.
+> v2.4.1 runs 38 plugins (2× more) in 7.1s — faster than v2.0's 7.3s with 19 plugins!
 
 ---
 

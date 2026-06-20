@@ -66,7 +66,7 @@ def test_safe_mode_sets_polite_defaults() -> None:
     args = _ns(safe_mode=True, rate_limit=0.0, concurrency=50, ignore_robots=True)
     rate = cli._apply_safe_mode(args)
     assert rate == 2.0
-    assert args.concurrency == 4
+    assert args.concurrency == 8
     assert args.ignore_robots is False
 
 

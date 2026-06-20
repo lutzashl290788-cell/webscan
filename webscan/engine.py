@@ -58,7 +58,7 @@ class ScanEngine:
     ) -> None:
         self.plugins = plugins
         self.concurrency = max(1, concurrency)
-        self.timeout = aiohttp.ClientTimeout(total=timeout, connect=min(5, timeout))
+        self.timeout = aiohttp.ClientTimeout(total=timeout, connect=min(3, timeout))
         self.on_progress = on_progress
         self._ssl_ctx = _build_ssl_context()
         self._auth_headers = auth_headers or {}
@@ -81,7 +81,7 @@ class ScanEngine:
         done_counter = 0
 
         connector = aiohttp.TCPConnector(
-            limit=self.concurrency * 5,  # total connection pool
+            limit=self.concurrency * 8,  # total connection pool
             limit_per_host=self.concurrency,
             ssl=self._ssl_ctx,
         )

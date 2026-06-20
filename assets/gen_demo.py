@@ -32,7 +32,7 @@ LINES: list[tuple[str, str, int]] = [
     ("  Confidence  : firm (content-verified only)", DIM, 0),
     ("  Concurrency : 10  ·  Retry: 2  ·  Soft-404: on", DIM, 0),
     ("", FG, 0),
-    ("  [████████████████████] 1/1  done in 11.5s", GREEN, 0),
+    ("  [████████████████████] 1/1  done in 7.1s", GREEN, 0),
     ("", FG, 0),
     ("  Total findings  16", WHITE, 0),
     ("", FG, 0),

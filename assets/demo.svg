@@ -25,7 +25,7 @@
   <text x="20" y="190" fill="#8b949e" opacity="0" font-size="13">  Confidence  : firm (content-verified only)<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="1.54s" fill="freeze"/></text>
   <text x="20" y="210" fill="#8b949e" opacity="0" font-size="13">  Concurrency : 10  ·  Retry: 2  ·  Soft-404: on<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="1.76s" fill="freeze"/></text>
   <text x="20" y="230" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="1.98s" fill="freeze"/></text>
-  <text x="20" y="250" fill="#3fb950" opacity="0" font-size="13">  [████████████████████] 1/1  done in 11.5s<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="2.20s" fill="freeze"/></text>
+  <text x="20" y="250" fill="#3fb950" opacity="0" font-size="13">  [████████████████████] 1/1  done in 7.1s<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="2.20s" fill="freeze"/></text>
   <text x="20" y="270" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="2.42s" fill="freeze"/></text>
   <text x="20" y="290" fill="#f0f6fc" opacity="0" font-size="13">  Total findings  16<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="2.64s" fill="freeze"/></text>
   <text x="20" y="310" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="2.86s" fill="freeze"/></text>

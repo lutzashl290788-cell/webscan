@@ -100,7 +100,7 @@ class SubdomainsPlugin(BasePlugin):
     ) -> set[str]:
         url = _CRT_SH.format(domain=domain)
         try:
-            async with session.get(url, ssl=False) as resp:
+            async with session.get(url, ssl=False, timeout=aiohttp.ClientTimeout(total=5)) as resp:
                 if resp.status != 200:
                     return set()
                 raw = await resp.text(errors="ignore")
