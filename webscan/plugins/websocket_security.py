@@ -101,7 +101,7 @@ class WebsocketSecurityPlugin(BasePlugin):
     """Scans HTML and JS for insecure WebSocket endpoints."""
 
     name = "websocket_security"
-_MAX_SCRIPTS = 10  # noqa: E501
+    description = "Detect insecure ws:// endpoints, missing wss://, and sensitive data over WebSocket"  # noqa: E501
 
     async def run(
         self,
