@@ -5,6 +5,40 @@ All notable changes to WebScan are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-06-19
+
+### Added — 9 new plugins (27 → 36 total)
+
+- **`ssti`** (active, FIRM) — Jinja2/Twig/FreeMarker/ERB/Smarty/Smarty-alt/doT.js
+  7 syntax variants, content-verified (evaluated result 49/343 must appear)
+- **`backup_files`** (active, FIRM) — .bak/.old/.swp/~/.orig/.tmp/.save/.copy/.dist
+  24 base files × 13 extensions, source-code content verification
+- **`verbose_errors`** (passive, FIRM) — 30+ stack trace markers
+  Python/Java/PHP/Ruby/Node.js/.NET/Spring Boot/Laravel/Symfony
+- **`mass_assignment`** (active, TENTATIVE) — injects role=admin, is_admin=true
+  14 privileged field variants, PUT on API endpoints, content-verified
+- **`prototype_pollution`** (passive, TENTATIVE) — scans HTML+JS for
+  $.extend, Object.assign, defaultsDeep, merge/extend patterns
+- **`graphql_depth`** (active) — depth attack (50-level nested query)
+  + field suggestion ("Did you mean") information disclosure
+- **`file_upload`** (active, FIRM) — sends harmless test file
+  verifies uploaded file is accessible at predicted URL
+- **`race_condition`** (active, TENTATIVE) — 10 concurrent duplicate requests
+  flags when multiple succeed (coupon/vote/withdraw abuse)
+- **`request_smuggling`** (active, TENTATIVE) — CL.TE and TE.CL variants
+  timeout-based detection for TE.CL, marker-based for CL.TE
+
+### Security
+- **Fixed CSV formula injection** (CWE-1236) in `reporter.py`
+  The CSV output didn't escape cells starting with `=`, `+`, `-`, `@`
+  — an attacker who controls a finding's title/description could craft
+  a value like `=cmd|'/c calc'!A1` that executes when opened in Excel.
+  Added `_csv_sanitize()` that prefixes dangerous cells with `'`.
+
+### Assets
+- Updated header.svg and demo.svg for v2.2.0 — dark red theme, 36 plugins,
+  new finding types (SSTI, LFI, XXE, IDOR, cache poisoning, etc.)
+
 ## [2.1.0] - 2026-06-19
 
 ### Added — 3 new plugins (24 → 27 total)
