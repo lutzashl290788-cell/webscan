@@ -1,34 +1,53 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="760" height="598" viewBox="0 0 760 598" font-family="SFMono-Regular,Consolas,Liberation Mono,Menlo,monospace" font-size="14">
-  <rect width="760" height="598" rx="10" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
-  <rect width="760" height="36" rx="10" fill="#161b22"/>
-  <rect y="26" width="760" height="10" fill="#161b22"/>
-  <circle cx="22" cy="18" r="6" fill="#ff5f56"/>
-  <circle cx="42" cy="18" r="6" fill="#ffbd2e"/>
-  <circle cx="62" cy="18" r="6" fill="#27c93f"/>
-  <text x="380" y="23" fill="#8b949e" font-size="12" text-anchor="middle">webscan — security audit</text>
-    <text x="20" y="52" fill="#7ee787" opacity="0">$ webscan -t https://example.com --crawl --depth 2<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="0.00s" fill="freeze"/></text>
-  <text x="20" y="74" fill="#c9d1d9" opacity="0">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="0.28s" fill="freeze"/></text>
-  <text x="20" y="96" fill="#39c5cf" opacity="0">╔══════════════════════════════════════════════════╗<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="0.56s" fill="freeze"/></text>
-  <text x="20" y="118" fill="#39c5cf" opacity="0">║          WebScan — Security Auditor              ║<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="0.84s" fill="freeze"/></text>
-  <text x="20" y="140" fill="#39c5cf" opacity="0">╚══════════════════════════════════════════════════╝<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="1.12s" fill="freeze"/></text>
-  <text x="20" y="162" fill="#8b949e" opacity="0">  Targets     : 1<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="1.40s" fill="freeze"/></text>
-  <text x="20" y="184" fill="#8b949e" opacity="0">  Plugins     : 14 enabled<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="1.68s" fill="freeze"/></text>
-  <text x="20" y="206" fill="#8b949e" opacity="0">  Crawling 1 seed (depth=2) …<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="1.96s" fill="freeze"/></text>
-  <text x="20" y="228" fill="#3fb950" opacity="0">  Discovered 12 URL(s) to scan.<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="2.24s" fill="freeze"/></text>
-  <text x="20" y="250" fill="#c9d1d9" opacity="0">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="2.52s" fill="freeze"/></text>
-  <text x="20" y="272" fill="#3fb950" opacity="0">  [████████████████████] 12/12  done<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="2.80s" fill="freeze"/></text>
-  <text x="20" y="294" fill="#c9d1d9" opacity="0">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="3.08s" fill="freeze"/></text>
-  <text x="20" y="316" fill="#f0f6fc" opacity="0">  Total findings  9<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="3.36s" fill="freeze"/></text>
-  <text x="20" y="338" fill="#c9d1d9" opacity="0">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="3.64s" fill="freeze"/></text>
-  <text x="20" y="360" fill="#c9d1d9" opacity="0">  • [https://example.com]<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="3.92s" fill="freeze"/></text>
-  <text x="54" y="382" fill="#db6d28" opacity="0">🟠 [HIGH    ] Missing header: Content-Security-Policy<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="4.20s" fill="freeze"/></text>
-  <text x="54" y="404" fill="#db6d28" opacity="0">🟠 [HIGH    ] Missing header: Strict-Transport-Security<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="4.48s" fill="freeze"/></text>
-  <text x="54" y="426" fill="#d29922" opacity="0">🟡 [MEDIUM  ] Missing header: X-Frame-Options<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="4.76s" fill="freeze"/></text>
-  <text x="54" y="448" fill="#d29922" opacity="0">🟡 [MEDIUM  ] Missing HSTS header<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="5.04s" fill="freeze"/></text>
-  <text x="54" y="470" fill="#58a6ff" opacity="0">🔵 [LOW     ] Information disclosure: Server<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="5.32s" fill="freeze"/></text>
-  <text x="54" y="492" fill="#8b949e" opacity="0">⚪ [INFO    ] Technologies detected: Cloudflare<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="5.60s" fill="freeze"/></text>
-  <text x="20" y="514" fill="#c9d1d9" opacity="0">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="5.88s" fill="freeze"/></text>
-  <text x="20" y="536" fill="#39c5cf" opacity="0">  ✍  SARIF report : reports/scan.sarif<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="6.16s" fill="freeze"/></text>
-  <text x="20" y="558" fill="#3fb950" opacity="0">  ✓ scan complete<animate attributeName="opacity" from="0" to="1" dur="0.18s" begin="6.44s" fill="freeze"/></text>
-  <rect x="20" y="566" width="9" height="17" fill="#3fb950" opacity="0"><animate attributeName="opacity" values="0;0;1" dur="6.72s" fill="freeze"/><animate attributeName="opacity" values="1;0;1" dur="1s" begin="6.72s" repeatCount="indefinite"/></rect>
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="748" viewBox="0 0 780 748" font-family="SFMono-Regular,Consolas,Liberation Mono,Menlo,monospace">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="0%" r="60%">
+      <stop offset="0" stop-color="#dc2626" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#dc2626" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="780" height="748" rx="10" fill="#0d1117"/>
+  <rect width="780" height="748" rx="10" fill="url(#glow)"/>
+  <rect width="780" height="748" rx="10" fill="none" stroke="#30363d" stroke-width="1"/>
+  <rect width="780" height="34" rx="10" fill="#161b22"/>
+  <rect y="24" width="780" height="10" fill="#161b22"/>
+  <circle cx="22" cy="17" r="6" fill="#ff5f56"/>
+  <circle cx="42" cy="17" r="6" fill="#ffbd2e"/>
+  <circle cx="62" cy="17" r="6" fill="#27c93f"/>
+  <text x="390" y="22" fill="#8b949e" font-size="11" text-anchor="middle">webscan v2.2 — security audit · 36 plugins</text>
+  <rect x="22" y="220" width="300" height="3" rx="1" fill="#21262d"/><rect x="22" y="220" width="0" height="3" rx="1" fill="#3fb950"><animate attributeName="width" from="0" to="300" dur="1.5s" begin="2.0s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/></rect>
+    <text x="20" y="50" fill="#7ee787" opacity="0" font-size="13">$ webscan -t https://example.com --plugins all --min-confidence firm<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.00s" fill="freeze"/></text>
+  <text x="20" y="70" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.22s" fill="freeze"/></text>
+  <text x="20" y="90" fill="#39c5cf" opacity="0" font-size="13">╔══════════════════════════════════════════════════╗<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.44s" fill="freeze"/></text>
+  <text x="20" y="110" fill="#39c5cf" opacity="0" font-size="13">║          WebScan v2.2 — Security Auditor         ║<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.66s" fill="freeze"/></text>
+  <text x="20" y="130" fill="#39c5cf" opacity="0" font-size="13">╚══════════════════════════════════════════════════╝<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.88s" fill="freeze"/></text>
+  <text x="20" y="150" fill="#8b949e" opacity="0" font-size="13">  Targets     : 1<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="1.10s" fill="freeze"/></text>
+  <text x="20" y="170" fill="#8b949e" opacity="0" font-size="13">  Plugins     : 36 enabled<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="1.32s" fill="freeze"/></text>
+  <text x="20" y="190" fill="#8b949e" opacity="0" font-size="13">  Confidence  : firm (content-verified only)<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="1.54s" fill="freeze"/></text>
+  <text x="20" y="210" fill="#8b949e" opacity="0" font-size="13">  Concurrency : 10  ·  Retry: 2  ·  Soft-404: on<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="1.76s" fill="freeze"/></text>
+  <text x="20" y="230" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="1.98s" fill="freeze"/></text>
+  <text x="20" y="250" fill="#3fb950" opacity="0" font-size="13">  [████████████████████] 1/1  done in 9.8s<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="2.20s" fill="freeze"/></text>
+  <text x="20" y="270" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="2.42s" fill="freeze"/></text>
+  <text x="20" y="290" fill="#f0f6fc" opacity="0" font-size="13">  Total findings  14<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="2.64s" fill="freeze"/></text>
+  <text x="20" y="310" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="2.86s" fill="freeze"/></text>
+  <text x="20" y="330" fill="#c9d1d9" opacity="0" font-size="13">  • https://example.com<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="3.08s" fill="freeze"/></text>
+  <text x="54" y="350" fill="#f85149" opacity="0" font-size="13">🔴 [CRIT    ] SSTI: Jinja2 evaluates {{7*7}} → 49<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="3.30s" fill="freeze"/></text>
+  <text x="54" y="370" fill="#f85149" opacity="0" font-size="13">🔴 [CRIT    ] LFI: /etc/passwd leaked via ?file=../<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="3.52s" fill="freeze"/></text>
+  <text x="54" y="390" fill="#f85149" opacity="0" font-size="13">🔴 [CRIT    ] XXE: external entity leaks /etc/passwd<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="3.74s" fill="freeze"/></text>
+  <text x="54" y="410" fill="#db6d28" opacity="0" font-size="13">🟠 [HIGH    ] IDOR: /api/users/124 returns Bob's data<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="3.96s" fill="freeze"/></text>
+  <text x="54" y="430" fill="#db6d28" opacity="0" font-size="13">🟠 [HIGH    ] Cache poisoning via X-Forwarded-Host<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="4.18s" fill="freeze"/></text>
+  <text x="54" y="450" fill="#db6d28" opacity="0" font-size="13">🟠 [HIGH    ] Mass assignment: role=admin accepted<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="4.40s" fill="freeze"/></text>
+  <text x="54" y="470" fill="#d29922" opacity="0" font-size="13">🟡 [MEDIUM  ] Clickjacking: no X-Frame-Options / CSP<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="4.62s" fill="freeze"/></text>
+  <text x="54" y="490" fill="#d29922" opacity="0" font-size="13">🟡 [MEDIUM  ] CSRF: POST form without token<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="4.84s" fill="freeze"/></text>
+  <text x="54" y="510" fill="#d29922" opacity="0" font-size="13">🟡 [MEDIUM  ] Race condition: 10/10 concurrent succeeded<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="5.06s" fill="freeze"/></text>
+  <text x="54" y="530" fill="#58a6ff" opacity="0" font-size="13">🔵 [LOW     ] Open redirect: 13 payloads bypass filter<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="5.28s" fill="freeze"/></text>
+  <text x="54" y="550" fill="#58a6ff" opacity="0" font-size="13">🔵 [LOW     ] Verbose errors: Python traceback leaked<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="5.50s" fill="freeze"/></text>
+  <text x="54" y="570" fill="#8b949e" opacity="0" font-size="13">⚪ [INFO    ] JWT: no exp claim (token never expires)<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="5.72s" fill="freeze"/></text>
+  <text x="54" y="590" fill="#8b949e" opacity="0" font-size="13">⚪ [INFO    ] Prototype pollution: $.extend detected<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="5.94s" fill="freeze"/></text>
+  <text x="20" y="610" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="6.16s" fill="freeze"/></text>
+  <text x="20" y="630" fill="#bc8cff" opacity="0" font-size="13">  Confidence breakdown: 3 firm · 3 firm · 3 firm · 2 firm · 2 firm · 1 firm<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="6.38s" fill="freeze"/></text>
+  <text x="20" y="650" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="6.60s" fill="freeze"/></text>
+  <text x="20" y="670" fill="#39c5cf" opacity="0" font-size="13">  ✍  SARIF report : reports/scan.sarif<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="6.82s" fill="freeze"/></text>
+  <text x="20" y="690" fill="#39c5cf" opacity="0" font-size="13">  ✍  JSON report  : reports/scan.json<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="7.04s" fill="freeze"/></text>
+  <text x="20" y="710" fill="#3fb950" opacity="0" font-size="13">  ✓ scan complete — 0 false positives<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="7.26s" fill="freeze"/></text>
+  <rect x="20" y="717" width="8" height="16" fill="#3fb950" opacity="0"><animate attributeName="opacity" values="0;0;1" dur="7.48s" fill="freeze"/><animate attributeName="opacity" values="1;0;1" dur="1s" begin="7.48s" repeatCount="indefinite"/></rect>
 </svg>
