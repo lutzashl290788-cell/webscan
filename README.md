@@ -146,6 +146,17 @@ $ webscan -t https://example.com --plugins headers cookies http_methods ssl_tls 
 | `clickjacking` | passive | Missing `X-Frame-Options` and `CSP frame-ancestors`; flags `ALLOW-FROM` (obsolete); LOW when only legacy header present |
 | `cache_poisoning` | active | `Host`, `X-Forwarded-Host`, `X-Original-URL`, `X-Rewrite-URL`, `X-Forwarded-Server` — CRITICAL when reflected in `<link>`/`<script>`/`<a href>`/`<form action>`; MEDIUM for plain-text reflection |
 | `host_header_injection` | active | Password-reset endpoints (`/reset`, `/forgot`, `/wp-login.php?action=lostpassword`, …) — CRITICAL when injected host appears in URL; HIGH for plain reflection; INFO for blind poisoning |
+| `ssti` | active | Jinja2/Twig/FreeMarker/ERB/Smarty — 7 syntax variants, content-verified |
+| `backup_files` | active | `.bak`/`.old`/`.orig`/`~`/`.save` — 10 files × 5 extensions, source-verified |
+| `verbose_errors` | passive | Stack traces, PHP warnings, Spring Boot, Node.js, debug mode |
+| `mass_assignment` | active | Injects `role=admin` via PUT on API endpoints, content-verified |
+| `prototype_pollution` | passive | Scans JS for `$.extend`, `Object.assign`, merge/extend patterns |
+| `graphql_depth` | active | Depth attack (50-level query) + field suggestion info disclosure |
+| `file_upload` | active | Sends harmless test file, verifies accessibility at predicted URL |
+| `race_condition` | active | 10 concurrent requests, flags when multiple succeed |
+| `request_smuggling` | active | CL.TE and TE.CL variants, timeout + marker detection |
+| `web_cache_deception` | active | Appends `.css`/`.js` to dynamic URLs, sensitive data at extension |
+| `websocket_security` | passive | `ws://` detection, sensitive context, `wss://` discovery |
 
 > Run `webscan --list-plugins` to see them all, or pick a subset with `--plugins`.
 >
