@@ -47,6 +47,7 @@ from webscan.plugins.subdomains import SubdomainsPlugin
 from webscan.plugins.tech_fingerprint import TechFingerprintPlugin
 from webscan.plugins.verbose_errors import VerboseErrorsPlugin
 from webscan.plugins.web_cache_deception import WebCacheDeceptionPlugin
+from webscan.plugins.websocket_security import WebsocketSecurityPlugin
 from webscan.plugins.xss import XssPlugin
 from webscan.plugins.xxe import XxePlugin
 from webscan.retry import RetryConfig
@@ -92,6 +93,7 @@ _BUILTIN_PLUGINS: dict[str, type[BasePlugin]] = {
     "race_condition":   RaceConditionPlugin,
     "request_smuggling": RequestSmugglingPlugin,
     "web_cache_deception": WebCacheDeceptionPlugin,
+    "websocket_security": WebsocketSecurityPlugin,
 }
 
 

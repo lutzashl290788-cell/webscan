@@ -5,6 +5,15 @@ All notable changes to WebScan are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-06-20
+
+### Added
+- **`websocket_security`** plugin (passive): scans HTML and JS for
+  ws:// and wss:// endpoints. HIGH (FIRM) for unencrypted ws:// (traffic
+  can be sniffed/MITM). MEDIUM (TENTATIVE) for wss:// with sensitive
+  context (token, auth, session near the URL). LOW (INFO) for wss://
+  without sensitive context. 17 new tests.
+
 ## [2.3.0] - 2026-06-20
 
 ### Added
