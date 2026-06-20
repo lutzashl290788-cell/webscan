@@ -2,7 +2,7 @@
 
 <img src="assets/header.svg" alt="WebScan — automated web security auditor" width="820"/>
 
-*Crawl → discover → audit. **36 plugins**, 6 report formats, polite defaults, content-verified findings.*
+*Crawl → discover → audit. **37 plugins**, 6 report formats, polite defaults, content-verified findings.*
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lutzashl290788-cell/webscan/ci.yml?style=flat-square&label=CI&logo=githubactions&logoColor=white)](https://github.com/lutzashl290788-cell/webscan/actions)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
@@ -69,7 +69,7 @@ webscan -t https://target.com --proxy socks5://127.0.0.1:9050 --random-agent --r
 |--------|--------------|----------------|
 | **Legal disclaimer** | Printed at startup in interactive mode | Makes authorised-use explicit; discourages misuse |
 | **Report anonymisation** (`--anonymize`) | Strips local paths, hostname, username, and private IPs from exports | Safer SARIF/JSON sharing; GDPR-friendly data minimisation |
-| **Passive-first design** | 8 of 36 plugins are passive (no probes sent) — `headers`, `cookies`, `cors`, `ssl_tls`, `tech_fingerprint`, `security_txt`, `robots_sitemap`, `jwt_audit` | Site owners can audit configuration exposure without sending a single probe |
+| **Passive-first design** | 8 of 37 plugins are passive (no probes sent) — `headers`, `cookies`, `cors`, `ssl_tls`, `tech_fingerprint`, `security_txt`, `robots_sitemap`, `jwt_audit` | Site owners can audit configuration exposure without sending a single probe |
 
 ```bash
 webscan -t https://example.com --format sarif json -o report --anonymize
@@ -115,7 +115,7 @@ $ webscan -t https://example.com --plugins headers cookies http_methods ssl_tls 
 
 ## 🧩 Plugins
 
-**36 plugins** — each content-verified to keep the false-positive rate low.
+**37 plugins** — each content-verified to keep the false-positive rate low.
 
 | Plugin | Type | Checks |
 |--------|------|--------|
@@ -223,7 +223,7 @@ warmed up — and every finding it reports is real.
 ## 🏆 Comparison
 
 [![Coverage](https://img.shields.io/badge/coverage-95%25-2ea043?style=flat-square&logo=codecov&logoColor=white)](#-code-quality)
-[![Tests](https://img.shields.io/badge/tests-654%20passed-00d26a?style=flat-square&logo=pytest&logoColor=white)](#-code-quality)
+[![Tests](https://img.shields.io/badge/tests-671%20passed-00d26a?style=flat-square&logo=pytest&logoColor=white)](#-code-quality)
 [![CVE](https://img.shields.io/badge/CVE-350K%2B%20NVD-ff6b6b?style=flat-square&logo=cve&logoColor=white)](#-comparison)
 [![Plugins](https://img.shields.io/badge/plugins-27-9b59b6?style=flat-square)](#-comparison)
 
@@ -253,7 +253,7 @@ How WebScan stacks up against the tools security teams actually reach for:
 ## ✅ Code Quality
 
 [![Coverage](https://img.shields.io/badge/coverage-95%25-2ea043?style=flat-square)](#-code-quality)
-[![Tests](https://img.shields.io/badge/tests-654%20passed-00d26a?style=flat-square)](#-code-quality)
+[![Tests](https://img.shields.io/badge/tests-671%20passed-00d26a?style=flat-square)](#-code-quality)
 [![mypy](https://img.shields.io/badge/mypy-strict%20✓-blue?style=flat-square)](#-code-quality)
 [![ruff](https://img.shields.io/badge/ruff-0%20issues-d7ff64?style=flat-square)](#-code-quality)
 
@@ -262,15 +262,15 @@ Every release is gated on the same checks — no exceptions, no warnings suppres
 | Metric | Result |
 |--------|--------|
 | 🧪 **Test coverage** | **95%** — comfortably above the 80% CI gate |
-| ✅ **Tests** | **654 passed, 0 failed** in ~4.6s |
-| 🔍 **Type checking** | `mypy --strict` — **0 errors** across 57 source files |
+| ✅ **Tests** | **671 passed, 0 failed** in ~4.6s |
+| 🔍 **Type checking** | `mypy --strict` — **0 errors** across 58 source files |
 | 🧹 **Linting** | `ruff` — **0 issues** |
 | 🧩 **Plugins discovered** | **27** via `webscan.plugins` entry-points |
 | 📄 **Report formats** | **5** — JSON · Markdown · HTML · SARIF · CSV |
 | 🤖 **CI** | `pytest --cov-fail-under=80` enforced on every push (GitHub Actions) |
 
 ```text
-pytest .......................................... 654 passed  ✅
+pytest .......................................... 671 passed  ✅
 mypy --strict ................................... 0 errors    ✅
 ruff check ..................................... 0 issues     ✅
 coverage ....................................... 95%  ▓▓▓▓▓▓▓▓▓░  ✅
@@ -285,7 +285,7 @@ coverage ....................................... 95%  ▓▓▓▓▓▓▓▓�
 
 | Scanner | Rating | Summary |
 |---------|--------|---------|
-| 🟢 **WebScan** | ★★★★★ | **Fastest (7.3s)**, most findings (28), **zero false positives**, 350K CVE real-time, 36 plugins with content verification, free MIT |
+| 🟢 **WebScan** | ★★★★★ | **Fastest (7.3s)**, most findings (28), **zero false positives**, 350K CVE real-time, 37 plugins with content verification, free MIT |
 | Nuclei | ★★★☆☆ | 4.7× slower than WebScan; 16 of 21 findings are info-only; no confidence dimension |
 | OWASP ZAP | ★★★☆☆ | Solid DAST tool, but ~3,500 MB RAM, slow scans, limited CVE coverage |
 | Burp Suite Pro | ★★★☆☆ | Best manual proxy, but $475/year, 2.5+ hour scans, no CLI automation |

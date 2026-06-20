@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "webscan-security"
-version = "2.2.0"
+version = "2.3.0"
 description = "CLI security auditing tool for web configuration vulnerabilities"
 readme = "README.md"
 license = { text = "MIT" }
@@ -90,6 +90,7 @@ graphql_depth = "webscan.plugins.graphql_depth:GraphqlDepthPlugin"
 file_upload = "webscan.plugins.file_upload:FileUploadPlugin"
 race_condition = "webscan.plugins.race_condition:RaceConditionPlugin"
 request_smuggling = "webscan.plugins.request_smuggling:RequestSmugglingPlugin"
+web_cache_deception = "webscan.plugins.web_cache_deception:WebCacheDeceptionPlugin"
 
 [tool.setuptools.packages.find]
 where = ["."]

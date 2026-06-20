@@ -5,6 +5,17 @@ All notable changes to WebScan are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-06-20
+
+### Added
+- **`web_cache_deception`** plugin (active, content-verified): appends
+  `.css`/`.js`/`.png`/`.svg`/`.woff`/`.pdf`/`.txt` extensions to dynamic
+  URLs. HIGH (FIRM) when sensitive data markers (email, api_key, session,
+  password, token, balance) appear in the response AND the Content-Type
+  doesn't match the extension (e.g. `.css` returns `text/html`). MEDIUM
+  (TENTATIVE) when a dynamic page is served at the extension without
+  sensitive markers. Soft-404 calibration suppresses false positives.
+
 ## [2.2.0] - 2026-06-19
 
 ### Added — 9 new plugins (27 → 36 total)
