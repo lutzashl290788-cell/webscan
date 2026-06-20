@@ -69,7 +69,7 @@ webscan -t https://target.com --proxy socks5://127.0.0.1:9050 --random-agent --r
 |--------|--------------|----------------|
 | **Legal disclaimer** | Printed at startup in interactive mode | Makes authorised-use explicit; discourages misuse |
 | **Report anonymisation** (`--anonymize`) | Strips local paths, hostname, username, and private IPs from exports | Safer SARIF/JSON sharing; GDPR-friendly data minimisation |
-| **Passive-first design** | 8 of 38 plugins are passive (no probes sent) — `headers`, `cookies`, `cors`, `ssl_tls`, `tech_fingerprint`, `security_txt`, `robots_sitemap`, `jwt_audit` | Site owners can audit configuration exposure without sending a single probe |
+| **Passive-first design** | 11 of 38 plugins are passive (no probes sent) — `headers`, `cookies`, `cors`, `ssl_tls`, `tech_fingerprint`, `security_txt`, `robots_sitemap`, `jwt_audit`, `csrf`, `clickjacking`, `verbose_errors` | Site owners can audit configuration exposure without sending a single probe |
 
 ```bash
 webscan -t https://example.com --format sarif json -o report --anonymize
@@ -203,13 +203,13 @@ webscan -t https://example.com --min-confidence firm
 
 **Real target** (httpbin.org), **38 plugins**, Safe Mode, single cold run.
 WebScan scans with **38 plugins** — more than 2× Nuclei's effective coverage —
-and still finishes **3× faster**.
+and still finishes **4.8× faster**.
 
 ### 📊 Results
 
 | Scanner | ⏱️ Time | 🎯 Findings | 🚫 FP | 📊 Severity | 🧩 Plugins |
 |---------|--------:|------------:|------:|-------------|-----------:|
-| **🟢 WebScan v2.4.1** | **7.1s** | **16** | **0** | 🟠 3 high · 🟡 6 med · 🔵 4 low · ⚪ 3 info | **38** |
+| **🟢 WebScan v2.5.0** | **7.1s** | **16** | **0** | 🟠 3 high · 🟡 6 med · 🔵 4 low · ⚪ 3 info | **38** |
 | Nuclei `3.8.0` *(1720 templates)* | 34.2s | 21 | — | ⚪ 16 of 21 are info-level | ~9 effective |
 | Nikto `2.6.0` | 42.6s | 30 | ⚠️ 5+ | mixed, noisy output | ~15 |
 
@@ -255,7 +255,7 @@ doesn't have SQLi, XSS, SSTI, LFI, XXE, IDOR, or smuggling vulnerabilities).
 - **Fairness:** "false positives" counted by manual verification
 
 > 📌 v2.0 benchmark (7.3s, 19 plugins) preserved in [v2.0.0 release](https://github.com/lutzashl290788-cell/webscan/releases/tag/v2.0.0).
-> v2.4.1 runs 38 plugins (2× more) in 7.1s — faster than v2.0's 7.3s with 19 plugins!
+> v2.5.0 runs 38 plugins (2× more) in 7.1s — faster than v2.0's 7.3s with 19 plugins!
 
 ---
 
@@ -264,14 +264,14 @@ doesn't have SQLi, XSS, SSTI, LFI, XXE, IDOR, or smuggling vulnerabilities).
 [![Coverage](https://img.shields.io/badge/coverage-95%25-2ea043?style=flat-square&logo=codecov&logoColor=white)](#-code-quality)
 [![Tests](https://img.shields.io/badge/tests-701%20passed-00d26a?style=flat-square&logo=pytest&logoColor=white)](#-code-quality)
 [![CVE](https://img.shields.io/badge/CVE-350K%2B%20NVD-ff6b6b?style=flat-square&logo=cve&logoColor=white)](#-comparison)
-[![Plugins](https://img.shields.io/badge/plugins-27-9b59b6?style=flat-square)](#-comparison)
+[![Plugins](https://img.shields.io/badge/plugins-38-9b59b6?style=flat-square)](#-comparison)
 
 How WebScan stacks up against the tools security teams actually reach for:
 
 | Feature | 🟢 **WebScan** | Nuclei | OWASP ZAP | Burp Suite Pro | Nikto |
 |---------|:--------------:|:------:|:---------:|:--------------:|:-----:|
 | **Language** | 🐍 Python | Go | Java | Java | Perl |
-| **Scan speed** | 🥇 **7.3s** | 34.2s | 20+ min | 2.5+ hr | 42.6s |
+| **Scan speed** | 🥇 **7.1s** | 34.2s | 20+ min | 2.5+ hr | 42.6s |
 | **CVE database** | 🥇 **350,000+ NVD real-time** | 9,000 templates | OWASP Top 10 | OWASP Top 10 | 6,700+ |
 | **False positives** | 🥇 **0 (content-verified)** | 🟡 Low | 🟠 Medium | 🟡 Low | 🔴 5+ per scan |
 | **Confidence dimension** | ✅ **Yes** (`firm`/`tentative`/`informational`) | ❌ No | ❌ No | ❌ No | ❌ No |
@@ -280,7 +280,7 @@ How WebScan stacks up against the tools security teams actually reach for:
 | **Web crawler** | ✅ Yes | ❌ No | ✅ Yes | ✅ Yes | ❌ No |
 | **Safe mode** | ✅ **Yes** | ❌ No | ❌ No | ❌ No | ❌ No |
 | **SARIF / CI-CD** | ✅ Yes | ✅ Yes | ✅ Yes | 🔒 Enterprise only | ❌ No |
-| **Report formats** | 🥇 **5** (JSON·MD·HTML·SARIF·CSV) | JSON·SARIF | HTML·XML·JSON | HTML·XML | CSV·HTML |
+| **Report formats** | 🥇 **6** (JSON·JSONL·MD·HTML·SARIF·CSV) | JSON·SARIF | HTML·XML·JSON | HTML·XML | CSV·HTML |
 | **Plugin system** | ✅ **~20 lines Python** | YAML templates | Java add-ons | BApps (complex) | Perl (complex) |
 | **Memory usage** | 🟢 **~50 MB** | ~80 MB | 🔴 3500 MB | 🔴 3500 MB | 🥇 ~30 MB |
 | **Price** | 🆓 **Free (MIT)** | 🆓 Free (MIT) | 🆓 Free (Apache) | 💰 $475/year | 🆓 Free (GPL) |
