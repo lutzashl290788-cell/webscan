@@ -126,7 +126,10 @@ class TestPluginRun:
 
     async def test_non_html_skipped(self) -> None:
         plugin = WebsocketSecurityPlugin()
-        resp = FakeResponse(body=body, status=200, headers=[("Content-Type", "text/html")])  # noqa: E501
+        resp = FakeResponse(
+            body='{"x":1}', status=200,
+            headers=[("Content-Type", "application/json")],
+        )
         findings = await plugin.run(_TARGET, FakeSession(resp))  # type: ignore[arg-type]
         assert findings == []
 
