@@ -9,6 +9,19 @@ import pytest
 from webscan.ai import AIAssistant, AIConfig, ai_available
 from webscan.models import Finding, ScanReport, Severity, TargetResult
 
+# Tests that exercise the real Anthropic SDK path must be skipped when the
+# ``[ai]`` extra isn't installed (e.g. CI runs ``pip install -e ".[dev]"``).
+try:
+    import anthropic  # noqa: F401
+    _HAS_ANTHROPIC = True
+except ImportError:
+    _HAS_ANTHROPIC = False
+
+_skip_no_sdk = pytest.mark.skipif(
+    not _HAS_ANTHROPIC,
+    reason="anthropic SDK not installed (needs the [ai] extra)",
+)
+
 
 class _Block:
     def __init__(self, text: str) -> None:
@@ -149,11 +162,13 @@ def test_ai_available_false_without_key(monkeypatch: pytest.MonkeyPatch) -> None
     assert ai_available(AIConfig()) is False
 
 
+@_skip_no_sdk
 def test_ai_available_true_with_explicit_key() -> None:
     """An explicit APIConfig.api_key must short-circuit availability to True."""
     assert ai_available(AIConfig(api_key="sk-ant-test123")) is True
 
 
+@_skip_no_sdk
 def test_ai_available_uses_env_key(monkeypatch: pytest.MonkeyPatch) -> None:
     """With ANTHROPIC_API_KEY in env and SDK importable, availability is True."""
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-envkey")
@@ -163,6 +178,7 @@ def test_ai_available_uses_env_key(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
 
+@_skip_no_sdk
 def test_build_client_with_explicit_key() -> None:
     """_build_client with config.api_key returns a real AsyncAnthropic client."""
     from webscan.ai import _build_client
@@ -190,6 +206,7 @@ def test_build_client_returns_none_when_sdk_missing(
     assert _build_client(AIConfig(api_key="sk-ant-test")) is None
 
 
+@_skip_no_sdk
 def test_build_client_returns_none_on_sdk_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
