@@ -66,6 +66,7 @@ Examples
   webscan -t https://a.com https://b.com --plugins headers
   webscan -f targets.txt -o ./reports/scan --format json md -v
   webscan --list-plugins
+  webscan serve --host 127.0.0.1 --port 8000   # local HTTP backend ([serve] extra)
 """,
     )
 
@@ -330,6 +331,18 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
         help="Print a plain-language explanation under each finding (beginner-friendly).",
     )
     og.add_argument(
+        "--ai-triage",
+        action="store_true",
+        help="Use Claude to review findings and flag likely false positives "
+        "(needs ANTHROPIC_API_KEY and the [ai] extra; silently skipped otherwise).",
+    )
+    og.add_argument(
+        "--ai-summary",
+        action="store_true",
+        help="Print a Claude-written plain-language executive summary of the scan "
+        "(needs ANTHROPIC_API_KEY and the [ai] extra; silently skipped otherwise).",
+    )
+    og.add_argument(
         "--anonymize",
         action="store_true",
         help="Strip local paths, hostname/username and private IPs from reports "
@@ -555,6 +568,36 @@ def _exit_code(report: ScanReport, args: argparse.Namespace) -> int:
     return 1 if triggered else 0
 
 
+async def _run_ai(report: ScanReport, args: argparse.Namespace, quiet: bool) -> str:
+    """Run the optional Claude AI layer; return an executive summary (or '').
+
+    Fail-safe: if the SDK or key is missing, or the API errors, this prints a
+    one-line note (when not quiet) and returns without affecting the scan.
+    """
+    from webscan.ai import AIAssistant
+
+    assistant = AIAssistant()
+    if not assistant.available:
+        if not quiet:
+            print(
+                "  AI          : skipped (set ANTHROPIC_API_KEY and "
+                "install 'webscan-security[ai]')"
+            )
+        return ""
+
+    if args.ai_triage:
+        if not quiet:
+            print("  AI triage   : reviewing findings for false positives …")
+        await assistant.triage_report(report)
+
+    summary = ""
+    if args.ai_summary:
+        if not quiet:
+            print("  AI summary  : generating …")
+        summary = await assistant.summarize_report(report)
+    return summary
+
+
 async def _run(args: argparse.Namespace) -> int:
     targets = _load_targets(args)
     if not targets:
@@ -606,6 +649,10 @@ async def _run(args: argparse.Namespace) -> int:
         if not quiet:
             print(f"  Confidence  : ≥ {args.min_confidence} (lower-confidence findings dropped)")
 
+    ai_summary = ""
+    if args.ai_triage or args.ai_summary:
+        ai_summary = await _run_ai(report, args, quiet)
+
     if args.anonymize:
         report = anonymize_report(report)
         if not quiet:
@@ -622,6 +669,12 @@ async def _run(args: argparse.Namespace) -> int:
             color=use_color, min_severity=min_sev, explain=args.explain
         ))
         print()
+        if ai_summary:
+            print("  AI summary")
+            print("  ─────────")
+            for line in ai_summary.splitlines():
+                print(f"  {line}")
+            print()
 
     if args.output:
         _write_reports(reporter, args)
@@ -690,7 +743,40 @@ def _apply_config(parser: argparse.ArgumentParser) -> None:
     parser.set_defaults(**profile)
 
 
+def _serve(argv: list[str]) -> NoReturn:
+    """Handle the ``webscan serve`` subcommand and exit.
+
+    Kept separate from the flat scan parser so the scanning CLI is untouched:
+    ``serve`` is only recognised as the very first argument. Needs the ``serve``
+    extra (fastapi/uvicorn); a missing dependency yields a clear install hint.
+    """
+    sub = argparse.ArgumentParser(
+        prog="webscan serve",
+        description="Run the local HTTP backend (needs the [serve] extra).",
+    )
+    sub.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1).")
+    sub.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000).")
+    opts = sub.parse_args(argv)
+
+    from webscan.server import run_server, server_available
+
+    if not server_available():
+        _die(
+            "The 'serve' extra is not installed. "
+            "Run: pip install 'webscan-security[serve]'"
+        )
+    print(f"WebScan server listening on http://{opts.host}:{opts.port}", file=sys.stderr)
+    try:
+        run_server(host=opts.host, port=opts.port)
+    except KeyboardInterrupt:  # pragma: no cover - interactive shutdown
+        pass
+    sys.exit(0)
+
+
 def main() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] == "serve":
+        _serve(sys.argv[2:])
+
     parser = _build_parser()
     _apply_config(parser)
     args = parser.parse_args()
