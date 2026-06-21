@@ -160,9 +160,29 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="WebScan",
-        version="2.5.2",
+        version="2.5.3",
         description="Local HTTP backend for the WebScan security scanner.",
     )
+
+    # Explicit CORS deny-all: a browser front-end on a different origin must
+    # NOT be able to drive scans through this backend. If a future UI needs
+    # access, the operator should add an explicit allow-list here — never
+    # ``allow_origins=["*"]`` with credentials. Deny-by-default is also the
+    # FastAPI behaviour without this middleware, but declaring it explicitly
+    # makes the security posture visible in code and prevents accidental
+    # loosening later.
+    try:
+        from fastapi.middleware.cors import CORSMiddleware
+
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[],          # no origins allowed
+            allow_methods=[],          # no methods allowed
+            allow_headers=[],          # no headers allowed
+            allow_credentials=False,   # cookies/Authorization never sent
+        )
+    except ImportError:  # pragma: no cover - defensive: fastapi is checked above
+        pass
 
     @app.get("/health")  # type: ignore
     async def health() -> dict[str, Any]:

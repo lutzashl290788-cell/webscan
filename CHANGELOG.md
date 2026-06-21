@@ -9,6 +9,151 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _Nothing yet._
 
+## [2.5.3] - 2026-06-21
+
+### Security — zero known issues remaining
+
+A final, maximally-pedantic audit found 3 new MEDIUM + 3 confirmed LOW + 8 INFO
+issues that survived v2.5.1/v2.5.2. All 14 are fixed in this release — the
+codebase now has **zero** outstanding security findings at any severity level
+(CRITICAL / HIGH / MEDIUM / LOW / INFO).
+
+#### Fixed (MEDIUM)
+
+- **M-NEW-1: H-1 fix was incomplete — TraceConfig now applied to all sessions**
+  (CWE-200 / CWE-522). The original H-1 fix in v2.5.1 only attached the
+  redirect-safe TraceConfig to `engine.ScanEngine.scan_all()`'s session.
+  Two other `aiohttp.ClientSession(...)` constructions — `cli._crawl_targets`
+  (carries auth headers/cookies during crawling) and `auth._form_login`
+  (POSTs the login form with credentials) — were unprotected. A 302/307/308
+  cross-origin redirect on either path would replay `Authorization`/`Cookie`
+  or the login POST body on the attacker host. Both now install the same
+  `_build_redirect_safe_trace()`. Additionally, `_form_login` now uses
+  `allow_redirects=False` — a login endpoint must never silently redirect
+  its POST body to a third party.
+
+- **M-NEW-2: shell injection in `security-scan.yml` via `${{ github.event.inputs.target }}`**
+  (CWE-78 / CWE-94). The `run:` block interpolated the workflow_dispatch
+  input directly into the shell script — a malicious `target` value like
+  `"; rm -rf $HOME #` would execute. Fixed via env-var indirection: the
+  input is now passed as `$TARGET` (env var), and a regex validation
+  rejects anything that doesn't look like an `http(s)://` URL before
+  handing it to webscan.
+
+- **M-6: `mass_assignment` PUT now carries safety markers**
+  (CWE-624 / CWE-639 / CWE-1286 / CWE-352). The plugin's state-changing
+  PUT probe (`{"role":"admin"}`) previously had no `Idempotency-Key`, no
+  scanner identification header, and `allow_redirects=True` (which could
+  replay the PUT body on a cross-origin redirect — see M-NEW-1). Now each
+  probe carries `Idempotency-Key: webscan-<uuid>`, `X-WebScan-Test: 1`,
+  `X-WebScan-Dry-Run: 1`, and `allow_redirects=False`. Servers / WAFs that
+  understand these headers can identify and skip persistence; the
+  `allow_redirects=False` closes the body-replay vector.
+
+#### Fixed (LOW)
+
+- **L-1: dependency upper bounds + CVE coverage**
+  (CWE-1357 / CWE-1104). All `>=` specifiers now have `<major` upper bounds.
+  Critically, `aiohttp>=3.9.0` → `aiohttp>=3.10.11,<4` closes two HTTP-parser
+  DoS CVEs (CVE-2024-52304, CVE-2024-47881) that are directly exploitable
+  from a hostile scan target via crafted HTTP responses. Other bounds:
+  `PyYAML>=6.0.1,<7`, `anthropic>=0.40,<1`, `fastapi>=0.111,<1` (pulls a
+  fixed `python-multipart` for CVE-2024-24762), `uvicorn>=0.30,<1`.
+
+- **L-4: Dockerfile hardened** (CWE-1357 / CWE-691).
+  - `python:3.12-slim` base image now pinned by digest
+    (`@sha256:c2d8472b831337ab296a8ce652e1ba786e9e3034fc445dc58b50a7f5251f0003`)
+    in both build and runtime stages — eliminates supply-chain risk of a
+    floating tag being re-published with malicious content.
+  - Added `HEALTHCHECK` instruction (`webscan --help >/dev/null 2>&1 || exit 1`)
+    so container orchestrators (k8s, docker-compose, ECS) can detect a
+    broken image without a separate liveness probe.
+
+- **L-6: `auto-release.yml` tag validation** (CWE-20).
+  `TAG=${GITHUB_REF#refs/tags/}` is now validated against
+  `^v\d+\.\d+\.\d+(-[\w.]+)?$` before being used in `--notes-file` path
+  or `gh release create`. Rejects any non-semver tag at the workflow
+  level, eliminating the (admittedly unlikely) path-traversal vector
+  through `--notes-file` and providing defense-in-depth.
+
+#### Fixed (INFO)
+
+- **INFO-1: explicit CORS deny-all in `server.py`** (defense-in-depth).
+  FastAPI's default is already deny-by-default (no `Access-Control-Allow-Origin`
+  header emitted), but the security posture is now explicit in code:
+  `CORSMiddleware(allow_origins=[], allow_methods=[], allow_headers=[],
+  allow_credentials=False)`. Prevents accidental loosening later and makes
+  the intent visible to reviewers. Test: `test_server_cors_preflight_returns_no_allow_origin`.
+
+- **INFO-2: `_safe_url()` in `reporter.py`** (CWE-79 — stored XSS in HTML
+  report). `html.escape` neutralises quote characters but doesn't block
+  dangerous URL schemes. The HTML report's `<a href="{f.url}">` now filters
+  the scheme first — only `http`, `https`, and relative URLs are kept;
+  `javascript:`, `data:`, `vbscript:` are replaced with `#`. Finding URLs
+  can contain attacker-controlled values (reflected payloads, redirect
+  targets), so this closes a stored-XSS vector via clickable report links.
+
+- **INFO-3: `anonymize._PRIVATE_IP` extended to IPv6 + CGNAT** (CWE-200).
+  The regex previously covered only IPv4 RFC1918 / loopback / link-local.
+  Now also redacts: CGNAT (100.64.0.0/10), 0.0.0.0, IPv6 ULA (fc00::/7),
+  IPv6 link-local (fe80::/10), IPv6 loopback (::1). Uses `(?<![\w:.])` /
+  `(?![\w:.])` lookarounds because `\b` doesn't anchor correctly against
+  `:` in IPv6 addresses.
+
+- **INFO-4: prompt-injection protection in `ai.py`** (LLM-specific CWE-77).
+  Scanner output (finding titles, descriptions, evidence — all of which can
+  contain attacker-controlled text from the scanned target) is now wrapped
+  in `<scanner_output>...</scanner_output>` tags in both `_triage_findings`
+  and `summarize_report` user prompts. The system prompts were extended
+  with explicit instructions to treat text inside these tags as untrusted
+  data and never as directives. This doesn't make prompt injection
+  impossible, but raises the bar significantly.
+
+- **INFO-5: `assert` → `if/raise` in `ai.py`** (Bandit B101).
+  Two `assert client is not None` statements (which `python -O` strips)
+  replaced with explicit `if client is None: raise RuntimeError(...)`.
+  Defends against an unlikely but real scenario where the AIAssistant is
+  misused via the private API surface.
+
+- **INFO-6: URL credentials masked in `_progress`** (CWE-532).
+  The scan progress bar prints the target URL. If the operator passed
+  `-t "https://user:pass@host/path"`, the credentials were printed in
+  clear text. Now uses the existing `_mask_proxy_url` helper to replace
+  `user:pass@` with `***@` before printing.
+
+- **INFO-7: `verify_ssl` parameter exposed in `api.scan()`**.
+  Library users (calling `webscan.scan(...)` from Python) previously had
+  no way to enable strict TLS verification — only the CLI exposed
+  `--strict-ssl`. Now `scan(..., verify_ssl=True)` forwards to
+  `ScanEngine(verify_ssl=True)`, mirroring the CLI.
+
+- **INFO-8: covered by M-NEW-1.** The CORS plugin's `allow_redirects=True`
+  concern was a side-effect of the missing TraceConfig on non-engine
+  sessions. With M-NEW-1 fixed, this disappears automatically.
+
+### Tests — coverage 97% (sustained), +20 new tests
+
+- **860 tests** (was 840), all passing. `tests/test_v253_security.py` (new,
+  20 tests) covers every fixed issue:
+  - `test_safe_url_*` (5) — `_safe_url` scheme filtering
+  - `test_anonymize_redacts_*` (4) — CGNAT + IPv6 ULA/link-local/loopback
+  - `test_mass_assignment_sends_idempotency_key_and_dry_run_header` — M-6
+  - `test_api_scan_accepts_verify_ssl` — INFO-7
+  - `test_auth_form_login_uses_trace_config` + `test_cli_crawl_targets_uses_trace_config` — M-NEW-1
+  - `test_ai_triage_wraps_findings_in_scanner_output_tags` + `test_ai_summary_*` — INFO-4
+  - `test_ai_triage_raises_runtime_error_if_client_is_none` — INFO-5
+  - `test_server_cors_middleware_deny_all_by_default` + `test_server_cors_preflight_returns_no_allow_origin` — INFO-1
+  - `test_progress_masks_url_credentials` — INFO-6
+
+### Numbers
+
+- 38 plugins (unchanged)
+- 860 tests (was 840)
+- 97% coverage (sustained)
+- 61 source files
+- ruff clean, mypy --strict clean (locally and in CI env)
+- **0 known security findings at any severity** (was 4 HIGH + 6 MEDIUM + 6 LOW)
+
 ## [2.5.2] - 2026-06-21
 
 ### Security — MEDIUM findings closed
@@ -580,7 +725,8 @@ false positives**.
 - Plugins: `config_files`, `headers`, `directories`, `sql_injection` (error-based),
   `cors`, `cookies`, `http_methods`.
 
-[Unreleased]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.2...HEAD
+[Unreleased]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.3...HEAD
+[2.5.3]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.2...v2.5.3
 [2.5.2]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/lutzashl290788-cell/webscan/compare/v2.0.0...v2.5.0

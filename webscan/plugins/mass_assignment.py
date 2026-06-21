@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import uuid
 from urllib.parse import urlparse
 
 import aiohttp
@@ -106,6 +107,11 @@ class MassAssignmentPlugin(BasePlugin):
             return findings
 
         # Try injecting privileged fields via PUT (most common for profile updates).
+        # Each probe carries an Idempotency-Key (RFC 9110 §9.1.2) and an
+        # X-WebScan-Test / X-WebScan-Dry-Run marker so the target can
+        # identify and (if it understands the headers) skip persistence.
+        # allow_redirects=False: a state-changing PUT must never silently
+        # replay its body on a cross-origin redirect (CWE-200 / CWE-918).
         for field, value in _PRIVILEGED_FIELDS:
             # Build JSON body with the privileged field.
             json_body = json.dumps({field: value})
@@ -114,8 +120,13 @@ class MassAssignmentPlugin(BasePlugin):
                 async with session.put(
                     target,
                     data=json_body.encode("utf-8"),
-                    headers={"Content-Type": "application/json"},
-                    allow_redirects=True,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Idempotency-Key": f"webscan-{uuid.uuid4()}",
+                        "X-WebScan-Test": "1",
+                        "X-WebScan-Dry-Run": "1",
+                    },
+                    allow_redirects=False,
                     ssl=False,
                 ) as resp:
                     probe_body = await fetch_body(resp)

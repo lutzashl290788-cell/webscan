@@ -15,7 +15,7 @@ from webscan.anonymize import anonymize_report
 from webscan.auth import AuthConfig, LoginError, PreparedAuth, prepare_auth
 from webscan.config import ConfigError, load_profile
 from webscan.crawler import CrawlConfig, Crawler
-from webscan.engine import ScanEngine
+from webscan.engine import ScanEngine, _build_redirect_safe_trace
 from webscan.models import SEVERITY_ORDER, Confidence, ScanReport, Severity
 from webscan.net import NetConfig, pick_user_agent
 from webscan.plugins.base import BasePlugin
@@ -468,6 +468,13 @@ async def _crawl_targets(
         headers=crawl_headers or None,
         cookies=auth.cookies or None,
         trust_env=bool(net.proxy),
+        # Strip Authorization / Cookie / X-API-Key / X-Auth-Token /
+        # Proxy-Authorization when aiohttp follows a redirect to a different
+        # host. The crawler session carries auth headers/cookies; without
+        # this, a page that 302-redirects to an attacker host would replay
+        # the credentials there (CWE-200 / CWE-522 — same issue H-1 fixed
+        # for the engine session in v2.5.1).
+        trace_configs=[_build_redirect_safe_trace()],
     ) as session:
         crawler = Crawler(session, config)
         for seed in seeds:
@@ -633,7 +640,10 @@ async def _run(args: argparse.Namespace) -> int:
     def _progress(target: str, done: int, total: int) -> None:
         if not quiet:
             bar = "█" * done + "░" * (total - done)
-            print(f"\r  [{bar}] {done}/{total} — {target[:60]:<60}", end="", flush=True)
+            # Mask any user:password embedded in the target URL before
+            # printing — same rationale as _mask_proxy_url (CWE-532).
+            safe_target = _mask_proxy_url(target)
+            print(f"\r  [{bar}] {done}/{total} — {safe_target[:60]:<60}", end="", flush=True)
 
     if not quiet:
         _print_banner(targets, plugins, args)

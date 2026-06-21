@@ -21,6 +21,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG=${GITHUB_REF#refs/tags/}
+
+          # Validate the tag is a proper semver (vMAJOR.MINOR.PATCH with optional
+          # pre-release suffix). This prevents path-traversal via --notes-file
+          # if a tag like `../../pwned` ever slipped through git's own rules.
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9._]+)?$'; then
+            echo "::error::refusing to release tag '$TAG' (not a valid semver vMAJOR.MINOR.PATCH[-suffix])"
+            exit 1
+          fi
+
           echo "Creating release for $TAG"
 
           # Try to load release notes from .github/release-notes/

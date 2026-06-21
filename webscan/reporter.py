@@ -455,7 +455,7 @@ class Reporter:
             f'<div class="fh"><span class="badge {sev}">{sev.upper()}</span>'
             f"<span class=\"ftitle\">{_esc(f.title)}</span>{conf}</div>"
             f'<div class="fmeta"><code>{_esc(f.plugin)}</code> · '
-            f'<a href="{_esc(f.url)}">{_esc(f.url)}</a></div>'
+            f'<a href="{_esc(_safe_url(f.url))}">{_esc(f.url)}</a></div>'
             f"<p>{_esc(f.description)}</p>{evidence}{remediation}</article>"
         )
 
@@ -530,6 +530,27 @@ def _esc(text: str) -> str:
     import html as _html
 
     return _html.escape(str(text), quote=True)
+
+
+def _safe_url(url: str) -> str:
+    """Allow only http/https URLs (or relative paths) in href attributes.
+
+    ``html.escape`` neutralises quote characters but does NOT block dangerous
+    URL schemes like ``javascript:``, ``data:``, ``vbscript:`` that would
+    execute when a user clicks the link in the HTML report. Finding URLs can
+    contain attacker-controlled values (reflected payloads, redirect targets),
+    so we filter the scheme before escaping.
+    """
+    from urllib.parse import urlparse
+
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return "#"
+    # Empty scheme = relative URL (e.g. "/api/users") — safe.
+    if parsed.scheme in ("", "http", "https"):
+        return url
+    return "#"
 
 
 _HTML_CSS = """

@@ -15,15 +15,28 @@ from dataclasses import replace
 
 from webscan.models import Finding, ScanReport, TargetResult
 
-# RFC 1918 private ranges, loopback and link-local — replaced with a redaction.
+# RFC 1918 private ranges, loopback, link-local, CGNAT, plus IPv6 equivalents
+# (ULA, link-local, loopback) — all replaced with a redaction marker.
+# IPv4 uses `\b` word boundaries; IPv6 uses lookbehind/lookahead to avoid
+# matching partial IPv6 addresses (since `:` is a non-word char, `\b` doesn't
+# anchor correctly against it).
 _PRIVATE_IP = re.compile(
-    r"\b("
-    r"10\.\d{1,3}\.\d{1,3}\.\d{1,3}"
-    r"|192\.168\.\d{1,3}\.\d{1,3}"
-    r"|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}"
-    r"|127\.\d{1,3}\.\d{1,3}\.\d{1,3}"
-    r"|169\.254\.\d{1,3}\.\d{1,3}"
-    r")\b"
+    r"(?<![\w:.])("
+    # IPv4 private / special ranges
+    r"\b10\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
+    r"|\b192\.168\.\d{1,3}\.\d{1,3}\b"
+    r"|\b172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}\b"
+    r"|\b127\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
+    r"|\b169\.254\.\d{1,3}\.\d{1,3}\b"
+    r"|\b100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}\b"   # CGNAT 100.64.0.0/10
+    r"|\b0\.0\.0\.0\b"
+    # IPv6 private / special ranges — match any token starting with the
+    # private prefix and continuing with valid IPv6 chars (`:` and hex).
+    r"|f[cd][0-9a-f]{2}(?::[0-9a-f]{1,4}){0,7}::?(?:[0-9a-f]{1,4})?"     # ULA fc00::/7
+    r"|fe[89ab][0-9a-f](?::[0-9a-f]{1,4}){0,7}::?(?:[0-9a-f]{1,4})?"    # link-local fe80::/10
+    r"|::1"                                                             # loopback
+    r")(?![\w:.])",
+    re.IGNORECASE,
 )
 
 # Unix and Windows home-directory paths, e.g. /home/alice/... or C:\Users\alice\...

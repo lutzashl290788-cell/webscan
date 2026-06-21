@@ -3,7 +3,7 @@
 Self-contained SVG (no JS, SMIL only) — renders inline on GitHub. Shows a
 typewriter-reveal title, a glowing underline, and cycling taglines.
 
-v2.5.2 — updated with 38 plugins, 840 tests, content-verified findings.
+v2.5.3 — updated with 38 plugins, 860 tests, content-verified findings.
 """
 from __future__ import annotations
 
@@ -120,7 +120,7 @@ def build() -> str:
     <circle cx="96" cy="0" r="5" fill="#22c55e"><animate attributeName="opacity" values="0.3;1;0.3" dur="2s" begin="1.6s" repeatCount="indefinite"/></circle>
   </g>
   <!-- version badge -->
-  <text x="{title_x + 110}" y="204" fill="{DIM}" font-size="11" font-family="SFMono-Regular,Consolas,monospace">v2.5.2</text>
+  <text x="{title_x + 110}" y="204" fill="{DIM}" font-size="11" font-family="SFMono-Regular,Consolas,monospace">v2.5.3</text>
 </svg>"""
 
 

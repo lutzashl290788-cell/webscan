@@ -11,6 +11,8 @@ from urllib.parse import parse_qsl
 
 import aiohttp
 
+from webscan.engine import _build_redirect_safe_trace
+
 
 @dataclass
 class AuthConfig:
@@ -103,10 +105,19 @@ async def _form_login(
     async with aiohttp.ClientSession(
         timeout=timeout,
         connector=aiohttp.TCPConnector(ssl=ssl_ctx),  # type: ignore[arg-type]
+        # Strip Authorization / Cookie / X-API-Key / X-Auth-Token /
+        # Proxy-Authorization when aiohttp follows a redirect to a different
+        # host. Without this, a 307/308 cross-origin redirect would replay
+        # the login form (with credentials) on the attacker host.
+        trace_configs=[_build_redirect_safe_trace()],
     ) as session:
         try:
+            # allow_redirects=False: a login endpoint must not transparently
+            # redirect the POST body to a third-party host. If a redirect is
+            # expected (e.g. to a dashboard), the operator should follow it
+            # manually — the cookies we capture here are still valid.
             async with session.post(
-                config.login_url, data=data, ssl=False
+                config.login_url, data=data, ssl=False, allow_redirects=False
             ) as resp:
                 await resp.read()
         except (aiohttp.ClientError, asyncio.TimeoutError) as exc:

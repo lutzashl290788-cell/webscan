@@ -46,6 +46,7 @@ async def scan(
     user_agent: str = "",
     delay: float = 0.0,
     random_delay: bool = False,
+    verify_ssl: bool = False,
     auth_headers: dict[str, str] | None = None,
     auth_cookies: dict[str, str] | None = None,
     on_progress: ProgressCallback | None = None,
@@ -68,6 +69,11 @@ async def scan(
     :param user_agent: Explicit User-Agent override.
     :param delay: Seconds to pause before each target.
     :param random_delay: Jitter *delay* by ×0.5–×1.5.
+    :param verify_ssl: If True, enforce TLS certificate verification (system CAs
+        + hostname check). Default False — scanners routinely audit self-signed
+        or expired-certificate hosts; flipping to True is useful for production
+        scans where a verification failure is itself a finding. Mirrors the
+        CLI ``--strict-ssl`` flag.
     :param auth_headers: Extra headers attached to every request (e.g. bearer token).
     :param auth_cookies: Cookies attached to every request.
     :param on_progress: Optional ``(target, done, total) -> None`` callback.
@@ -104,6 +110,7 @@ async def scan(
         user_agent=user_agent,
         delay=delay,
         random_delay=random_delay,
+        verify_ssl=verify_ssl,
     )
     report = await engine.scan_all(normalised)
     if min_confidence is not None:

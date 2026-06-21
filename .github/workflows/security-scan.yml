@@ -36,10 +36,22 @@ jobs:
           pip install .
 
       - name: Run scan
+        env:
+          # Pass the target via env-var, NOT via ${{ }} interpolation in `run:`.
+          # Template interpolation happens before the shell starts, so a
+          # malicious target like `"; rm -rf $HOME #` would be shell-injected
+          # if it appeared inside the `run:` block directly.
+          TARGET: ${{ github.event.inputs.target || 'https://example.com' }}
         # Do not fail the job on findings; the SARIF upload surfaces them instead.
         continue-on-error: true
         run: |
-          webscan -t "${{ github.event.inputs.target || 'https://example.com' }}" \
+          # Validate the target URL before passing it to webscan — defense
+          # in depth against any future injection sink.
+          if ! printf '%s' "$TARGET" | grep -Eq '^https?://[A-Za-z0-9._/:?&=%-]+$'; then
+            echo "::error::invalid target URL: $TARGET"
+            exit 2
+          fi
+          webscan -t "$TARGET" \
             --crawl --depth 1 \
             -o webscan-report --format sarif -q
 
