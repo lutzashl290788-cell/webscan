@@ -7,6 +7,7 @@ import re
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 # (label, compiled body regex) — matched against the response HTML.
@@ -58,7 +59,7 @@ class TechFingerprintPlugin(BasePlugin):
     ) -> list[Finding]:
         try:
             async with session.get(target, ssl=False) as resp:
-                body = await resp.text(errors="ignore")
+                body = await fetch_body(resp)
                 headers = dict(resp.headers.items())
                 set_cookie = " ".join(resp.headers.getall("Set-Cookie", [])).lower()
         except (aiohttp.ClientError, asyncio.TimeoutError):

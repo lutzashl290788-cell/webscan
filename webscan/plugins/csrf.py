@@ -38,6 +38,7 @@ from urllib.parse import urlparse
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 from webscan.utils.html import parse_html
 
@@ -190,7 +191,7 @@ class CsrfPlugin(BasePlugin):
                     return findings
                 # Capture Set-Cookie headers for SameSite check.
                 set_cookies = resp.headers.getall("Set-Cookie", [])
-                body = await resp.text(errors="ignore")
+                body = await fetch_body(resp)
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return findings
 

@@ -24,7 +24,7 @@ import asyncio
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
-from webscan.plugins._active_helpers import calibrate_target, is_soft404
+from webscan.plugins._active_helpers import calibrate_target, fetch_body, is_soft404
 from webscan.plugins.base import BasePlugin
 
 # ─── Probe design ─────────────────────────────────────────────────────────────
@@ -188,7 +188,7 @@ class BackupFilesPlugin(BasePlugin):
         """GET *url* with retry on transient failures."""
         try:
             async with session.get(url, allow_redirects=True, ssl=False) as resp:
-                body = await resp.text(errors="ignore")
+                body = await fetch_body(resp)
                 return body, resp.status
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return None, 0

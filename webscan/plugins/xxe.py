@@ -48,6 +48,7 @@ from urllib.parse import urlparse
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 # ─── Probe templates ──────────────────────────────────────────────────────────
@@ -161,7 +162,7 @@ class XxePlugin(BasePlugin):
         try:
             async with session.get(target, allow_redirects=True, ssl=False) as resp:
                 content_type = resp.headers.get("Content-Type", "")
-                baseline_body = await resp.text(errors="ignore")
+                baseline_body = await fetch_body(resp)
                 baseline_status = resp.status
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return findings

@@ -36,6 +36,43 @@ _DEFAULT_RETRY = RetryConfig(retries=2, base_delay=0.3, max_delay=4.0)
 # responses (some misconfigured servers return multi-MB error pages).
 _MAX_BODY_FOR_COMPARE = 100_000
 
+# Hard cap on response body size read into memory. A hostile target could
+# otherwise return a 10 GiB page and OOM the scanner (CWE-400). 2 MiB is far
+# more than any legitimate HTML/JSON response needs while keeping memory use
+# bounded.
+MAX_BODY_BYTES = 2 * 1024 * 1024
+
+
+async def fetch_body(resp: aiohttp.ClientResponse, *, limit: int = MAX_BODY_BYTES) -> str:
+    """Read up to *limit* bytes of *resp* and decode as UTF-8 (errors ignored).
+
+    A drop-in replacement for ``await resp.text(errors="ignore")`` that caps
+    memory use (CWE-400). Without this, a hostile target serving a 10 GiB
+    page would OOM the scanner process — particularly dangerous under
+    ``webscan serve`` where one client could kill every other scan.
+
+    The cap applies to *bytes read*, not decoded characters, so the decoded
+    string may be slightly shorter than ``limit`` chars. Callers that need
+    exact-size reads should use ``resp.content.read(n)`` directly.
+
+    Falls back to ``resp.text(errors="ignore")`` (without a size cap) when
+    ``resp.content`` is not available — this is the case for some test fakes
+    and for the lightweight ``Response`` dataclass returned by
+    :func:`webscan.retry.request_with_retry`.
+    """
+    try:
+        raw = await resp.content.read(limit)
+        return raw.decode("utf-8", errors="ignore")
+    except (AttributeError, TypeError):
+        # No streaming ``content`` attribute (e.g. a test fake or the retry
+        # helper's Response dataclass). Fall back to ``text()`` — try with
+        # ``errors="ignore"`` first (aiohttp's signature), then without (test
+        # fakes that don't accept kwargs).
+        try:
+            return await resp.text(errors="ignore")
+        except TypeError:
+            return await resp.text()
+
 
 async def fetch_with_retry(
     session: aiohttp.ClientSession,
@@ -100,7 +137,7 @@ async def fetch_with_headers(
                 if status in {429, 500, 502, 503, 504} and attempt < attempts:
                     await asyncio.sleep(cfg.base_delay * (cfg.factor ** (attempt - 1)))
                     continue
-                body = await resp.text(errors="ignore")
+                body = await fetch_body(resp)
                 ct = resp.headers.get("Content-Type", "").lower()
                 return body, status, ct
         except (aiohttp.ClientError, asyncio.TimeoutError):

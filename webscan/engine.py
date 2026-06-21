@@ -35,12 +35,19 @@ _REDIRECT_SENSITIVE_HEADERS = (
 ProgressCallback = Callable[[str, int, int], None]
 
 
-def _build_ssl_context() -> ssl_lib.SSLContext:
-    """Return an SSL context that skips certificate verification.
+def _build_ssl_context(verify: bool = False) -> ssl_lib.SSLContext:
+    """Return an SSL context for the scan engine.
 
-    Security scanners routinely audit hosts with self-signed or expired
-    certificates, so verification is intentionally disabled here.
+    :param verify: If ``False`` (the default), certificate verification is
+        disabled — security scanners routinely audit hosts with self-signed or
+        expired certificates, so verification would silently break most scans
+        against staging/dev targets. If ``True`` (set via ``--strict-ssl``),
+        a default verifiable context is returned so a TLS failure surfaces as
+        a scan error instead of being silently swallowed.
     """
+    if verify:
+        # Default context loads system CAs, checks hostname, requires valid chain.
+        return ssl_lib.create_default_context()
     ctx = ssl_lib.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl_lib.CERT_NONE
@@ -114,12 +121,13 @@ class ScanEngine:
         user_agent: str = "",
         delay: float = 0.0,
         random_delay: bool = False,
+        verify_ssl: bool = False,
     ) -> None:
         self.plugins = plugins
         self.concurrency = max(1, concurrency)
         self.timeout = aiohttp.ClientTimeout(total=timeout, connect=min(3, timeout))
         self.on_progress = on_progress
-        self._ssl_ctx = _build_ssl_context()
+        self._ssl_ctx = _build_ssl_context(verify=verify_ssl)
         self._auth_headers = auth_headers or {}
         self._auth_cookies = auth_cookies or {}
         self._proxy = proxy

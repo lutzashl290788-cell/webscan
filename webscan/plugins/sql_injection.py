@@ -8,6 +8,7 @@ from urllib.parse import ParseResult, parse_qs, urlencode, urlparse
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 # Classic error signatures emitted by popular database engines when a
@@ -295,7 +296,7 @@ class SqlInjectionPlugin(BasePlugin):
     ) -> str | None:
         try:
             async with session.get(url, ssl=False) as resp:
-                return await resp.text()
+                return await fetch_body(resp)
         except (aiohttp.ClientError, asyncio.TimeoutError):
             return None
 
@@ -306,7 +307,7 @@ class SqlInjectionPlugin(BasePlugin):
         start = loop.time()
         try:
             async with session.get(url, ssl=False) as resp:
-                await resp.text()
+                await fetch_body(resp)
         except (aiohttp.ClientError, asyncio.TimeoutError):
             return None
         return loop.time() - start

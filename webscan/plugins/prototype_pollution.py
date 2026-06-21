@@ -24,6 +24,7 @@ from urllib.parse import urlparse
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 from webscan.utils.html import parse_html
 
@@ -75,7 +76,7 @@ class PrototypePollutionPlugin(BasePlugin):
                 content_type = resp.headers.get("Content-Type", "")
                 if "html" not in content_type.lower() and not target.endswith((".html", ".htm")):
                     return findings
-                body = await resp.text(errors="ignore")
+                body = await fetch_body(resp)
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return findings
 
@@ -94,7 +95,7 @@ class PrototypePollutionPlugin(BasePlugin):
         for src in scripts:
             try:
                 async with session.get(src, ssl=False) as resp:
-                    js = await resp.text(errors="ignore")
+                    js = await fetch_body(resp)
                     if js:
                         texts_to_scan.append((js, src))
             except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):

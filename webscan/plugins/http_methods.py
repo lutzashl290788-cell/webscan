@@ -14,6 +14,7 @@ import asyncio
 import aiohttp
 
 from webscan.models import Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 # Method -> (severity, why it is risky)
@@ -133,7 +134,7 @@ class HttpMethodsPlugin(BasePlugin):
             ) as resp:
                 if resp.status != 200:
                     return False
-                body = await resp.text(errors="ignore")
+                body = await fetch_body(resp)
         except (aiohttp.ClientError, asyncio.TimeoutError):
             return False
         return _TRACE_MARKER.lower() in body.lower()

@@ -36,6 +36,7 @@ from urllib.parse import urlparse
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 # ─── JWT shape ────────────────────────────────────────────────────────────────
@@ -330,7 +331,7 @@ class JwtAuditPlugin(BasePlugin):
                 # Custom token-bearing headers
                 x_auth = headers.get("X-Auth-Token", "")
                 x_access = headers.get("X-Access-Token", "")
-                body = await resp.text(errors="ignore")
+                body = await fetch_body(resp)
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return findings
 

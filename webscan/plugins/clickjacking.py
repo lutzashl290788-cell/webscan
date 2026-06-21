@@ -44,6 +44,7 @@ import re
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 # ─── Header parsing rules ────────────────────────────────────────────────────
@@ -156,7 +157,7 @@ class ClickjackingPlugin(BasePlugin):
                 xfo = resp.headers.get("X-Frame-Options", "")
                 csp = resp.headers.get("Content-Security-Policy", "")
                 status = resp.status
-                body = await resp.text(errors="ignore")
+                body = await fetch_body(resp)
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return findings
 

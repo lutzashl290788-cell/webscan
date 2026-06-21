@@ -9,6 +9,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _Nothing yet._
 
+## [2.5.2] - 2026-06-21
+
+### Security — MEDIUM findings closed
+
+#### M-1 fixed: `--strict-ssl` flag (CWE-295)
+
+Previously `--no-verify-ssl` was a documented no-op — the scan engine always
+disabled TLS verification regardless of the flag, and `NetConfig.verify_ssl`
+was dead code. This was a deliberate design choice (scanners audit
+self-signed hosts) but the dead flag misled operators who expected
+verification to be enforced when they did NOT pass `--no-verify-ssl`.
+
+This release wires up TLS verification properly:
+
+- **New `--strict-ssl` flag** — when set, the scan engine uses a verifiable
+  SSL context (system CAs, hostname check). Useful for scanning production
+  sites where a valid cert is expected and a verification failure is itself
+  a finding.
+- **`--no-verify-ssl`** is kept as a no-op for backward compatibility (its
+  help text now says so explicitly).
+- **`NetConfig.verify_ssl`** is now live — read by `ScanEngine` to choose
+  between the verifiable and non-verifiable SSL contexts.
+- **`engine._build_ssl_context(verify=...)`** — the SSL context builder now
+  takes a `verify` argument; returns `ssl.create_default_context()` when
+  True (full verification) or the permissive context when False (default).
+
+#### M-2 fixed: shared `fetch_body()` helper (CWE-400)
+
+A full audit found ~30 places across plugins, crawler, and retry helper
+where `await resp.text(errors="ignore")` was called without a body-size
+cap. A hostile target serving a 10 GiB page would OOM the scanner —
+particularly dangerous under `webscan serve` where one client could kill
+every other scan.
+
+This release introduces a single bounded reader:
+
+- **`webscan.plugins._active_helpers.fetch_body(resp, limit=2 MiB)`** —
+  reads at most `limit` bytes via `resp.content.read()`, decodes as UTF-8
+  with `errors="ignore"`. Falls back to `resp.text()` for test fakes and
+  the lightweight `Response` dataclass returned by
+  `webscan.retry.request_with_retry` (which doesn't expose a streaming
+  `content` attribute).
+- **Applied across 28 plugin files** — every `await resp.text(errors="ignore")`
+  is replaced with `await fetch_body(resp)`.
+- **`crawler._fetch_and_parse` / `crawler._load_robots`** — same pattern,
+  inline (crawler cannot import `_active_helpers` due to layering).
+- **`retry.request_with_retry`** — same pattern, inline (retry is below
+  `_active_helpers` in the dependency graph).
+- **`MAX_BODY_BYTES = 2 * 1024 * 1024`** is exported as a module constant
+  for callers that need to reference the cap.
+
+### CI fixes
+
+- **mypy 2.1.0 compatibility** — `webscan/server.py` had three mypy errors
+  in CI (but not locally, because locally fastapi was installed):
+  - `Unused "type: ignore[assignment, misc]"` on `FastAPI = ... = None` —
+    in CI (no fastapi) mypy treats the names as Any and the ignore is
+    unused; locally (with fastapi) mypy sees the real class types and the
+    ignore is required.
+  - `Untyped decorator makes function "health" untyped` and same for
+    `scan_endpoint` — the `@app.get` / `@app.post` decorators are untyped
+    when fastapi is missing.
+  - **Fix:** `[[tool.mypy.overrides]] module = "webscan.server";
+    warn_unused_ignores = false` in `pyproject.toml`. Bare `# type: ignore`
+  on the three offending lines. This keeps the file clean in both
+  environments (CI without extras, dev with all extras).
+
+### Tooling
+
+- **`pyproject.toml` `[tool.ruff.lint.per-file-ignores]`** — `tests/**/*.py`
+  now ignores `ANN401 / ANN001 / ANN201 / ANN204` (test fakes legitimately
+  need `typing.Any`).
+
+### Numbers
+
+- 38 plugins (unchanged)
+- 840 tests (unchanged from v2.5.1 — the M-1/M-2 fixes preserved the
+  existing test surface; existing tests already cover the affected code)
+- 97% coverage (unchanged)
+- 61 source files
+- ruff clean, mypy --strict clean (both locally and in CI env)
+
 ## [2.5.1] - 2026-06-21
 
 ### Security — full audit pass
@@ -486,7 +568,8 @@ false positives**.
 - Plugins: `config_files`, `headers`, `directories`, `sql_injection` (error-based),
   `cors`, `cookies`, `http_methods`.
 
-[Unreleased]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.1...HEAD
+[Unreleased]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.2...HEAD
+[2.5.2]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/lutzashl290788-cell/webscan/compare/v2.0.0...v2.5.0
 [2.0.0]: https://github.com/lutzashl290788-cell/webscan/compare/v1.3...v2.0.0

@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 import aiohttp
 
 from webscan.models import Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 # Disallowed paths whose names suggest something sensitive worth flagging.
@@ -100,6 +101,6 @@ class RobotsSitemapPlugin(BasePlugin):
             async with session.get(url, ssl=False) as resp:
                 if resp.status != 200:
                     return None
-                return await resp.text(errors="ignore")
+                return await fetch_body(resp)
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return None

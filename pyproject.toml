@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "webscan-security"
-version = "2.5.1"
+version = "2.5.2"
 description = "CLI security auditing tool for web configuration vulnerabilities"
 readme = "README.md"
 license = { text = "MIT" }
@@ -109,6 +109,16 @@ include = ["webscan*"]
 python_version = "3.10"
 strict = true
 ignore_missing_imports = true
+
+# webscan.server uses FastAPI decorators (``@app.get`` / ``@app.post``) that
+# mypy can only see when the optional ``serve`` extra is installed. In CI
+# (no extra) the decorators resolve to ``None`` (error: misc); locally (with
+# extra) they're real typed decorators (no error). Either way, listing explicit
+# ignore codes triggers ``unused-ignore`` in the other env. Disabling the
+# unused-ignore warning for this single module is the cleanest fix.
+[[tool.mypy.overrides]]
+module = "webscan.server"
+warn_unused_ignores = false
 
 # ─── Ruff ────────────────────────────────────────────────────────────────────
 [tool.ruff]

@@ -24,6 +24,7 @@ import asyncio
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 # Parameter names that suggest a state-changing operation worth racing.
@@ -69,7 +70,7 @@ class RaceConditionPlugin(BasePlugin):
                     target, allow_redirects=False, ssl=False,
                     timeout=aiohttp.ClientTimeout(total=_TIMEOUT_SECONDS),
                 ) as resp:
-                    body = await resp.text(errors="ignore")
+                    body = await fetch_body(resp)
                     return resp.status, body
             except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
                 return 0, ""

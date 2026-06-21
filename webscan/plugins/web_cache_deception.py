@@ -32,7 +32,7 @@ import asyncio
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
-from webscan.plugins._active_helpers import calibrate_target, is_soft404
+from webscan.plugins._active_helpers import calibrate_target, fetch_body, is_soft404
 from webscan.plugins.base import BasePlugin
 
 # Extensions that CDNs typically cache as static assets.
@@ -137,7 +137,7 @@ class WebCacheDeceptionPlugin(BasePlugin):
         # Fetch baseline response.
         try:
             async with session.get(target, allow_redirects=True, ssl=False) as resp:
-                baseline_body = await resp.text(errors="ignore")
+                baseline_body = await fetch_body(resp)
                 
                 baseline_ct = resp.headers.get("Content-Type", "")
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
@@ -164,7 +164,7 @@ class WebCacheDeceptionPlugin(BasePlugin):
                 async with session.get(
                     probe_url, allow_redirects=True, ssl=False
                 ) as resp:
-                    probe_body = await resp.text(errors="ignore")
+                    probe_body = await fetch_body(resp)
                     probe_status = resp.status
                     probe_ct = resp.headers.get("Content-Type", "")
             except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):

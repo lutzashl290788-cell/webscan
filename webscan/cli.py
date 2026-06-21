@@ -244,7 +244,17 @@ def _add_network_args(parser: argparse.ArgumentParser) -> None:
     ng.add_argument(
         "--no-verify-ssl",
         action="store_true",
-        help="Skip TLS certificate verification (default for security scans).",
+        help="Skip TLS certificate verification (default for security scans). "
+        "Kept for backward compatibility — the scanner always skips verification "
+        "by default. Use --strict-ssl to enforce verification instead.",
+    )
+    ng.add_argument(
+        "--strict-ssl",
+        action="store_true",
+        help="Enforce TLS certificate verification. By default the scanner skips "
+        "verification so it can audit hosts with self-signed or expired certs. "
+        "Enable this when scanning production sites where a valid cert is expected "
+        "and a verification failure is itself a finding.",
     )
     ng.add_argument(
         "--no-bruteforce",
@@ -496,7 +506,7 @@ def _resolve_net(args: argparse.Namespace, rate_limit: float) -> NetConfig:
         delay=args.delay,
         random_delay=args.random_delay,
         rate_limit=rate_limit,
-        verify_ssl=not args.no_verify_ssl,
+        verify_ssl=bool(args.strict_ssl),
     )
     if net.proxy:
         os.environ["HTTP_PROXY"] = net.proxy
@@ -639,6 +649,7 @@ async def _run(args: argparse.Namespace) -> int:
         user_agent=pick_user_agent(net, 0, ""),
         delay=net.base_delay(),
         random_delay=net.random_delay,
+        verify_ssl=bool(getattr(args, "strict_ssl", False)),
     )
     report = await engine.scan_all(targets)
     if not quiet:

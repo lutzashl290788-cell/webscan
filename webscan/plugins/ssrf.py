@@ -14,6 +14,7 @@ from urllib.parse import parse_qs, quote, urlencode, urlparse
 import aiohttp
 
 from webscan.models import Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 # Internal/metadata targets worth probing.
@@ -83,7 +84,7 @@ class SsrfPlugin(BasePlugin):
 
                 try:
                     async with session.get(test_url, ssl=False) as resp:
-                        body = await resp.text(errors="ignore")
+                        body = await fetch_body(resp)
                 except (aiohttp.ClientError, asyncio.TimeoutError):
                     continue
 

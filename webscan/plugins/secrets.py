@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 import aiohttp
 
 from webscan.models import Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 from webscan.utils.html import parse_html
 
@@ -122,7 +123,7 @@ class SecretsPlugin(BasePlugin):
     async def _get(self, session: aiohttp.ClientSession, url: str) -> str | None:
         try:
             async with session.get(url, ssl=False) as resp:
-                return await resp.text(errors="ignore")
+                return await fetch_body(resp)
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return None
 

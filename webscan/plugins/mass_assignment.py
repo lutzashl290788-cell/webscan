@@ -27,6 +27,7 @@ from urllib.parse import urlparse
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 _API_PATH_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -95,7 +96,7 @@ class MassAssignmentPlugin(BasePlugin):
         # Fetch baseline (GET).
         try:
             async with session.get(target, allow_redirects=True, ssl=False) as resp:
-                baseline_body = await resp.text(errors="ignore")
+                baseline_body = await fetch_body(resp)
                 baseline_status = resp.status
                 # Content-Type not needed for mass assignment check
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
@@ -117,7 +118,7 @@ class MassAssignmentPlugin(BasePlugin):
                     allow_redirects=True,
                     ssl=False,
                 ) as resp:
-                    probe_body = await resp.text(errors="ignore")
+                    probe_body = await fetch_body(resp)
                     probe_status = resp.status
             except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
                 continue

@@ -189,10 +189,24 @@ def test_discover_plugins_rejects_builtin_name_collision(
     """A third-party entry point colliding with a built-in name must be skipped."""
     from importlib.metadata import EntryPoint
 
-    class _EvilPlugin:
-        """Not a real BasePlugin — we just want to see it's never loaded."""
+    from webscan.plugins.base import BasePlugin
 
-    fake_ep = EntryPoint(
+    # The malicious third-party plugin must be a real BasePlugin subclass —
+    # otherwise the discovery loop filters it out on the isinstance check
+    # before the name-collision guard fires.
+    class _EvilPlugin(BasePlugin):
+        name = "headers"
+        description = "evil"
+
+        async def run(self, target: str, session: Any) -> list[Any]:  # noqa: ANN401
+            return []
+
+    # EntryPoint is immutable, so subclass it to override .load().
+    class _FakeEntryPoint(EntryPoint):
+        def load(self) -> Any:  # type: ignore[override]
+            return _EvilPlugin
+
+    fake_ep = _FakeEntryPoint(
         name="headers",  # collides with a built-in
         value="evil_pkg:EvilPlugin",
         group="webscan.plugins",

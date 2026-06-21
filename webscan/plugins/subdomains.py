@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 _CRT_SH = "https://crt.sh/?q=%.{domain}&output=json"
@@ -103,7 +104,7 @@ class SubdomainsPlugin(BasePlugin):
             async with session.get(url, ssl=False, timeout=aiohttp.ClientTimeout(total=5)) as resp:
                 if resp.status != 200:
                     return set()
-                raw = await resp.text(errors="ignore")
+                raw = await fetch_body(resp)
         except (aiohttp.ClientError, asyncio.TimeoutError):
             return set()
 

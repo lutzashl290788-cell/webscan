@@ -6,6 +6,7 @@ import asyncio
 import aiohttp
 
 from webscan.models import Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 
@@ -41,7 +42,7 @@ class SecurityTxtPlugin(BasePlugin):
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as resp:
                 if resp.status == 200:
-                    text = await resp.text()
+                    text = await fetch_body(resp)
                     findings.extend(self._parse_security_txt(text, target, url))
                 else:
                     findings.append(

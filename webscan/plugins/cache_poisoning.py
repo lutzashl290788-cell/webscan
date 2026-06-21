@@ -38,6 +38,7 @@ import re
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 # ─── Probe design ─────────────────────────────────────────────────────────────
@@ -147,7 +148,7 @@ class CachePoisoningPlugin(BasePlugin):
             async with session.get(target, allow_redirects=False, ssl=False) as resp:
                 content_type = resp.headers.get("Content-Type", "")
                 baseline_status = resp.status
-                baseline_body = await resp.text(errors="ignore")
+                baseline_body = await fetch_body(resp)
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return findings
 
@@ -278,7 +279,7 @@ class CachePoisoningPlugin(BasePlugin):
                 allow_redirects=False,
                 ssl=False,
             ) as resp:
-                body = await resp.text(errors="ignore")
+                body = await fetch_body(resp)
                 return body, resp.status
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return None, 0

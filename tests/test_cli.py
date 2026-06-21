@@ -162,6 +162,7 @@ def test_resolve_net_publishes_proxy_env(monkeypatch: pytest.MonkeyPatch) -> Non
         delay=0.0,
         random_delay=False,
         no_verify_ssl=True,
+        strict_ssl=False,
     )
     net = cli._resolve_net(args, rate_limit=3.0)
     assert net.proxy == "http://127.0.0.1:8080"
@@ -183,10 +184,12 @@ def test_resolve_net_no_proxy_leaves_env(monkeypatch: pytest.MonkeyPatch) -> Non
         delay=1.0,
         random_delay=True,
         no_verify_ssl=False,
+        strict_ssl=True,
     )
     net = cli._resolve_net(args, rate_limit=0.0)
     assert net.proxy == ""
     assert net.random_agent is False  # safe mode wins
+    assert net.verify_ssl is True  # strict_ssl wired up
     import os
 
     assert "HTTP_PROXY" not in os.environ

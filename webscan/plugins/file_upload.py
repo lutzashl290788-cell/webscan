@@ -14,6 +14,7 @@ import asyncio
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 from webscan.utils.html import parse_html
 from webscan.utils.http import same_origin
@@ -43,7 +44,7 @@ class FileUploadPlugin(BasePlugin):
         try:
             async with session.get(target, allow_redirects=True, ssl=False) as resp:
                 content_type = resp.headers.get("Content-Type", "")
-                body = await resp.text(errors="ignore")
+                body = await fetch_body(resp)
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return findings
 
@@ -76,7 +77,7 @@ class FileUploadPlugin(BasePlugin):
                 allow_redirects=False,
                 ssl=False,
             ) as resp:
-                upload_body = await resp.text(errors="ignore")
+                upload_body = await fetch_body(resp)
                 upload_status = resp.status
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return findings
@@ -93,7 +94,7 @@ class FileUploadPlugin(BasePlugin):
             try:
                 async with session.get(file_url, ssl=False) as verify_resp:
                     if verify_resp.status == 200:
-                        verify_body = await verify_resp.text(errors="ignore")
+                        verify_body = await fetch_body(verify_resp)
                         if _TEST_CONTENT in verify_body:
                             findings.append(Finding(
                                 plugin=self.name,

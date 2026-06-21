@@ -8,6 +8,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 import aiohttp
 
 from webscan.models import Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 # A unique, unlikely-to-collide marker wrapping the probe so reflections are
@@ -53,7 +54,7 @@ class XssPlugin(BasePlugin):
                 try:
                     async with session.get(test_url, ssl=False) as resp:
                         ctype = resp.headers.get("Content-Type", "").lower()
-                        body = await resp.text(errors="ignore")
+                        body = await fetch_body(resp)
                 except (aiohttp.ClientError, asyncio.TimeoutError):
                     continue
 

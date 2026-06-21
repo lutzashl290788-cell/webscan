@@ -43,7 +43,12 @@ from webscan.reporter import Reporter
 try:  # pragma: no cover - import wiring
     from fastapi import FastAPI, HTTPException, Request
 except Exception:  # noqa: BLE001 - missing optional dep => names are None
-    FastAPI = HTTPException = Request = None  # type: ignore[assignment,misc]
+    # When fastapi is installed, mypy sees the real class types and complains
+    # about assigning None (code: `assignment`). When fastapi is missing, mypy
+    # treats the names as Any and complains about a bare None reassignment
+    # (code: `misc`). A bare `# type: ignore` covers both cases without
+    # triggering `unused-ignore` in either environment.
+    FastAPI = HTTPException = Request = None  # type: ignore
 
 # Default bind address: localhost only. Surfacing this as constants keeps the
 # CLI and the docs in agreement on the safe default.
@@ -155,15 +160,15 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="WebScan",
-        version="2.5.1",
+        version="2.5.2",
         description="Local HTTP backend for the WebScan security scanner.",
     )
 
-    @app.get("/health")
+    @app.get("/health")  # type: ignore
     async def health() -> dict[str, Any]:
         return {"status": "ok", "ai": ai_available()}
 
-    @app.post("/scan")
+    @app.post("/scan")  # type: ignore
     async def scan_endpoint(request: Request) -> dict[str, Any]:
         # Parse the body ourselves rather than via a pydantic model: the model
         # would have to live at import time (pydantic is optional) and a

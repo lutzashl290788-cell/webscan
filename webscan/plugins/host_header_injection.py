@@ -48,6 +48,7 @@ from urllib.parse import urlparse
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 # ─── Endpoint detection ──────────────────────────────────────────────────────
@@ -311,7 +312,7 @@ class HostHeaderInjectionPlugin(BasePlugin):
                 allow_redirects=False,
                 ssl=False,
             ) as resp:
-                body = await resp.text(errors="ignore")
+                body = await fetch_body(resp)
                 return body, resp.status
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return None, 0

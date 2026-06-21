@@ -38,6 +38,7 @@ from urllib.parse import ParseResult, parse_qs, urlencode, urlparse
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 # ─── Probe design ─────────────────────────────────────────────────────────────
@@ -240,7 +241,7 @@ class SstiPlugin(BasePlugin):
         """GET *url* with retry on transient failures."""
         try:
             async with session.get(url, allow_redirects=True, ssl=False) as resp:
-                body = await resp.text(errors="ignore")
+                body = await fetch_body(resp)
                 return body, resp.status
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return None, 0

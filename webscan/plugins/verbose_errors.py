@@ -23,6 +23,7 @@ import asyncio
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 # ─── Detection rules ─────────────────────────────────────────────────────────
@@ -102,7 +103,7 @@ class VerboseErrorsPlugin(BasePlugin):
 
         try:
             async with session.get(target, allow_redirects=True, ssl=False) as resp:
-                body = await resp.text(errors="ignore")
+                body = await fetch_body(resp)
                 status = resp.status
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return findings

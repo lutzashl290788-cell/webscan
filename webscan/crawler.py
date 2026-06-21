@@ -120,7 +120,17 @@ class Crawler:
                 ctype = resp.headers.get("Content-Type", "").lower()
                 if not any(h in ctype for h in _HTML_CT):
                     return None
-                body = await resp.text(errors="ignore")
+                # Cap body size to bound memory (CWE-400). 2 MiB is plenty for
+                # any HTML page worth crawling. Falls back to ``text()`` for
+                # test fakes without a streaming body.
+                try:
+                    raw = await resp.content.read(2 * 1024 * 1024)
+                    body = raw.decode("utf-8", errors="ignore")
+                except (AttributeError, TypeError):
+                    try:
+                        body = await resp.text(errors="ignore")
+                    except TypeError:
+                        body = await resp.text()
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return None
         return parse_html(body, base=url)
@@ -139,7 +149,16 @@ class Crawler:
             async with self.session.get(robots_url, ssl=False) as resp:
                 if resp.status != 200:
                     return
-                text = await resp.text(errors="ignore")
+                # Cap body size (CWE-400). robots.txt is small but a hostile
+                # target could serve a multi-MB response.
+                try:
+                    raw = await resp.content.read(512 * 1024)
+                    text = raw.decode("utf-8", errors="ignore")
+                except (AttributeError, TypeError):
+                    try:
+                        text = await resp.text(errors="ignore")
+                    except TypeError:
+                        text = await resp.text()
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return
         rp = RobotFileParser()

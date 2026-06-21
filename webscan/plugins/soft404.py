@@ -19,6 +19,9 @@ from difflib import SequenceMatcher
 
 import aiohttp
 
+# ``fetch_body`` is imported lazily inside ``calibrate`` to avoid a circular
+# import: ``_active_helpers`` imports ``soft404.SoftBaseline`` at module load.
+
 # A path no real site is expected to serve. Fixed (not random) so calibration
 # is deterministic and unit-testable.
 _PROBE_PATH = "/webscan-soft404-probe-zzq9x7w3k1"
@@ -57,15 +60,18 @@ async def _read_body(resp: aiohttp.ClientResponse, limit: int = _BODY_SAMPLE) ->
     """Read up to *limit* bytes of *resp* as lower-cased text, robustly.
 
     Tries the streaming ``content.read`` path first (cheap, bounded) and falls
-    back to ``text()`` so it works against both real aiohttp responses and the
-    lightweight fakes used in tests.
+    back to ``fetch_body`` so it works against both real aiohttp responses and
+    the lightweight fakes used in tests.
     """
     try:
         raw = await resp.content.read(limit)
         return raw.decode("utf-8", errors="ignore").lower()
     except (AttributeError, TypeError):
+        # Lazy import to break the ``_active_helpers`` ↔ ``soft404`` cycle.
+        from webscan.plugins._active_helpers import fetch_body
+
         try:
-            text = await resp.text()
+            text = await fetch_body(resp)
         except (aiohttp.ClientError, UnicodeDecodeError, AttributeError, TypeError):
             return ""
         return text[:limit].lower()

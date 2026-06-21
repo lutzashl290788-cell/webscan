@@ -98,7 +98,17 @@ async def request_with_retry(
                 if status in _RETRY_STATUSES and attempt < attempts:
                     await sleep(compute_backoff(attempt, cfg, jitter))
                     continue
-                text = await resp.text(errors="ignore")
+                # Cap body size to bound memory (CWE-400). 2 MiB is more than
+                # enough for any HTML/JSON error page or probe response. Falls
+                # back to ``text()`` for test fakes without a streaming body.
+                try:
+                    raw = await resp.content.read(2 * 1024 * 1024)
+                    text = raw.decode("utf-8", errors="ignore")
+                except (AttributeError, TypeError):
+                    try:
+                        text = await resp.text(errors="ignore")
+                    except TypeError:
+                        text = await resp.text()
                 return Response(status=status, text=text)
         except (aiohttp.ClientError, asyncio.TimeoutError):
             if attempt < attempts:

@@ -20,6 +20,7 @@ import asyncio
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 _GRAPHQL_PATH = "graphql"
@@ -118,7 +119,7 @@ class GraphqlDepthPlugin(BasePlugin):
                 allow_redirects=True,
                 ssl=False,
             ) as resp:
-                text = await resp.text(errors="ignore")
+                text = await fetch_body(resp)
                 return text, resp.status
         except (aiohttp.ClientError, asyncio.TimeoutError, UnicodeError):
             return None, 0

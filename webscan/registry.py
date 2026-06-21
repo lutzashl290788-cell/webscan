@@ -108,31 +108,41 @@ def _discover_plugins() -> dict[str, type[BasePlugin]]:
     Third-party plugins **cannot shadow** a built-in of the same name — that
     would let a malicious package silently override e.g. ``headers`` and run
     arbitrary code under the operator's credentials. A colliding name is logged
-    to stderr and skipped.
+    to stderr and skipped — *unless* the entry point resolves to the exact same
+    class as the built-in, which is the case when the package registers its own
+    built-ins as entry points (the standard ``pyproject.toml`` setup).
     """
+    import sys
+
     discovered: dict[str, type[BasePlugin]] = {}
     try:
         eps = entry_points(group="webscan.plugins")
     except Exception:  # noqa: BLE001 — metadata access must never crash startup
         return discovered
     for ep in eps:
+        try:
+            cls = ep.load()
+        except Exception:  # noqa: BLE001 — skip a single bad plugin, keep the rest
+            continue
+        if not (isinstance(cls, type) and issubclass(cls, BasePlugin)):
+            continue
+
         if ep.name in _BUILTIN_PLUGINS:
             # Supply-chain guard (CWE-1357): a third-party package cannot
             # override a built-in plugin — silently overriding ``headers`` or
             # ``cookies`` would let it harvest every scan's auth credentials.
-            import sys
+            # Exception: if the entry point resolves to the SAME class as the
+            # built-in, it's just the package re-exporting its own built-in
+            # (standard pyproject.toml setup) — skip silently.
+            if cls is _BUILTIN_PLUGINS[ep.name]:
+                continue
             print(
                 f"[!] webscan: ignoring third-party plugin '{ep.name}' "
                 f"from '{ep.value}' — name collides with a built-in.",
                 file=sys.stderr,
             )
             continue
-        try:
-            cls = ep.load()
-        except Exception:  # noqa: BLE001 — skip a single bad plugin, keep the rest
-            continue
-        if isinstance(cls, type) and issubclass(cls, BasePlugin):
-            discovered[ep.name] = cls
+        discovered[ep.name] = cls
     return discovered
 
 

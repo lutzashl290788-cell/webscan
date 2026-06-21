@@ -27,6 +27,7 @@ import asyncio
 import aiohttp
 
 from webscan.models import Confidence, Finding, Severity
+from webscan.plugins._active_helpers import fetch_body
 from webscan.plugins.base import BasePlugin
 
 # TE.CL probe: front-end sees Transfer-Encoding, sends body; back-end uses
@@ -187,7 +188,7 @@ class RequestSmugglingPlugin(BasePlugin):
                 timeout=aiohttp.ClientTimeout(total=_SMUGGLING_TIMEOUT),
                 ssl=False,
             ) as resp:
-                body = await resp.text(errors="ignore")
+                body = await fetch_body(resp)
                 if "webscan-smuggling-probe" in body:
                     return Finding(
                         plugin=self.name,
