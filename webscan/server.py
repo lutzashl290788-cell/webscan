@@ -50,6 +50,14 @@ except Exception:  # noqa: BLE001 - missing optional dep => names are None
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8000
 
+# Hardening caps for the HTTP backend (CWE-400 / CWE-770). A single client must
+# not be able to exhaust the server's memory or open a million concurrent scans
+# by sending a huge JSON body or absurd concurrency/timeout values.
+_MAX_BODY_BYTES = 64 * 1024  # 64 KiB — request bodies are tiny (a list of URLs).
+_MAX_TARGETS = 50
+_MAX_TIMEOUT = 60
+_MAX_CONCURRENCY = 32
+
 
 def server_available() -> bool:
     """Return True only if both fastapi and uvicorn are importable. Never raises."""
@@ -82,18 +90,40 @@ async def run_scan(payload: dict[str, Any]) -> dict[str, Any]:
 
     AI is strictly best-effort: if the SDK or key is missing, or the API errors,
     ``summary`` is ``""`` and the report is returned unannotated.
+
+    Hardening caps (CWE-400 / CWE-770) clamp ``targets`` / ``timeout`` /
+    ``concurrency`` to sane bounds so a single client cannot exhaust the
+    server by requesting ``concurrency=100000`` or scanning 1M targets at once.
     """
     targets = payload.get("targets") or []
+    if not isinstance(targets, list):
+        raise ValueError("targets must be a list of URLs")
     if not targets:
         raise ValueError("at least one target is required")
+    if len(targets) > _MAX_TARGETS:
+        raise ValueError(f"too many targets (max {_MAX_TARGETS})")
+
+    # Clamp user-supplied ints to safe bounds. A bad type yields ValueError,
+    # which the HTTP layer maps to a 400.
+    try:
+        timeout = int(payload.get("timeout", 10))
+        concurrency = int(payload.get("concurrency", 10))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("timeout and concurrency must be integers") from exc
+    timeout = max(1, min(timeout, _MAX_TIMEOUT))
+    concurrency = max(1, min(concurrency, _MAX_CONCURRENCY))
+
+    plugins = payload.get("plugins")
+    if plugins is not None and not isinstance(plugins, list):
+        raise ValueError("plugins must be a list of plugin names")
 
     report = await scan(
         targets,
-        plugins=payload.get("plugins"),
+        plugins=plugins,
         soft_404=bool(payload.get("soft_404", False)),
         bruteforce=bool(payload.get("bruteforce", True)),
-        timeout=int(payload.get("timeout", 10)),
-        concurrency=int(payload.get("concurrency", 10)),
+        timeout=timeout,
+        concurrency=concurrency,
         min_confidence=_confidence_from_str(payload.get("min_confidence")),
     )
 
@@ -125,7 +155,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="WebScan",
-        version="2.0.0",
+        version="2.5.1",
         description="Local HTTP backend for the WebScan security scanner.",
     )
 
@@ -139,9 +169,17 @@ def create_app() -> FastAPI:
         # would have to live at import time (pydantic is optional) and a
         # locally-defined one is unresolvable under ``from __future__ import
         # annotations``. run_scan validates and raises ValueError on bad input.
+        # Body-size cap (CWE-400): read at most _MAX_BODY_BYTES; a larger body
+        # is rejected with 413 before it can exhaust memory.
+        raw = await request.body()
+        if len(raw) > _MAX_BODY_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"request body too large (max {_MAX_BODY_BYTES} bytes)",
+            )
         try:
-            payload = await request.json()
-        except Exception as exc:  # noqa: BLE001 - malformed JSON body
+            payload = json.loads(raw)
+        except (ValueError, TypeError) as exc:  # malformed JSON body
             raise HTTPException(status_code=400, detail="invalid JSON body") from exc
         if not isinstance(payload, dict):
             raise HTTPException(status_code=400, detail="body must be a JSON object")

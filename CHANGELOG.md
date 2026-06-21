@@ -5,6 +5,91 @@ All notable changes to WebScan are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+_Nothing yet._
+
+## [2.5.1] - 2026-06-21
+
+### Security — full audit pass
+
+A complete static-security audit of the codebase surfaced 4 HIGH and 6 MEDIUM
+issues. All HIGH-severity findings are fixed in this release; MEDIUM/LOW are
+either fixed or explicitly documented.
+
+#### Fixed (HIGH)
+
+- **H-1: auth-header / cookie leak on cross-origin redirect** (CWE-200 / CWE-522).
+  The scan engine now installs an `aiohttp.TraceConfig` that strips
+  `Authorization`, `Cookie`, `X-API-Key`, `X-Auth-Token` and
+  `Proxy-Authorization` from any redirect hop whose host differs from the
+  original request. Without this, `--basic-auth admin:secret` against a target
+  that returned `302 Location: http://attacker/capture` would replay the
+  credentials on the attacker host. See `engine._build_redirect_safe_trace`.
+
+- **H-2: SSRF in `file_upload` via cross-origin `form.action`** (CWE-918).
+  The plugin now refuses to follow a `<form action>` that points to a different
+  origin than the target. A target page could otherwise make the scanner POST
+  `webscan-test.txt` (and any auth headers / cookies, see H-1) to an
+  attacker-controlled host. The shared `same_origin()` helper lives in
+  `utils.http` and is now reusable across plugins.
+
+- **H-3: `webscan serve` HTTP backend — body-size + caps + validation**
+  (CWE-306 / CWE-400 / CWE-770). The `/scan` endpoint now rejects bodies larger
+  than 64 KiB (HTTP 413), validates that `targets` / `plugins` are lists, and
+  clamps `timeout` (≤60s) and `concurrency` (≤32) to safe bounds so a single
+  client cannot exhaust the server. Auth/rate-limit middleware remains the
+  operator's responsibility when binding to `0.0.0.0` — see `server.py` docstring.
+
+- **H-4: state-changing plugins now opt-in** (CWE-400). `mass_assignment`,
+  `race_condition` and `request_smuggling` are no longer run by default — they
+  send `PUT`, parallel GET, and smuggled POST requests that can actually mutate
+  state on a vulnerable target. The operator must opt in explicitly with
+  `--plugins mass_assignment` etc. `OPT_IN_PLUGINS` is the single source of
+  truth in `registry.py`.
+
+#### Fixed (MEDIUM / LOW)
+
+- **M-3: third-party plugin supply-chain guard** (CWE-1357). A third-party
+  entry-point plugin whose name collides with a built-in (e.g. a malicious
+  package registering `headers` to harvest auth credentials) is now rejected
+  with a stderr warning rather than silently overriding the built-in.
+- **M-5: dead-code `verify_ssl` field** — clarified in-place as a documented
+  no-op. The scan engine always disables cert verification (scanners audit
+  self-signed hosts); the CLI flag is kept for compatibility.
+- **L-2: version sync** — `webscan.__version__` and `server.py` `FastAPI(version=)`
+  now both read `2.5.x`, matching `pyproject.toml`.
+- **L-3: proxy credential masking in stdout** (CWE-532).
+  `--proxy http://user:pass@...` is now printed as `http://***@...` in the
+  scan banner, so credentials no longer leak to CI/CD logs, tmux scrollback,
+  etc.
+- **L-5: CI workflow** — `actions/checkout@v6` / `actions/setup-python@v6`
+  (which don't exist) replaced with `@v4` / `@v5`.
+
+### Tests — coverage 96% → 97%
+
+- **+40 new tests** (800 → 840 passed) covering the previously-untested
+  branches introduced by the security fixes:
+  - `tests/test_security_hardening.py` (new, 15 tests) — redirect-trace
+    behaviour, `same_origin`/`same_host` helpers, plugin-discovery supply-chain
+    guard, `OPT_IN_PLUGINS` membership, `_mask_proxy_url`.
+  - `tests/test_ai.py` — `ai_available` with explicit key / env key,
+    `_build_client` SDK-missing / SDK-error branches, triage skip-empty,
+    summary unavailable, `_first_text` / `_first_json` edge cases.
+  - `tests/test_server.py` — body-size 413, validation for targets/timeout/
+    plugins, `_confidence_from_str` invalid input, `create_app`/`run_server`
+    without serve extra, timeout/concurrency clamping.
+  - `tests/test_cli.py` — `_run_ai` unavailable / available / quiet paths,
+    `webscan serve` subcommand (with and without serve extra), `main()` serve
+    dispatch, proxy-credential masking in `_print_setup`.
+
+### Tooling
+
+- `pyproject.toml` `[tool.ruff.lint.per-file-ignores]` — `tests/**/*.py` now
+  explicitly ignores `ANN401` / `ANN001` / `ANN201` / `ANN204` (test fakes /
+  shims legitimately need `typing.Any` and don't need explicit return types).
+  Removes ~20 spurious lint errors previously suppressed with `# noqa`.
+
 ## [2.5.0] - 2026-06-20
 
 ### Performance
@@ -401,7 +486,9 @@ false positives**.
 - Plugins: `config_files`, `headers`, `directories`, `sql_injection` (error-based),
   `cors`, `cookies`, `http_methods`.
 
-[Unreleased]: https://github.com/lutzashl290788-cell/webscan/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.1...HEAD
+[2.5.1]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.0...v2.5.1
+[2.5.0]: https://github.com/lutzashl290788-cell/webscan/compare/v2.0.0...v2.5.0
 [2.0.0]: https://github.com/lutzashl290788-cell/webscan/compare/v1.3...v2.0.0
 [1.3.0]: https://github.com/lutzashl290788-cell/webscan/compare/v1.2...v1.3
 [1.2.0]: https://github.com/lutzashl290788-cell/webscan/compare/v1.1...v1.2

@@ -698,7 +698,24 @@ def _print_setup(
     if args.safe_mode:
         print("  Safe Mode   : on (polite rate, honest UA, robots respected)")
     if net.proxy:
-        print(f"  Proxy       : {net.proxy}")
+        print(f"  Proxy       : {_mask_proxy_url(net.proxy)}")
+
+
+def _mask_proxy_url(url: str) -> str:
+    """Redact user:password in a proxy URL before printing (CWE-532).
+
+    ``http://user:secret@proxy.local:8080`` → ``http://***@proxy.local:8080``.
+    Plain URLs without credentials are returned unchanged.
+    """
+    from urllib.parse import urlparse, urlunparse
+
+    p = urlparse(url)
+    if p.username or p.password:
+        host = p.hostname or ""
+        if p.port:
+            host = f"{host}:{p.port}"
+        p = p._replace(netloc=f"***@{host}")
+    return urlunparse(p)
 
 
 def _print_banner(

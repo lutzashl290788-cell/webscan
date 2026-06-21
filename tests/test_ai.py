@@ -147,3 +147,134 @@ def test_ai_available_false_without_key(monkeypatch: pytest.MonkeyPatch) -> None
     # Without an explicit key and no env key, availability hinges on the key check
     # even if the SDK is installed.
     assert ai_available(AIConfig()) is False
+
+
+def test_ai_available_true_with_explicit_key() -> None:
+    """An explicit APIConfig.api_key must short-circuit availability to True."""
+    assert ai_available(AIConfig(api_key="sk-ant-test123")) is True
+
+
+def test_ai_available_uses_env_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With ANTHROPIC_API_KEY in env and SDK importable, availability is True."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-envkey")
+    try:
+        assert ai_available(AIConfig()) is True
+    finally:
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+
+def test_build_client_with_explicit_key() -> None:
+    """_build_client with config.api_key returns a real AsyncAnthropic client."""
+    from webscan.ai import _build_client
+
+    client = _build_client(AIConfig(api_key="sk-ant-test123"))
+    assert client is not None
+
+
+def test_build_client_returns_none_when_sdk_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If the anthropic SDK can't be imported, _build_client returns None."""
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _fail_import(name: str, *a: Any, **kw: Any) -> Any:
+        if name == "anthropic":
+            raise ImportError("simulated missing anthropic")
+        return real_import(name, *a, **kw)
+
+    monkeypatch.setattr(builtins, "__import__", _fail_import)
+    from webscan.ai import _build_client
+
+    assert _build_client(AIConfig(api_key="sk-ant-test")) is None
+
+
+def test_build_client_returns_none_on_sdk_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If AsyncAnthropic() construction raises, _build_client returns None."""
+    import anthropic
+
+    def _boom(*a: Any, **kw: Any) -> None:
+        raise RuntimeError("simulated bad key / SDK misconfig")
+
+    monkeypatch.setattr(anthropic, "AsyncAnthropic", _boom)
+    from webscan.ai import _build_client
+
+    assert _build_client(AIConfig(api_key="sk-bad")) is None
+
+
+def test_triage_skips_target_with_no_findings() -> None:
+    """A target with no findings is skipped silently (no API call)."""
+    import asyncio
+
+    client = _FakeClient(reply='{"verdicts":[]}')
+    a = AIAssistant(config=AIConfig(model="m"), client=client)
+
+    report = ScanReport(scan_started="t0", scan_finished="t1")
+    report.targets.append(
+        TargetResult(target="https://example.com", findings=[], scanned_at="t0")
+    )
+
+    async def _run() -> ScanReport:
+        return await a.triage_report(report)
+
+    out = asyncio.new_event_loop().run_until_complete(_run())
+    assert out is report
+    assert client.messages.calls == []  # no API call for empty target
+
+
+async def test_triage_skips_target_with_no_findings_async() -> None:
+    """A target with no findings is skipped silently (no API call)."""
+    client = _FakeClient(reply='{"verdicts":[]}')
+    a = AIAssistant(config=AIConfig(model="m"), client=client)
+
+    report = ScanReport(scan_started="t0", scan_finished="t1")
+    report.targets.append(
+        TargetResult(target="https://example.com", findings=[], scanned_at="t0")
+    )
+    await a.triage_report(report)
+    assert client.messages.calls == []  # no API call for empty target
+
+
+async def test_summary_returns_empty_when_unavailable() -> None:
+    """summarize_report returns '' immediately if assistant is unavailable."""
+    a = AIAssistant(client=None)
+    # Force unavailable (no SDK + no key in test env).
+    if a.available:
+        pytest.skip("anthropic configured in environment")
+    assert await a.summarize_report(_report()) == ""
+
+
+def test_first_text_returns_empty_on_exception() -> None:
+    """_first_text swallows any exception and returns ''."""
+    from webscan.ai import _first_text
+
+    class _Explodes:
+        @property
+        def content(self) -> Any:
+            raise RuntimeError("simulated bad response")
+
+    assert _first_text(_Explodes()) == ""
+
+
+def test_first_json_returns_none_for_empty_text() -> None:
+    """_first_json returns None when the response has no text blocks."""
+    from webscan.ai import _first_json
+
+    class _EmptyResp:
+        content: list[Any] = []
+
+    assert _first_json(_EmptyResp()) is None
+
+
+def test_first_json_returns_none_for_non_dict_json() -> None:
+    """_first_json returns None when JSON parses but is not a dict (e.g. list)."""
+    from webscan.ai import _first_json
+
+    class _ListResp:
+        def __init__(self) -> None:
+            self.content = [_Block("[1, 2, 3]")]
+
+    assert _first_json(_ListResp()) is None

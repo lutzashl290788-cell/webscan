@@ -104,6 +104,11 @@ def _discover_plugins() -> dict[str, type[BasePlugin]]:
     fully fail-safe: a broken or missing entry point is skipped rather than
     aborting startup. Built-ins are always available even if metadata is absent
     (e.g. running from a source checkout that has not been reinstalled).
+
+    Third-party plugins **cannot shadow** a built-in of the same name — that
+    would let a malicious package silently override e.g. ``headers`` and run
+    arbitrary code under the operator's credentials. A colliding name is logged
+    to stderr and skipped.
     """
     discovered: dict[str, type[BasePlugin]] = {}
     try:
@@ -111,6 +116,17 @@ def _discover_plugins() -> dict[str, type[BasePlugin]]:
     except Exception:  # noqa: BLE001 — metadata access must never crash startup
         return discovered
     for ep in eps:
+        if ep.name in _BUILTIN_PLUGINS:
+            # Supply-chain guard (CWE-1357): a third-party package cannot
+            # override a built-in plugin — silently overriding ``headers`` or
+            # ``cookies`` would let it harvest every scan's auth credentials.
+            import sys
+            print(
+                f"[!] webscan: ignoring third-party plugin '{ep.name}' "
+                f"from '{ep.value}' — name collides with a built-in.",
+                file=sys.stderr,
+            )
+            continue
         try:
             cls = ep.load()
         except Exception:  # noqa: BLE001 — skip a single bad plugin, keep the rest
@@ -123,9 +139,21 @@ def _discover_plugins() -> dict[str, type[BasePlugin]]:
 # Effective registry: built-ins, with entry-point plugins merged on top.
 ALL_PLUGINS: dict[str, type[BasePlugin]] = {**_BUILTIN_PLUGINS, **_discover_plugins()}
 
-# Plugins excluded from the default run (opt-in only): network-heavy or
-# rate-limited external lookups the user should request explicitly.
-OPT_IN_PLUGINS: frozenset[str] = frozenset({"cve_lookup", "graphql"})
+# Plugins excluded from the default run (opt-in only):
+# * ``cve_lookup``, ``graphql``  — network-heavy or rate-limited external lookups
+#   the user should request explicitly.
+# * ``mass_assignment``, ``race_condition``, ``request_smuggling`` — state-changing
+#   plugins that send PUT / parallel GET / smuggled POST requests. Running them
+#   by default against e.g. a production shop site could actually mutate state
+#   (privilege escalation, double-spend, race-abuse of a coupon endpoint). The
+#   operator must opt in explicitly with ``--plugins mass_assignment`` etc.
+OPT_IN_PLUGINS: frozenset[str] = frozenset({
+    "cve_lookup",
+    "graphql",
+    "mass_assignment",
+    "race_condition",
+    "request_smuggling",
+})
 
 # Names run by default — everything except the opt-in set, in registry order.
 DEFAULT_PLUGINS: list[str] = [n for n in ALL_PLUGINS if n not in OPT_IN_PLUGINS]

@@ -128,3 +128,127 @@ async def test_run_scan_with_ai_enabled(monkeypatch: pytest.MonkeyPatch) -> None
     )
     assert out["summary"] == "Looks fine overall."
     assert out["report"]["total_findings"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Hardening tests (v2.5.1) — body-size cap, validation, edge cases
+# ---------------------------------------------------------------------------
+
+
+def test_scan_rejects_too_many_targets(client) -> None:  # noqa: ANN001
+    """run_scan caps targets at _MAX_TARGETS (50) to prevent resource abuse."""
+    from webscan.server import _MAX_TARGETS
+
+    payload = {"targets": [f"https://example.com/{i}" for i in range(_MAX_TARGETS + 1)]}
+    resp = client.post("/scan", json=payload)
+    assert resp.status_code == 400
+    assert "too many targets" in resp.json()["detail"]
+
+
+def test_scan_rejects_non_list_targets(client) -> None:  # noqa: ANN001
+    """targets must be a list — a string is rejected with 400."""
+    resp = client.post("/scan", json={"targets": "https://example.com"})
+    assert resp.status_code == 400
+    assert "targets must be a list" in resp.json()["detail"]
+
+
+def test_scan_rejects_bad_timeout_type(client) -> None:  # noqa: ANN001
+    """timeout must be int — a string is rejected with 400."""
+    resp = client.post(
+        "/scan", json={"targets": ["https://example.com"], "timeout": "fast"}
+    )
+    assert resp.status_code == 400
+    assert "must be integers" in resp.json()["detail"]
+
+
+def test_scan_rejects_bad_plugins_type(client) -> None:  # noqa: ANN001
+    """plugins must be a list — a string is rejected with 400."""
+    resp = client.post(
+        "/scan", json={"targets": ["https://example.com"], "plugins": "headers"}
+    )
+    assert resp.status_code == 400
+    assert "plugins must be a list" in resp.json()["detail"]
+
+
+def test_scan_rejects_oversized_body(client) -> None:  # noqa: ANN001
+    """A body larger than _MAX_BODY_BYTES is rejected with 413 (CWE-400)."""
+    from webscan.server import _MAX_BODY_BYTES
+
+    # Build a payload that exceeds the cap by padding the URL list.
+    pad = "x" * 1024
+    targets = [f"https://example.com/{pad}/{i}" for i in range(_MAX_BODY_BYTES // 1024 + 5)]
+    resp = client.post("/scan", json={"targets": targets})
+    assert resp.status_code == 413
+    assert "too large" in resp.json()["detail"]
+
+
+def test_scan_rejects_malformed_json(client) -> None:  # noqa: ANN001
+    """Invalid JSON body returns 400, not 500."""
+    resp = client.post(
+        "/scan",
+        data=b"{not valid json",
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 400
+    assert "invalid JSON body" in resp.json()["detail"]
+
+
+def test_create_app_raises_without_serve_extra(monkeypatch: pytest.MonkeyPatch) -> None:
+    """create_app raises RuntimeError if the serve extra is not installed."""
+    from webscan import server
+
+    # Force server_available() to False to exercise the guard branch.
+    monkeypatch.setattr(server, "server_available", lambda: False)
+    with pytest.raises(RuntimeError, match="serve' extra is not installed"):
+        server.create_app()
+
+
+def test_run_server_raises_without_serve_extra(monkeypatch: pytest.MonkeyPatch) -> None:
+    """run_server raises RuntimeError if the serve extra is not installed."""
+    from webscan import server
+
+    monkeypatch.setattr(server, "server_available", lambda: False)
+    with pytest.raises(RuntimeError, match="serve' extra is not installed"):
+        server.run_server()
+
+
+def test_confidence_from_str_handles_invalid_input() -> None:
+    """_confidence_from_str returns None for unknown/invalid confidence names."""
+    from webscan.server import _confidence_from_str
+
+    # Empty / None => None.
+    assert _confidence_from_str(None) is None
+    assert _confidence_from_str("") is None
+    # Unknown confidence name => None.
+    assert _confidence_from_str("bogus") is None
+    # Valid name => Confidence enum.
+    assert _confidence_from_str("firm") is not None
+
+
+async def test_run_scan_clamps_timeout_and_concurrency(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """run_scan clamps absurd timeout/concurrency to safe bounds (CWE-770)."""
+    from webscan import server
+
+    captured: dict[str, Any] = {}
+
+    async def _capture_scan(targets: Any, **kwargs: Any) -> ScanReport:  # noqa: ANN401 - shim
+        captured.update(kwargs)
+        return _fake_report()
+
+    monkeypatch.setattr(server, "scan", _capture_scan)
+    monkeypatch.setattr(
+        server.AIAssistant, "available", property(lambda self: False)
+    )
+
+    # Request absurd values; run_scan should clamp to _MAX_TIMEOUT/_MAX_CONCURRENCY.
+    await run_scan({
+        "targets": ["https://example.com"],
+        "timeout": 999999,
+        "concurrency": 100000,
+    })
+    from webscan.server import _MAX_CONCURRENCY, _MAX_TIMEOUT
+
+    assert captured["timeout"] == _MAX_TIMEOUT
+    assert captured["concurrency"] == _MAX_CONCURRENCY

@@ -16,6 +16,7 @@ import aiohttp
 from webscan.models import Confidence, Finding, Severity
 from webscan.plugins.base import BasePlugin
 from webscan.utils.html import parse_html
+from webscan.utils.http import same_origin
 
 _UPLOAD_PATH_PATTERNS = ("/upload", "/uploads", "/file/upload", "/media/upload", "/attach")
 _TEST_CONTENT = "webscan-upload-test-safe"
@@ -52,6 +53,12 @@ class FileUploadPlugin(BasePlugin):
             # Check for forms with file inputs.
             for form in page.forms[:_MAX_FORMS]:
                 if any(f.field_type == "file" for f in form.fields):
+                    # SSRF guard (CWE-918): never follow a form action that
+                    # points to a different origin — the target could serve a
+                    # page that posts our test file (and any auth headers /
+                    # cookies, see H-1) to an attacker host.
+                    if form.action and not same_origin(form.action, target):
+                        continue
                     has_file_form = True
                     target = form.action or target
                     break

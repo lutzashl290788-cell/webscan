@@ -526,3 +526,158 @@ def test_main_prints_disclaimer_when_not_quiet(
         cli.main()
     err = capsys.readouterr().err
     assert "authorised security testing" in err.lower()
+
+
+# ── AI triage / summary CLI wiring (v2.5.0+) ─────────────────────────────────
+
+
+async def test_run_ai_skips_when_unavailable(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """When the AI layer is unavailable, _run_ai prints a skip notice and returns ''."""
+    from webscan.ai import AIAssistant
+
+    args = _ns(ai_triage=False, ai_summary=False)
+    # Force the assistant to report unavailable.
+    monkeypatch.setattr(AIAssistant, "available", property(lambda self: False))
+    report = ScanReport(scan_started="t", scan_finished="t")
+    out = await cli._run_ai(report=report, args=args, quiet=False)
+    assert out == ""
+    err = capsys.readouterr()
+    assert "skipped" in err.out.lower() or "skipped" in err.err.lower()
+
+
+async def test_run_ai_runs_triage_and_summary_when_available(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """With ai_triage + ai_summary flags set and an available assistant, both run."""
+
+    report = ScanReport(scan_started="t", scan_finished="t")
+    report.targets.append(
+        TargetResult(
+            target="https://example.com",
+            findings=[Finding("headers", "x", Severity.LOW, "d", "u")],
+            scanned_at="t",
+        )
+    )
+    report.total_findings = 1
+
+    class _FakeAssistant:
+        available = True
+        triaged = False
+        summarized = False
+
+        async def triage_report(self, r: ScanReport) -> ScanReport:
+            self.triaged = True
+            return r
+
+        async def summarize_report(self, r: ScanReport) -> str:
+            self.summarized = True
+            return "Everything looks fine."
+
+    fake = _FakeAssistant()
+    monkeypatch.setattr(cli, "AIAssistant", lambda *a, **kw: fake, raising=False)
+    # ai module is imported lazily inside _run_ai — patch the class there.
+    import webscan.ai as ai_mod
+    monkeypatch.setattr(ai_mod, "AIAssistant", lambda *a, **kw: fake)
+
+    args = _ns(ai_triage=True, ai_summary=True)
+    out = await cli._run_ai(report=report, args=args, quiet=False)
+    assert fake.triaged
+    assert fake.summarized
+    assert out == "Everything looks fine."
+    captured = capsys.readouterr()
+    assert "AI triage" in captured.out
+    assert "AI summary" in captured.out
+
+
+async def test_run_ai_quiet_mode_silent(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """In quiet mode, _run_ai produces no stdout."""
+    from webscan.ai import AIAssistant
+
+    monkeypatch.setattr(AIAssistant, "available", property(lambda self: False))
+    args = _ns(ai_triage=False, ai_summary=False)
+    await cli._run_ai(
+        report=ScanReport(scan_started="t", scan_finished="t"), args=args, quiet=True
+    )
+    out = capsys.readouterr().out
+    assert out == ""
+
+
+# ── webscan serve subcommand (v2.5.0+) ───────────────────────────────────────
+
+
+def test_serve_subcommand_dies_without_extra(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`webscan serve` exits 1 with a clear install hint when the serve extra is missing."""
+    from webscan import server
+
+    # Force server_available() to False to exercise the _die branch.
+    monkeypatch.setattr(server, "server_available", lambda: False)
+    with pytest.raises(SystemExit) as exc_info:
+        cli._serve(["--host", "127.0.0.1", "--port", "9999"])
+    assert exc_info.value.code == 1
+    err = capsys.readouterr().err
+    assert "serve' extra is not installed" in err
+
+
+def test_serve_subcommand_calls_run_server(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`webscan serve` invokes run_server with the parsed host/port."""
+    from webscan import server
+
+    captured: dict[str, object] = {}
+
+    def _fake_run(host: str = "127.0.0.1", port: int = 8000) -> None:
+        captured["host"] = host
+        captured["port"] = port
+
+    monkeypatch.setattr(server, "server_available", lambda: True)
+    monkeypatch.setattr(server, "run_server", _fake_run)
+    with pytest.raises(SystemExit) as exc_info:
+        cli._serve(["--host", "0.0.0.0", "--port", "9000"])
+    assert exc_info.value.code == 0
+    assert captured == {"host": "0.0.0.0", "port": 9000}
+
+
+def test_main_dispatches_serve_subcommand(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`webscan serve ...` (as sys.argv[1]) routes to _serve, not _build_parser."""
+    called: list[list[str]] = []
+
+    def _fake_serve(argv: list[str]) -> None:  # noqa: ANN401 - test shim
+        called.append(argv)
+        raise SystemExit(0)
+
+    monkeypatch.setattr(cli, "_serve", _fake_serve)
+    monkeypatch.setattr(sys, "argv", ["webscan", "serve", "--port", "8888"])
+    with pytest.raises(SystemExit):
+        cli.main()
+    assert called == [["--port", "8888"]]
+
+
+# ── proxy credential masking (v2.5.1) ────────────────────────────────────────
+
+
+def test_print_setup_masks_proxy_credentials(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """_print_setup must not print proxy user:password in cleartext (CWE-532)."""
+    args = _ns(
+        cookie="",
+        header=[],
+        basic_auth="",
+        login_url="",
+        safe_mode=False,
+    )
+    net = NetConfig(proxy="http://user:secret@proxy.local:8080")
+    cli._print_setup(args, PreparedAuth(cookies={}, headers={}), net)
+    out = capsys.readouterr().out
+    assert "secret" not in out
+    assert "user" not in out
+    assert "***@proxy.local:8080" in out

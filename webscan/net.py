@@ -27,7 +27,11 @@ class NetConfig:
     delay: float = 0.0  # seconds to pace between dispatched targets
     random_delay: bool = False  # jitter the delay by ×0.5–×1.5
     rate_limit: float = 0.0  # max requests per second (0 = unlimited)
-    verify_ssl: bool = False  # security scanners skip cert verification by default
+    # NOTE: ``verify_ssl`` is accepted for CLI compatibility but the scan engine
+    # always disables certificate verification (see :func:`engine._build_ssl_context`).
+    # Security scanners routinely audit hosts with self-signed or expired certs,
+    # so verification would silently break most scans against staging/dev targets.
+    verify_ssl: bool = False  # kept for CLI compatibility; effectively a no-op
 
     def base_delay(self) -> float:
         """Per-target delay before jitter: max of ``delay`` and the rate-limit gap."""

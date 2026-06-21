@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "webscan-security"
-version = "2.5.0"
+version = "2.5.1"
 description = "CLI security auditing tool for web configuration vulnerabilities"
 readme = "README.md"
 license = { text = "MIT" }
@@ -117,6 +117,11 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "ANN", "BLE", "C4", "PTH"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests legitimately need typing.Any for fakes / shims / SDK stand-ins, and
+# they often don't need explicit returns. ANN401 (Any) is a no-op noise on tests.
+"tests/**/*.py" = ["ANN401", "ANN001", "ANN201", "ANN204"]
 
 # ─── pytest ──────────────────────────────────────────────────────────────────
 [tool.pytest.ini_options]

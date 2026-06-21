@@ -6,6 +6,8 @@ import random
 import ssl as ssl_lib
 from collections.abc import Callable
 from datetime import datetime, timezone
+from typing import Any
+from urllib.parse import urlparse
 
 import aiohttp
 
@@ -16,6 +18,19 @@ _DEFAULT_HEADERS = {
     "User-Agent": "WebScan/1.0 (security-audit; github.com/lutzashl290788-cell/webscan)",
     "Accept": "*/*",
 }
+
+# Headers that must NOT follow a redirect to a different origin. aiohttp ≥3.8
+# keeps the ``Authorization`` header across redirects by default, which leaks
+# operator credentials to any host the target redirects to (CWE-200/CWE-522).
+# We drop them via a TraceConfig on_request_redirect hook — see
+# :func:`_build_redirect_safe_trace`.
+_REDIRECT_SENSITIVE_HEADERS = (
+    "authorization",
+    "cookie",
+    "x-api-key",
+    "x-auth-token",
+    "proxy-authorization",
+)
 
 ProgressCallback = Callable[[str, int, int], None]
 
@@ -30,6 +45,50 @@ def _build_ssl_context() -> ssl_lib.SSLContext:
     ctx.check_hostname = False
     ctx.verify_mode = ssl_lib.CERT_NONE
     return ctx
+
+
+def _same_host(url_a: str, url_b: str) -> bool:
+    """True iff *url_a* and *url_b* target the same host (case-insensitive)."""
+    return (urlparse(url_a).hostname or "").lower() == (
+        urlparse(url_b).hostname or ""
+    ).lower()
+
+
+def _build_redirect_safe_trace() -> aiohttp.TraceConfig:
+    """Build a TraceConfig that strips sensitive headers from cross-origin redirects.
+
+    Without this, an ``Authorization`` header configured via ``--basic-auth`` /
+    ``--header`` is replayed on every redirect hop — including to a host the
+    target chooses via ``Location:``. We compare the redirect destination
+    (read from the response's ``Location`` header) to the original request URL;
+    if the host differs, we drop auth-bearing headers before aiohttp follows
+    the redirect.
+    """
+
+    async def _on_request_redirect(
+        session: aiohttp.ClientSession,
+        trace_config_ctx: Any,  # noqa: ANN401 - aiohttp-defined trace context is dynamic
+        params: aiohttp.TraceRequestRedirectParams,
+    ) -> None:
+        # ``params.url`` is the URL we just requested (the redirecting hop);
+        # ``params.response`` carries the redirect response whose ``Location``
+        # header tells us where aiohttp will send the next request.
+        original = str(params.url)
+        location = params.response.headers.get("Location", "")
+        if not location or _same_host(original, location):
+            return
+        # ``params.headers`` is the headers mapping aiohttp is about to send on
+        # the next hop. It is a real CIMultiDict we can mutate in place.
+        headers = params.headers
+        if not headers:
+            return
+        for key in list(headers.keys()):
+            if key.lower() in _REDIRECT_SENSITIVE_HEADERS:
+                del headers[key]
+
+    trace = aiohttp.TraceConfig()
+    trace.on_request_redirect.append(_on_request_redirect)
+    return trace
 
 
 class ScanEngine:
@@ -99,6 +158,12 @@ class ScanEngine:
             cookies=cookies,
             connector_owner=True,
             trust_env=bool(self._proxy),
+            # Strip Authorization / Cookie / X-API-Key / X-Auth-Token /
+            # Proxy-Authorization when aiohttp follows a redirect to a different
+            # host. Without this, ``--basic-auth admin:secret`` against a target
+            # that responds with ``302 Location: http://attacker/`` would replay
+            # the credentials on the attacker host (CWE-200 / CWE-522).
+            trace_configs=[_build_redirect_safe_trace()],
         ) as session:
 
             async def _bounded(target: str) -> TargetResult:
