@@ -466,7 +466,21 @@ def test_ai_triage_raises_runtime_error_if_client_is_none() -> None:
 # INFO-1: CORS middleware deny-all in server.py
 # ---------------------------------------------------------------------------
 
+# These tests need the [serve] extra (fastapi). Skip cleanly when absent —
+# same pattern as tests/test_server.py.
+try:
+    import fastapi  # noqa: F401
+    _HAS_FASTAPI = True
+except ImportError:
+    _HAS_FASTAPI = False
 
+_skip_no_fastapi = pytest.mark.skipif(
+    not _HAS_FASTAPI,
+    reason="serve extra (fastapi) not installed",
+)
+
+
+@_skip_no_fastapi
 def test_server_cors_middleware_deny_all_by_default() -> None:
     """create_app() must install a CORSMiddleware that denies all origins."""
     from webscan.server import create_app
@@ -481,6 +495,7 @@ def test_server_cors_middleware_deny_all_by_default() -> None:
     assert cors_spec.kwargs.get("allow_credentials") is False
 
 
+@_skip_no_fastapi
 def test_server_cors_preflight_returns_no_allow_origin() -> None:
     """A preflight OPTIONS request from evil.com must not get an Allow-Origin header."""
     from fastapi.testclient import TestClient
