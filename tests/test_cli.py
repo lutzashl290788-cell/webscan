@@ -473,3 +473,56 @@ async def test_crawl_targets_bad_seed_falls_back(monkeypatch: pytest.MonkeyPatch
     discovered = await cli._crawl_targets(["https://bad.test"], args, PreparedAuth(), NetConfig())
     # A failing seed is kept as-is so the scan still runs against it.
     assert discovered == ["https://bad.test"]
+
+
+# ── Coverage gaps: verbose print branches & disclaimer ─────────────────────────
+
+
+async def test_run_crawl_verbose_prints_progress(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Lines 573, 576: non-quiet crawl prints its discovered-URL count."""
+    monkeypatch.setattr(cli, "ScanEngine", _FakeEngine)
+
+    async def _fake_crawl(seeds: list[str], *_a: object, **_kw: object) -> list[str]:
+        return [*seeds, "https://x.test/discovered"]
+
+    monkeypatch.setattr(cli, "_crawl_targets", _fake_crawl)
+    monkeypatch.setattr(cli.sys.stderr, "isatty", lambda: False)
+    parser = cli._build_parser()
+    # --crawl but NOT -q so the crawl-status prints fire.
+    args = parser.parse_args(["-t", "https://x.test", "--crawl"])
+    await cli._run(args)
+    out = capsys.readouterr().out
+    assert "Crawling" in out
+    assert "Discovered" in out
+
+
+async def test_run_min_confidence_verbose_prints(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Lines 605-607: non-quiet run with --min-confidence prints the filter note."""
+    monkeypatch.setattr(cli, "ScanEngine", _FakeEngine)
+    monkeypatch.setattr(cli.sys.stderr, "isatty", lambda: False)
+    parser = cli._build_parser()
+    args = parser.parse_args(["-t", "https://x.test", "--min-confidence", "firm"])
+    await cli._run(args)
+    out = capsys.readouterr().out
+    assert "Confidence" in out
+
+
+def test_main_prints_disclaimer_when_not_quiet(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Line 709: a non-quiet run prints the legal disclaimer to stderr."""
+    monkeypatch.setattr(sys, "argv", ["webscan", "-t", "https://x.test"])
+
+    async def _fake_run(_args: argparse.Namespace) -> int:
+        return 0
+
+    monkeypatch.setattr(cli, "_run", _fake_run)
+    monkeypatch.setattr(cli.sys.stderr, "isatty", lambda: False)
+    with pytest.raises(SystemExit):
+        cli.main()
+    err = capsys.readouterr().err
+    assert "authorised security testing" in err.lower()

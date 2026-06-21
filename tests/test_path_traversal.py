@@ -59,3 +59,61 @@ async def test_no_params_skips() -> None:
 
     assert findings == []
     assert session.calls == 0
+
+
+# ----------------------------------------------------------------------
+# Coverage gaps
+# ----------------------------------------------------------------------
+
+import aiohttp  # noqa: E402
+
+
+class _ClientError(Exception):
+    pass
+
+
+class _RaisingResp:
+    async def __aenter__(self) -> _RaisingResp:
+        raise _ClientError("transport error")
+
+    async def __aexit__(self, *_exc: object) -> bool:
+        return False
+
+    async def text(self, **_kw: object) -> str:
+        return ""
+
+
+async def test_network_error_during_probe_skipped() -> None:
+    """Lines 58-59: a ClientError mid-probe is swallowed, no finding."""
+    orig = aiohttp.ClientError
+    aiohttp.ClientError = _ClientError  # type: ignore[misc,assignment]
+    try:
+        plugin = PathTraversalPlugin()
+
+        class _BoomSession:
+            def get(self, _url: str, **_kw: object) -> _RaisingResp:
+                return _RaisingResp()
+
+        findings = await plugin.run(
+            "https://example.com/?file=a.txt", _BoomSession()  # type: ignore[arg-type]
+        )
+        assert findings == []
+    finally:
+        aiohttp.ClientError = orig  # type: ignore[misc,assignment]
+
+
+async def test_windows_ini_disclosure() -> None:
+    """Line 97: the win.ini victim signature triggers the /windows/win.ini path."""
+    winini = (
+        "[fonts]\n"
+        "Lucida Console=LUCON.TTF\n"
+        "[extensions]\n"
+        "[mci extensions]\n"
+    )
+    plugin = PathTraversalPlugin()
+    session = _Session(winini)
+
+    findings = await plugin.run("https://example.com/?file=a.txt", session)  # type: ignore[arg-type]
+
+    assert len(findings) == 1
+    assert findings[0].evidence["disclosed_file"] == "windows/win.ini"

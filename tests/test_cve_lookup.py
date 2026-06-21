@@ -105,3 +105,88 @@ async def test_no_banner_no_findings() -> None:
         "https://example.com", session,  # type: ignore[arg-type]
     )
     assert findings == []
+
+
+# ----------------------------------------------------------------------
+# Coverage gaps — resilience branches
+# ----------------------------------------------------------------------
+
+import aiohttp  # noqa: E402
+
+
+class _ClientError(Exception):
+    pass
+
+
+class _RaisingResp:
+    async def __aenter__(self) -> _RaisingResp:
+        raise _ClientError("network down")
+
+    async def __aexit__(self, *_exc: object) -> bool:
+        return False
+
+    async def text(self, **_kw: object) -> str:
+        return ""
+
+
+async def test_detect_products_network_error_returns_empty() -> None:
+    """Lines 74-75: a ClientError on the banner GET yields no products."""
+
+    class _BoomSession:
+        def get(self, _url: str, **_kw: object) -> _RaisingResp:
+            return _RaisingResp()
+
+    orig = aiohttp.ClientError
+    aiohttp.ClientError = _ClientError  # type: ignore[misc,assignment]
+    try:
+        plugin = CveLookupPlugin(retry=_NO_RETRY)
+        findings = await plugin.run(
+            "https://example.com", _BoomSession()  # type: ignore[arg-type]
+        )
+        assert findings == []
+    finally:
+        aiohttp.ClientError = orig  # type: ignore[misc,assignment]
+
+
+class _BadNvdSession:
+    """Serves a banner, but returns the given (bad) NVD response."""
+
+    def __init__(self, nvd_status: int, nvd_body: str) -> None:
+        self._status = nvd_status
+        self._body = nvd_body
+
+    def get(self, url: str, **_kw: object) -> _Resp:
+        if url.startswith("https://services.nvd.nist.gov"):
+            return _Resp(self._status, self._body)
+        return _Resp(200, "", FakeHeaders([("Server", "nginx/1.1.1")]))
+
+
+async def test_nvd_non_200_returns_empty() -> None:
+    """Line 102: a non-200 NVD response yields no findings."""
+    session = _BadNvdSession(nvd_status=503, nvd_body="")
+    findings = await CveLookupPlugin(retry=_NO_RETRY).run(
+        "https://example.com", session,  # type: ignore[arg-type]
+    )
+    assert findings == []
+
+
+async def test_nvd_invalid_json_returns_empty() -> None:
+    """Lines 105-106: malformed JSON from NVD yields no findings."""
+    session = _BadNvdSession(nvd_status=200, nvd_body="not-json{")
+    findings = await CveLookupPlugin(retry=_NO_RETRY).run(
+        "https://example.com", session,  # type: ignore[arg-type]
+    )
+    assert findings == []
+
+
+def test_english_description_fallback_when_no_english() -> None:
+    """Line 155: no English description → fallback string."""
+    cve = {"descriptions": [{"lang": "ja", "value": "日本語"}]}
+    out = _english_description(cve)
+    assert out == "See the CVE record for details."
+
+
+def test_english_description_fallback_when_not_list() -> None:
+    """Line 155: descriptions present but not a list → fallback string."""
+    cve = {"descriptions": "unexpected"}
+    assert _english_description(cve) == "See the CVE record for details."

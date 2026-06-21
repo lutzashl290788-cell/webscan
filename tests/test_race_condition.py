@@ -42,3 +42,44 @@ class TestPluginRun:
         findings = await plugin.run("https://example.com/page?id=5",
             FakeSession(resp))  # type: ignore[arg-type]
         assert findings == []
+
+
+class TestCoverageGaps:
+    """Targeted tests for uncovered branches."""
+
+    async def test_no_query_string_skipped(self) -> None:
+        """Line 45: _has_race_params returns False when there is no query string."""
+        plugin = RaceConditionPlugin()
+        resp = FakeResponse(body='{"status":"ok"}', status=200)
+        # Target with no query → _has_race_params short-circuits on empty query.
+        findings = await plugin.run(
+            "https://example.com/api/apply", FakeSession(resp)  # type: ignore[arg-type]
+        )
+        assert findings == []
+
+    async def test_network_error_on_all_requests_no_finding(self) -> None:
+        """Lines 74-75: a transport error on every concurrent request yields no finding."""
+        import aiohttp
+
+        class _ClientError(Exception):
+            pass
+
+        class _RaisingResp:
+            async def __aenter__(self) -> _RaisingResp:
+                raise _ClientError("boom")
+
+            async def __aexit__(self, *_exc: object) -> bool:
+                return False
+
+        class _BoomSession:
+            def get(self, _url: str, **_kw: object) -> _RaisingResp:
+                return _RaisingResp()
+
+        orig = aiohttp.ClientError
+        aiohttp.ClientError = _ClientError  # type: ignore[misc,assignment]
+        try:
+            plugin = RaceConditionPlugin()
+            findings = await plugin.run(_TARGET, _BoomSession())  # type: ignore[arg-type]
+            assert findings == []
+        finally:
+            aiohttp.ClientError = orig  # type: ignore[misc,assignment]

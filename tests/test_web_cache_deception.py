@@ -197,3 +197,66 @@ class TestPluginRun:
         assert ev["extension"] == ".css"
         assert "probe_url" in ev
         assert ev["has_sensitive_markers"] is True
+
+
+class TestCoverageGaps:
+    async def test_probe_network_error_skipped(self) -> None:
+        """Lines 170-171: a transport error on a probe extension is skipped."""
+        import aiohttp
+
+        baseline_body = "<html><body>Settings page content</body></html>" + "x" * 200
+
+        class _ClientError(Exception):
+            pass
+
+        class _RaisingResp:
+            async def __aenter__(self) -> _RaisingResp:
+                raise _ClientError("down")
+
+            async def __aexit__(self, *_exc: object) -> bool:
+                return False
+
+            async def text(self, **_kw: object) -> str:
+                return ""
+
+            @property
+            def status(self) -> int:
+                return 0
+
+        class _BoomProbeSession:
+            def get(self, url: str, **_kw: object) -> object:
+                if "webscan-soft404-probe" in url:
+                    return FakeResponse(body="", status=404)
+                if url == _TARGET:
+                    return FakeResponse(
+                        body=baseline_body, status=200,
+                        headers=[("Content-Type", "text/html")],
+                    )
+                # Every probe raises.
+                return _RaisingResp()
+
+        orig = aiohttp.ClientError
+        aiohttp.ClientError = _ClientError  # type: ignore[misc,assignment]
+        try:
+            plugin = WebCacheDeceptionPlugin()
+            findings = await plugin.run(_TARGET, _BoomProbeSession())  # type: ignore[arg-type]
+            assert findings == []
+        finally:
+            aiohttp.ClientError = orig  # type: ignore[misc,assignment]
+
+    async def test_probe_short_body_skipped(self) -> None:
+        """Line 183: a probe 200 with a body below _MIN_BODY_LENGTH is skipped."""
+        plugin = WebCacheDeceptionPlugin()
+        baseline_body = "<html><body>Settings page content here</body></html>" + "x" * 200
+        baseline = FakeResponse(
+            body=baseline_body, status=200, headers=[("Content-Type", "text/html")],
+        )
+        # Probe returns 200 but a very short body → below _MIN_BODY_LENGTH (200).
+        short_probe = FakeResponse(
+            body="short", status=200, headers=[("Content-Type", "text/html")],
+        )
+        session = _CalibrationSession(
+            baseline, {"https://example.com/account/settings.css": short_probe},
+        )
+        findings = await plugin.run(_TARGET, session)  # type: ignore[arg-type]
+        assert findings == []

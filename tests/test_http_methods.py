@@ -117,3 +117,74 @@ async def test_trace_without_echo_not_flagged() -> None:
     findings = await plugin.run(_TARGET, _RoutedSession(handler))  # type: ignore[arg-type]
 
     assert findings == []
+
+
+# ----------------------------------------------------------------------
+# Coverage gaps — network-error branches in the three helpers
+# ----------------------------------------------------------------------
+
+import aiohttp  # noqa: E402
+
+
+class _ClientError(Exception):
+    pass
+
+
+class _RaisingResp:
+    async def __aenter__(self) -> _RaisingResp:
+        raise _ClientError("connection refused")
+
+    async def __aexit__(self, *_exc: object) -> bool:
+        return False
+
+    async def text(self, **_kw: object) -> str:
+        return ""
+
+
+class _AlwaysRaisingSession:
+    """Every GET/request raises — exercises the except branches."""
+
+    def get(self, _url: str, **_kw: object) -> _RaisingResp:
+        return _RaisingResp()
+
+    def request(self, _method: str, _url: str, **_kw: object) -> _RaisingResp:
+        return _RaisingResp()
+
+
+async def test_all_helpers_swallow_network_errors() -> None:
+    """Lines 107-108, 118-119, 137-138: every helper returns False on error.
+
+    With every request raising, the plugin should make no findings and never
+    propagate. We assert emptiness rather than internal return values to keep
+    the test robust against plugin orchestration changes.
+    """
+    orig = aiohttp.ClientError
+    aiohttp.ClientError = _ClientError  # type: ignore[misc,assignment]
+    try:
+        plugin = HttpMethodsPlugin()
+        findings = await plugin.run(_TARGET, _AlwaysRaisingSession())  # type: ignore[arg-type]
+        assert findings == []
+        # Also cover the helpers directly.
+        assert await plugin._is_catch_all(_AlwaysRaisingSession(), _TARGET) is False  # type: ignore[arg-type]
+        assert await plugin._verb_accepted(_AlwaysRaisingSession(), "PUT", _TARGET) is False  # type: ignore[arg-type]
+        assert await plugin._trace_enabled(_AlwaysRaisingSession(), _TARGET) is False  # type: ignore[arg-type]
+    finally:
+        aiohttp.ClientError = orig  # type: ignore[misc,assignment]
+
+
+async def test_connect_method_accepted_is_flagged() -> None:
+    """CONNECT branch (separate from the write-verb catch-all guard)."""
+    def handler(method: str, url: str, _headers: dict) -> _Resp:
+        if "webscan-method-probe" in url and method == "GET":
+            return _Resp(404)  # not catch-all
+        if method == "CONNECT":
+            return _Resp(200)  # genuinely accepted
+        return _Resp(405)
+
+    plugin = HttpMethodsPlugin()
+    findings = await plugin.run(_TARGET, _RoutedSession(handler))  # type: ignore[arg-type]
+
+    methods = {f.evidence["method"] for f in findings}
+    assert "CONNECT" in methods
+    connect = next(f for f in findings if f.evidence["method"] == "CONNECT")
+    assert connect.severity is Severity.MEDIUM

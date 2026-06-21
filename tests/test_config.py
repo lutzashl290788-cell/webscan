@@ -83,3 +83,27 @@ def test_cli_overrides_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     # Explicit flag beats the config value.
     args = parser.parse_args([*argv[1:], "--concurrency", "5"])
     assert args.concurrency == 5
+
+
+# ── Coverage gaps ──────────────────────────────────────────────────────────────
+
+
+def test_invalid_yaml_raises_config_error(tmp_path: Path) -> None:
+    """Lines 82-83: malformed YAML triggers ConfigError."""
+    cfg = _write(tmp_path, "concurrency: [unclosed\nlist")
+    with pytest.raises(ConfigError, match="Invalid YAML"):
+        load_profile(cfg)
+
+
+def test_non_mapping_root_raises_config_error(tmp_path: Path) -> None:
+    """Line 88: a YAML scalar (not a mapping) at root triggers ConfigError."""
+    cfg = _write(tmp_path, "just a string, not a mapping")
+    with pytest.raises(ConfigError, match="must be a mapping"):
+        load_profile(cfg)
+
+
+def test_profile_flag_without_profiles_section_raises(tmp_path: Path) -> None:
+    """Line 117: --profile given but file has no 'profiles:' section."""
+    cfg = _write(tmp_path, "plugins: [headers]\n")
+    with pytest.raises(ConfigError, match="has no 'profiles:'"):
+        load_profile(cfg, "quick")

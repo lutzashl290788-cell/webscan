@@ -63,6 +63,14 @@ class TestHasSyntaxReflection:
     def test_no_reflection(self) -> None:
         assert _has_syntax_reflection("hello world", "{{7*7}}") is False
 
+    def test_smarty_single_brace(self) -> None:
+        """Lines 136-137: '{7*7}' (single brace, not double) → checks for '{7'."""
+        assert _has_syntax_reflection("hello {7*7} world", "{7*7}") is True
+
+    def test_unknown_syntax_returns_false(self) -> None:
+        """Line 138: a syntax that matches no known delimiter returns False."""
+        assert _has_syntax_reflection("hello world", "unknown") is False
+
 
 class TestPluginRun:
     async def test_no_params_no_findings(self) -> None:

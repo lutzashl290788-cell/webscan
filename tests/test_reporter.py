@@ -278,3 +278,126 @@ def test_jsonl_trailing_newline_and_inlined_context() -> None:
 def test_jsonl_empty_report_is_empty_string() -> None:
     empty = ScanReport(scan_started="2025-01-01T00:00:00+00:00", targets=[])
     assert Reporter(empty).to_jsonl() == ""
+
+
+# ----------------------------------------------------------------------
+# Coverage gaps
+# ----------------------------------------------------------------------
+
+
+def _make_report_with_errors() -> ScanReport:
+    return ScanReport(
+        scan_started="2025-01-01T00:00:00+00:00",
+        scan_finished="2025-01-01T00:00:10+00:00",
+        total_findings=0,
+        targets=[
+            TargetResult(
+                target="https://example.com",
+                scanned_at="2025-01-01T00:00:05+00:00",
+                errors=["Connection timed out", "TLS handshake failed"],
+            ),
+            TargetResult(
+                target="https://other.com",
+                scanned_at="2025-01-01T00:00:05+00:00",
+                findings=[
+                    Finding(
+                        plugin="headers",
+                        title="Missing HSTS",
+                        severity=Severity.LOW,
+                        description="x",
+                        url="https://other.com",
+                    )
+                ],
+            ),
+        ],
+    )
+
+
+def test_markdown_includes_errors_section() -> None:
+    """Line 204-207: errors in a target produce the ⚠️ Scan Errors section."""
+    reporter = Reporter(_make_report_with_errors())
+    md = reporter.to_markdown()
+    assert "Scan Errors" in md
+    assert "Connection timed out" in md
+
+
+def test_markdown_no_findings_shows_ok() -> None:
+    """Line 210-211: a target with 0 findings and no errors shows ✅."""
+    report = ScanReport(
+        scan_started="2025-01-01T00:00:00+00:00",
+        targets=[
+            TargetResult(target="https://clean.com", scanned_at="2025-01-01T00:00:00+00:00"),
+        ],
+    )
+    reporter = Reporter(report)
+    md = reporter.to_markdown()
+    assert "No issues detected" in md
+
+
+def test_html_includes_errors() -> None:
+    """Lines 414-416: errors produce an error block in the HTML output."""
+    reporter = Reporter(_make_report_with_errors())
+    html = reporter.to_html()
+    assert "Connection timed out" in html
+    assert "errors" in html.lower()
+
+
+def test_html_no_findings_shows_ok() -> None:
+    """Lines 419-420: a target with no findings shows the ✅ message."""
+    report = ScanReport(
+        scan_started="2025-01-01T00:00:00+00:00",
+        targets=[
+            TargetResult(target="https://clean.com", scanned_at="2025-01-01T00:00:00+00:00"),
+        ],
+    )
+    reporter = Reporter(report)
+    html = reporter.to_html()
+    assert "No issues detected" in html
+
+
+def test_console_summary_shows_errors() -> None:
+    """Lines 488-489: errors appear in the console output."""
+    reporter = Reporter(_make_report_with_errors())
+    out = reporter.to_console_summary()
+    assert "Connection timed out" in out
+
+
+def test_csv_sanitize_dangerous_chars() -> None:
+    """Lines 523-525: CSV formula injection is neutralised.
+
+    Values starting with =, +, -, @, tab or CR get a single-quote prefix.
+    """
+    from webscan.reporter import _csv_sanitize
+    assert _csv_sanitize("=cmd|'/c calc'!A1") == "'=cmd|'/c calc'!A1"
+    assert _csv_sanitize("+SUM(A1:A10)") == "'+SUM(A1:A10)"
+    assert _csv_sanitize("-1") == "'-1"
+    assert _csv_sanitize("@dangerous") == "'@dangerous"
+    assert _csv_sanitize("\texploit") == "'\texploit"
+    assert _csv_sanitize("\rexploitable") == "'\rexploitable"
+    # Safe values pass through unchanged.
+    assert _csv_sanitize("normal value") == "normal value"
+    assert _csv_sanitize("") == ""
+
+
+def test_csv_report_with_dangerous_finding() -> None:
+    """Integration: a finding title starting with '=' is sanitised in CSV output."""
+    report = ScanReport(
+        total_findings=1,
+        targets=[
+            TargetResult(
+                target="https://example.com",
+                findings=[
+                    Finding(
+                        plugin="test",
+                        title="=SUM(1+1)",
+                        severity=Severity.INFO,
+                        description="exploit",
+                        url="https://example.com",
+                    ),
+                ],
+            ),
+        ],
+    )
+    csv_out = Reporter(report).to_csv()
+    # The sanitised title should start with a single quote.
+    assert "'=SUM(1+1)" in csv_out
