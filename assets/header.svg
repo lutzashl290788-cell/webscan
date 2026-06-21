@@ -65,5 +65,5 @@
     <circle cx="96" cy="0" r="5" fill="#22c55e"><animate attributeName="opacity" values="0.3;1;0.3" dur="2s" begin="1.6s" repeatCount="indefinite"/></circle>
   </g>
   <!-- version badge -->
-  <text x="520" y="204" fill="#737373" font-size="11" font-family="SFMono-Regular,Consolas,monospace">v2.4.1</text>
+  <text x="520" y="204" fill="#737373" font-size="11" font-family="SFMono-Regular,Consolas,monospace">v2.5.2</text>
 </svg>

@@ -261,8 +261,8 @@ doesn't have SQLi, XSS, SSTI, LFI, XXE, IDOR, or smuggling vulnerabilities).
 
 ## 🏆 Comparison
 
-[![Coverage](https://img.shields.io/badge/coverage-95%25-2ea043?style=flat-square&logo=codecov&logoColor=white)](#-code-quality)
-[![Tests](https://img.shields.io/badge/tests-701%20passed-00d26a?style=flat-square&logo=pytest&logoColor=white)](#-code-quality)
+[![Coverage](https://img.shields.io/badge/coverage-97%25-2ea043?style=flat-square&logo=codecov&logoColor=white)](#-code-quality)
+[![Tests](https://img.shields.io/badge/tests-840%20passed-00d26a?style=flat-square&logo=pytest&logoColor=white)](#-code-quality)
 [![CVE](https://img.shields.io/badge/CVE-350K%2B%20NVD-ff6b6b?style=flat-square&logo=cve&logoColor=white)](#-comparison)
 [![Plugins](https://img.shields.io/badge/plugins-38-9b59b6?style=flat-square)](#-comparison)
 
@@ -291,8 +291,8 @@ How WebScan stacks up against the tools security teams actually reach for:
 
 ## ✅ Code Quality
 
-[![Coverage](https://img.shields.io/badge/coverage-95%25-2ea043?style=flat-square)](#-code-quality)
-[![Tests](https://img.shields.io/badge/tests-701%20passed-00d26a?style=flat-square)](#-code-quality)
+[![Coverage](https://img.shields.io/badge/coverage-97%25-2ea043?style=flat-square)](#-code-quality)
+[![Tests](https://img.shields.io/badge/tests-840%20passed-00d26a?style=flat-square)](#-code-quality)
 [![mypy](https://img.shields.io/badge/mypy-strict%20✓-blue?style=flat-square)](#-code-quality)
 [![ruff](https://img.shields.io/badge/ruff-0%20issues-d7ff64?style=flat-square)](#-code-quality)
 
@@ -300,19 +300,19 @@ Every release is gated on the same checks — no exceptions, no warnings suppres
 
 | Metric | Result |
 |--------|--------|
-| 🧪 **Test coverage** | **95%** — comfortably above the 80% CI gate |
-| ✅ **Tests** | **701 passed, 0 failed** in ~4.6s |
-| 🔍 **Type checking** | `mypy --strict` — **0 errors** across 59 source files |
+| 🧪 **Test coverage** | **97%** — comfortably above the 80% CI gate |
+| ✅ **Tests** | **840 passed, 0 failed** in ~9.6s |
+| 🔍 **Type checking** | `mypy --strict` — **0 errors** across 61 source files |
 | 🧹 **Linting** | `ruff` — **0 issues** |
-| 🧩 **Plugins discovered** | **27** via `webscan.plugins` entry-points |
-| 📄 **Report formats** | **5** — JSON · Markdown · HTML · SARIF · CSV |
+| 🧩 **Plugins discovered** | **38** via `webscan.plugins` entry-points |
+| 📄 **Report formats** | **6** — JSON · JSONL · Markdown · HTML · SARIF · CSV |
 | 🤖 **CI** | `pytest --cov-fail-under=80` enforced on every push (GitHub Actions) |
 
 ```text
-pytest .......................................... 701 passed  ✅
+pytest .......................................... 840 passed  ✅
 mypy --strict ................................... 0 errors    ✅
 ruff check ..................................... 0 issues     ✅
-coverage ....................................... 95%  ▓▓▓▓▓▓▓▓▓░  ✅
+coverage ....................................... 97%  ▓▓▓▓▓▓▓▓▓░  ✅
 ```
 
 > 🛡️ The coverage gate (`--cov-fail-under=80`) runs in CI, so the bar can never
@@ -324,7 +324,7 @@ coverage ....................................... 95%  ▓▓▓▓▓▓▓▓�
 
 | Scanner | Rating | Summary |
 |---------|--------|---------|
-| 🟢 **WebScan** | ★★★★★ | **Fastest (7.3s)**, most findings (28), **zero false positives**, 350K CVE real-time, 38 plugins with content verification, free MIT |
+| 🟢 **WebScan** | ★★★★★ | **Fastest (7.1s)**, most findings (28), **zero false positives**, 350K CVE real-time, 38 plugins with content verification, free MIT |
 | Nuclei | ★★★☆☆ | 4.7× slower than WebScan; 16 of 21 findings are info-only; no confidence dimension |
 | OWASP ZAP | ★★★☆☆ | Solid DAST tool, but ~3,500 MB RAM, slow scans, limited CVE coverage |
 | Burp Suite Pro | ★★★☆☆ | Best manual proxy, but $475/year, 2.5+ hour scans, no CLI automation |
@@ -500,8 +500,8 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install .
       - run: webscan -t ${{ secrets.STAGING_URL }} --min-severity high --format sarif -o report

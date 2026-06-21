@@ -62,6 +62,18 @@ This release introduces a single bounded reader:
 
 ### CI fixes
 
+- **README / SVG version sync** — the header banner (`assets/header.svg`) and
+  terminal demo (`assets/demo.svg`) both still showed `v2.4.1` / `v2.4` after
+  the v2.5.x releases. Regenerated both from `gen_header.py` / `gen_demo.py`
+  (which now read `v2.5.2`). Also refreshed the in-banner title line in
+  `demo.svg` from `WebScan v2.2 — Security Auditor` → `v2.5.2`.
+- **README numbers refresh** — coverage badge `95% → 97%`, tests `701 → 840`,
+  source files `59 → 61`, plugins discovered `27 → 38`, report formats
+  `5 → 6` (added JSONL), Verdict row scan time `7.3s → 7.1s`.
+- **CI workflow `@v6` removal** — `actions/checkout@v6` and
+  `actions/setup-python@v6` (which don't exist on GitHub) replaced with
+  `@v4` and `@v5` in `docker.yml`, `security-scan.yml`, and the README
+  CI/CD example. (`ci.yml` was already fixed in v2.5.1.)
 - **mypy 2.1.0 compatibility** — `webscan/server.py` had three mypy errors
   in CI (but not locally, because locally fastapi was installed):
   - `Unused "type: ignore[assignment, misc]"` on `FastAPI = ... = None` —

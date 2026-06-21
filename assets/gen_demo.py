@@ -3,7 +3,7 @@
 Produces a self-contained SVG (no external assets, no JS) whose lines reveal
 progressively via SMIL animation — renders inline on GitHub like a screencast.
 
-v2.2.0 — updated with 36 plugins, new finding types, confidence dimension.
+v2.5.2 — updated with 38 plugins, new finding types, confidence dimension.
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ LINES: list[tuple[str, str, int]] = [
     ("$ webscan -t https://httpbin.org --safe-mode", PROMPT, 0),
     ("", FG, 0),
     ("╔══════════════════════════════════════════════════╗", CYAN, 0),
-    ("║          WebScan v2.2 — Security Auditor         ║", CYAN, 0),
+    ("║          WebScan v2.5.2 — Security Auditor        ║", CYAN, 0),
     ("╚══════════════════════════════════════════════════╝", CYAN, 0),
     ("  Targets     : 1", DIM, 0),
     ("  Plugins     : 38 enabled", DIM, 0),
@@ -127,7 +127,7 @@ def build() -> str:
   <circle cx="22" cy="17" r="6" fill="#ff5f56"/>
   <circle cx="42" cy="17" r="6" fill="#ffbd2e"/>
   <circle cx="62" cy="17" r="6" fill="#27c93f"/>
-  <text x="{width // 2}" y="22" fill="#8b949e" font-size="11" text-anchor="middle">webscan v2.4 — security audit · 38 plugins</text>
+  <text x="{width // 2}" y="22" fill="#8b949e" font-size="11" text-anchor="middle">webscan v2.5.2 — security audit · 38 plugins</text>
   {progress}
   {chr(10).join("  " + r for r in rows)}
   {cursor}
