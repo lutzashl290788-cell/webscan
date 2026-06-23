@@ -385,6 +385,18 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
         "compliance summary. Shows which categories are affected and which "
         "are clean.",
     )
+    og.add_argument(
+        "--webhook-url",
+        metavar="URL",
+        help="Send a scan summary to a Slack/Discord/Teams/generic HTTP webhook "
+        "after the scan completes. Auto-detects the webhook type from the URL.",
+    )
+    og.add_argument(
+        "--suggest-fixes",
+        action="store_true",
+        help="Print concrete, copy-paste-ready fix commands for each finding "
+        "(nginx config, Python code, curl commands). Unique to WebScan.",
+    )
 
 
 def _add_performance_args(parser: argparse.ArgumentParser) -> None:
@@ -757,6 +769,43 @@ async def _run(args: argparse.Namespace) -> int:
                 )
             return 1
 
+    # Auto-fix suggestions (--suggest-fixes)
+    if getattr(args, "suggest_fixes", False):
+        from webscan.autofix import suggest_fixes_for_report
+        suggestions = suggest_fixes_for_report(report)
+        if not quiet and suggestions:
+            print("  Auto-fix suggestions")
+            print("  ────────────────────")
+            for finding, fix in suggestions:
+                sev = finding.severity.value
+                print(f"\n  [{sev.upper()}] {finding.plugin}: {finding.title}")
+                print(f"  Fix: {fix.description}")
+                print("  ─────────────────────────────────────────────")
+                print(f"  {fix.command}")
+                print()
+            if not suggestions:
+                print("  No auto-fixes available for the detected findings.\n")
+
+    # Webhook notification (--webhook-url)
+    if getattr(args, "webhook_url", None):
+        from webscan.notify import build_webhook_payload, send_webhook
+        target_url = targets[0] if targets else ""
+        payload = build_webhook_payload(
+            args.webhook_url, report,
+            risk_score=risk_score_val,
+            grade=risk_breakdown.grade if risk_breakdown else None,
+            target=target_url,
+        )
+        if not quiet:
+            print(f"  Webhook     : sending to {args.webhook_url[:60]}…")
+        success = await send_webhook(args.webhook_url, payload)
+        if not quiet:
+            if success:
+                print("  Webhook     : sent ✓")
+            else:
+                print("  Webhook     : failed (scan results still saved)")
+            print()
+
     return _exit_code(report, args)
 
 
@@ -868,9 +917,41 @@ def _serve(argv: list[str]) -> NoReturn:
     sys.exit(0)
 
 
+def _diff(argv: list[str]) -> NoReturn:
+    """Handle ``webscan diff old.json new.json`` — compare two scan reports."""
+    sub = argparse.ArgumentParser(
+        prog="webscan diff",
+        description="Compare two WebScan JSON reports. Shows new, fixed, and changed findings.",
+    )
+    sub.add_argument("old", help="Baseline JSON report (e.g. from the last CI run).")
+    sub.add_argument("new", help="Current JSON report (e.g. from this PR's scan).")
+    sub.add_argument("--fail-on-new", action="store_true",
+                     help="Exit 1 if any new CRITICAL or HIGH finding appeared.")
+    opts = sub.parse_args(argv)
+
+    from webscan.diff import diff_reports, format_diff
+    from webscan.reporter import Reporter
+
+    try:
+        old_report = Reporter.from_json_file(opts.old)
+        new_report = Reporter.from_json_file(opts.new)
+    except (FileNotFoundError, ValueError) as exc:
+        _die(f"Failed to load report: {exc}")
+
+    result = diff_reports(old_report, new_report)
+    print(format_diff(result))
+
+    if opts.fail_on_new and result.has_regressions:
+        sys.exit(1)
+    sys.exit(0)
+
+
 def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "serve":
         _serve(sys.argv[2:])
+
+    if len(sys.argv) > 1 and sys.argv[1] == "diff":
+        _diff(sys.argv[2:])
 
     parser = _build_parser()
     _apply_config(parser)

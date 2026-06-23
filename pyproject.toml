@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "webscan-security"
-version = "2.6.0"
+version = "2.7.0"
 description = "CLI security auditing tool for web configuration vulnerabilities"
 readme = "README.md"
 license = { text = "MIT" }
@@ -99,6 +99,9 @@ race_condition = "webscan.plugins.race_condition:RaceConditionPlugin"
 request_smuggling = "webscan.plugins.request_smuggling:RequestSmugglingPlugin"
 web_cache_deception = "webscan.plugins.web_cache_deception:WebCacheDeceptionPlugin"
 websocket_security = "webscan.plugins.websocket_security:WebsocketSecurityPlugin"
+dns_security = "webscan.plugins.dns_security:DnsSecurityPlugin"
+csp_analyzer = "webscan.plugins.csp_analyzer:CspAnalyzerPlugin"
+waf_detect = "webscan.plugins.waf_detect:WafDetectPlugin"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -129,7 +132,13 @@ select = ["E", "F", "I", "N", "UP", "ANN", "BLE", "C4", "PTH"]
 [tool.ruff.lint.per-file-ignores]
 # Tests legitimately need typing.Any for fakes / shims / SDK stand-ins, and
 # they often don't need explicit returns. ANN401 (Any) is a no-op noise on tests.
-"tests/**/*.py" = ["ANN401", "ANN001", "ANN201", "ANN204"]
+"tests/**/*.py" = ["ANN401", "ANN001", "ANN201", "ANN204", "E501"]
+"webscan/plugins/dns_security.py" = ["E501"]
+"webscan/plugins/waf_detect.py" = ["E501"]
+"webscan/plugins/csp_analyzer.py" = ["E501"]
+"webscan/autofix.py" = ["E501"]
+"webscan/notify.py" = ["E501"]
+"webscan/diff.py" = ["E501"]
 
 # ─── pytest ──────────────────────────────────────────────────────────────────
 [tool.pytest.ini_options]

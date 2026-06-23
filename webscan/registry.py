@@ -18,9 +18,11 @@ from webscan.plugins.clickjacking import ClickjackingPlugin
 from webscan.plugins.config_files import ConfigFilesPlugin
 from webscan.plugins.cookies import CookiesPlugin
 from webscan.plugins.cors import CorsPlugin
+from webscan.plugins.csp_analyzer import CspAnalyzerPlugin
 from webscan.plugins.csrf import CsrfPlugin
 from webscan.plugins.cve_lookup import CveLookupPlugin
 from webscan.plugins.directories import DirectoriesPlugin
+from webscan.plugins.dns_security import DnsSecurityPlugin
 from webscan.plugins.file_upload import FileUploadPlugin
 from webscan.plugins.graphql import GraphqlPlugin
 from webscan.plugins.graphql_depth import GraphqlDepthPlugin
@@ -46,6 +48,7 @@ from webscan.plugins.ssti import SstiPlugin
 from webscan.plugins.subdomains import SubdomainsPlugin
 from webscan.plugins.tech_fingerprint import TechFingerprintPlugin
 from webscan.plugins.verbose_errors import VerboseErrorsPlugin
+from webscan.plugins.waf_detect import WafDetectPlugin
 from webscan.plugins.web_cache_deception import WebCacheDeceptionPlugin
 from webscan.plugins.websocket_security import WebsocketSecurityPlugin
 from webscan.plugins.xss import XssPlugin
@@ -94,6 +97,9 @@ _BUILTIN_PLUGINS: dict[str, type[BasePlugin]] = {
     "request_smuggling": RequestSmugglingPlugin,
     "web_cache_deception": WebCacheDeceptionPlugin,
     "websocket_security": WebsocketSecurityPlugin,
+    "dns_security":     DnsSecurityPlugin,
+    "csp_analyzer":     CspAnalyzerPlugin,
+    "waf_detect":       WafDetectPlugin,
 }
 
 

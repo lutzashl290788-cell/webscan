@@ -81,6 +81,54 @@ class Reporter:
     def __init__(self, report: ScanReport) -> None:
         self.report = report
 
+    @staticmethod
+    def from_json_file(path: str) -> ScanReport:
+        """Load a :class:`ScanReport` from a JSON file on disk.
+
+        Used by ``webscan diff old.json new.json`` to load baseline + current
+        reports for comparison.
+
+        :raises FileNotFoundError: If *path* does not exist.
+        :raises ValueError: If the file is not valid JSON or not a WebScan report.
+        """
+        from pathlib import Path
+
+        from webscan.models import Confidence, Finding, Severity, TargetResult
+
+        p = Path(path)
+        if not p.exists():
+            raise FileNotFoundError(f"Report file not found: {path}")
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Invalid JSON in {path}: {exc}") from exc
+
+        if not isinstance(data, dict) or "targets" not in data:
+            raise ValueError(f"Not a WebScan report: {path} (no 'targets' key)")
+
+        report = ScanReport(
+            scan_started=data.get("scan_started", ""),
+            scan_finished=data.get("scan_finished", ""),
+        )
+        report.total_findings = data.get("total_findings", 0)
+        for tr in data.get("targets", []):
+            target = TargetResult(
+                target=tr.get("target", ""),
+                findings=[],
+                scanned_at=tr.get("scanned_at", ""),
+            )
+            for f in tr.get("findings", []):
+                target.findings.append(Finding(
+                    plugin=f.get("plugin", ""),
+                    title=f.get("title", ""),
+                    severity=Severity(f.get("severity", "info")),
+                    confidence=Confidence(f.get("confidence", "informational")),
+                    description=f.get("description", ""),
+                    url=f.get("url", ""),
+                ))
+            report.targets.append(target)
+        return report
+
     # ------------------------------------------------------------------
     # JSON
     # ------------------------------------------------------------------
