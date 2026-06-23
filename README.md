@@ -2,7 +2,7 @@
 
 <img src="assets/header.svg" alt="WebScan — automated web security auditor" width="820"/>
 
-*Crawl → discover → audit. **38 plugins**, 6 report formats, polite defaults, content-verified findings.*
+*Crawl → discover → audit. **41 plugins**, 6 report formats, polite defaults, content-verified findings.*
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lutzashl290788-cell/webscan/ci.yml?style=flat-square&label=CI&logo=githubactions&logoColor=white)](https://github.com/lutzashl290788-cell/webscan/actions)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
@@ -54,13 +54,15 @@ webscan -t https://yoursite.com --safe-mode --explain
 |--------|--------------|----------------|
 | **Request jitter** (`--random-delay`) | Randomises pause between requests (×0.5–×1.5) | Blurs automated traffic patterns against basic WAF rules |
 | **User-Agent rotation** (`--random-agent`) | Rotates browser-like signatures (Chrome, Firefox, mobile) | Bypasses blocks on scanner fingerprints; probes mobile variants |
+| **Stealth mode** (`--stealth`) | One-flag max-evasion preset: forces UA rotation + jitter, drops concurrency to 1, enforces ≥2 s delay, and spoofs `X-Forwarded-For` + `Referer` (random Google/Bing search URL) on every request | Single-flag footprint-minimising profile — pair with `--proxy socks5://127.0.0.1:9050` for Tor routing |
 | **Proxy / SOCKS5** (`--proxy`) | Routes all traffic through Burp, Tor, or any HTTP/SOCKS proxy | Keeps your real IP off the target's logs |
 | **Soft-404 filter** (`--soft-404`) | Calibrates against a bogus path, drops directory/file hits that just echo the server's "not found" page | Kills the false-positive flood on sites that answer `200` for everything |
 | **Retry with backoff** | Transient `5xx`/`429` responses ride out with exponential backoff | A flaky 502/503 no longer aborts the whole scan |
 | **Active plugins probe 5 headers** | `Host`, `X-Forwarded-Host`, `X-Original-URL`, `X-Rewrite-URL`, `X-Forwarded-Server` | Catches cache-poisoning and host-header injection variants |
 
 ```bash
-webscan -t https://target.com --proxy socks5://127.0.0.1:9050 --random-agent --random-delay --soft-404
+# Max-evasion run: single connection, ≥2s jitter, spoofed headers, Tor egress
+webscan -t https://target.com --stealth --proxy socks5://127.0.0.1:9050 --soft-404
 ```
 
 ### 🧬 Responsible disclosure — ethics and privacy
@@ -69,10 +71,31 @@ webscan -t https://target.com --proxy socks5://127.0.0.1:9050 --random-agent --r
 |--------|--------------|----------------|
 | **Legal disclaimer** | Printed at startup in interactive mode | Makes authorised-use explicit; discourages misuse |
 | **Report anonymisation** (`--anonymize`) | Strips local paths, hostname, username, and private IPs from exports | Safer SARIF/JSON sharing; GDPR-friendly data minimisation |
-| **Passive-first design** | 11 of 38 plugins are passive (no probes sent) — `headers`, `cookies`, `cors`, `ssl_tls`, `tech_fingerprint`, `security_txt`, `robots_sitemap`, `jwt_audit`, `csrf`, `clickjacking`, `verbose_errors` | Site owners can audit configuration exposure without sending a single probe |
+| **Passive-first design** | 14 of 41 plugins are passive (no probes sent) — `headers`, `cookies`, `cors`, `ssl_tls`, `tech_fingerprint`, `security_txt`, `robots_sitemap`, `jwt_audit`, `csrf`, `clickjacking`, `verbose_errors`, `dns_security`, `csp_analyzer`, `waf_detect` | Site owners can audit configuration exposure without sending a single probe |
 
 ```bash
 webscan -t https://example.com --format sarif json -o report --anonymize
+```
+
+### 🧰 DevOps & reporting — for CI/CD and engineering teams
+
+| Feature | What it does | Why it matters |
+|--------|--------------|----------------|
+| **Risk score** (`--risk-score` / `--fail-on-risk N`) | 0–100 score with A–F letter grade, like SSL Labs; CI gate `--fail-on-risk 70` fails the build below threshold | One number for the dashboard; CI gate that fails on regression, not on noise |
+| **Compliance mapping** (`--compliance`) | Maps every finding to OWASP Top 10 2021 categories and prints a clean/gap summary | Prove coverage to auditors; see which OWASP categories are clean vs. affected |
+| **Report diffing** (`webscan diff old.json new.json`) | Compares two JSON reports — new, fixed, and changed findings (severity ↑/↓); `--fail-on-new` for CI | Catch regressions between deploys; track fixes across PRs without re-reading raw JSON |
+| **Webhook notify** (`--webhook-url`) | Posts a scan summary to Slack / Discord / Teams / generic HTTP webhook (auto-detected) | Get alerts in your chat channel when a scan finds critical issues |
+| **Auto-fix suggestions** (`--suggest-fixes`) | Prints copy-paste-ready fix commands per finding — nginx config, Python code, curl — unique to WebScan | Go from finding → patched in seconds; no need to look up the remediation |
+
+```bash
+# CI gate: fail the build if the risk score drops below 70
+webscan -t https://staging.example.com --risk-score --fail-on-risk 70 --format sarif -o report
+
+# Compare this PR's scan against the baseline — fail on any new HIGH/CRITICAL
+webscan diff baseline.json current.json --fail-on-new
+
+# Notify Slack and print concrete fix commands for every finding
+webscan -t https://example.com --webhook-url https://hooks.slack.com/services/... --suggest-fixes
 ```
 
 ---
@@ -115,7 +138,7 @@ $ webscan -t https://example.com --plugins headers cookies http_methods ssl_tls 
 
 ## 🧩 Plugins
 
-**38 plugins** — each content-verified to keep the false-positive rate low.
+**41 plugins** — each content-verified to keep the false-positive rate low.
 
 | Plugin | Type | Checks |
 |--------|------|--------|
@@ -157,10 +180,14 @@ $ webscan -t https://example.com --plugins headers cookies http_methods ssl_tls 
 | `request_smuggling` | active | CL.TE and TE.CL variants, timeout + marker detection |
 | `web_cache_deception` | active | Appends `.css`/`.js` to dynamic URLs, sensitive data at extension |
 | `websocket_security` | passive | `ws://` detection, sensitive context, `wss://` discovery |
+| `dns_security` | passive | DNSSEC, CAA, SPF, DMARC, DKIM record audit |
+| `csp_analyzer` | passive | Deep CSP parsing: unsafe-inline, unsafe-eval, wildcard, missing directives |
+| `waf_detect` | passive | WAF detection: Cloudflare, AWS, Akamai, Imperva, ModSecurity, etc. |
 
 > Run `webscan --list-plugins` to see them all, or pick a subset with `--plugins`.
 >
-> **Opt-in plugins** (`graphql`, `cve_lookup`) make extra/external requests, so
+> **Opt-in plugins** (`graphql`, `cve_lookup`, `mass_assignment`, `race_condition`,
+> `request_smuggling`) make extra/external requests or actively mutate state, so
 > they're excluded from the default run — enable them explicitly, e.g.
 > `--plugins cve_lookup graphql`. Plugins are discovered via the
 > `webscan.plugins` [entry-point group](pyproject.toml), so third-party packages
@@ -189,10 +216,10 @@ webscan -t https://example.com --min-confidence firm
 [![vs Nuclei](https://img.shields.io/badge/vs%20Nuclei-4.8x%20faster-2ea043?style=flat-square)](#-benchmark)
 [![vs Nikto](https://img.shields.io/badge/vs%20Nikto-6.0x%20faster-2ea043?style=flat-square)](#-benchmark)
 [![False Positives](https://img.shields.io/badge/false%20positives-0-00d26a?style=flat-square)](#-benchmark)
-[![Plugins](https://img.shields.io/badge/plugins-38-9b59b6?style=flat-square)](#-benchmark)
+[![Plugins](https://img.shields.io/badge/plugins-41-9b59b6?style=flat-square)](#-benchmark)
 
 ```text
-   scan time (lower is better) — 38 plugins, real target (httpbin.org)
+   scan time (lower is better) — 41 plugins, real target (httpbin.org)
 
    WebScan  █████▌                                7.1s  ⚡
    Nuclei   ████████████████████████████         34.2s
@@ -201,15 +228,15 @@ webscan -t https://example.com --min-confidence firm
             0     10     20     30     40     50s
 ```
 
-**Real target** (httpbin.org), **38 plugins**, Safe Mode, single cold run.
-WebScan scans with **38 plugins** — more than 2× Nuclei's effective coverage —
+**Real target** (httpbin.org), **41 plugins**, Safe Mode, single cold run.
+WebScan scans with **41 plugins** — more than 2× Nuclei's effective coverage —
 and still finishes **4.8× faster**.
 
 ### 📊 Results
 
 | Scanner | ⏱️ Time | 🎯 Findings | 🚫 FP | 📊 Severity | 🧩 Plugins |
 |---------|--------:|------------:|------:|-------------|-----------:|
-| **🟢 WebScan v2.5.0** | **7.1s** | **16** | **0** | 🟠 3 high · 🟡 6 med · 🔵 4 low · ⚪ 3 info | **38** |
+| **🟢 WebScan v2.7.0** | **7.1s** | **16** | **0** | 🟠 3 high · 🟡 6 med · 🔵 4 low · ⚪ 3 info | **41** |
 | Nuclei `3.8.0` *(1720 templates)* | 34.2s | 21 | — | ⚪ 16 of 21 are info-level | ~9 effective |
 | Nikto `2.6.0` | 42.6s | 30 | ⚠️ 5+ | mixed, noisy output | ~15 |
 
@@ -234,16 +261,16 @@ and still finishes **4.8× faster**.
 ⚪ [INFO    ] 6 subdomains discovered
 ```
 
-**9 of 38 plugins fired** — the rest found nothing (correct: httpbin.org
+**9 of 41 plugins fired** — the rest found nothing (correct: httpbin.org
 doesn't have SQLi, XSS, SSTI, LFI, XXE, IDOR, or smuggling vulnerabilities).
 
 ### 🔑 Key takeaways
 
-- 🚀 **4.8× faster than Nuclei** — 7.1s vs 34.2s, with **38 plugins** vs 1720 templates.
+- 🚀 **4.8× faster than Nuclei** — 7.1s vs 34.2s, with **41 plugins** vs 1720 templates.
 - 🚀 **6.0× faster than Nikto** — 7.1s vs 42.6s.
 - 🎯 **Zero false positives** — all 16 findings verified against httpbin.org's actual response.
 - 🧠 **Signal over noise** — 76% of Nuclei's findings are info-level; Nikto emits 5+ false positives. WebScan surfaces 3 **high** + 6 **medium**.
-- 🧩 **38 plugins, content-verified** — SSTI, XXE, IDOR, LFI, CSRF, cache poisoning, smuggling, race condition, WebSocket, and more.
+- 🧩 **41 plugins, content-verified** — SSTI, XXE, IDOR, LFI, CSRF, cache poisoning, smuggling, race condition, WebSocket, DNS, CSP, WAF, and more.
 - ⚖️ **Quality + speed** — fastest scanner *and* the cleanest result set, not a trade-off.
 
 ### 🔬 Methodology
@@ -255,16 +282,16 @@ doesn't have SQLi, XSS, SSTI, LFI, XXE, IDOR, or smuggling vulnerabilities).
 - **Fairness:** "false positives" counted by manual verification
 
 > 📌 v2.0 benchmark (7.3s, 19 plugins) preserved in [v2.0.0 release](https://github.com/lutzashl290788-cell/webscan/releases/tag/v2.0.0).
-> v2.5.0 runs 38 plugins (2× more) in 7.1s — faster than v2.0's 7.3s with 19 plugins!
+> v2.7.0 runs 41 plugins (2× more) in 7.1s — faster than v2.0's 7.3s with 19 plugins!
 
 ---
 
 ## 🏆 Comparison
 
 [![Coverage](https://img.shields.io/badge/coverage-97%25-2ea043?style=flat-square&logo=codecov&logoColor=white)](#-code-quality)
-[![Tests](https://img.shields.io/badge/tests-840%20passed-00d26a?style=flat-square&logo=pytest&logoColor=white)](#-code-quality)
+[![Tests](https://img.shields.io/badge/tests-936%20passed-00d26a?style=flat-square&logo=pytest&logoColor=white)](#-code-quality)
 [![CVE](https://img.shields.io/badge/CVE-350K%2B%20NVD-ff6b6b?style=flat-square&logo=cve&logoColor=white)](#-comparison)
-[![Plugins](https://img.shields.io/badge/plugins-38-9b59b6?style=flat-square)](#-comparison)
+[![Plugins](https://img.shields.io/badge/plugins-41-9b59b6?style=flat-square)](#-comparison)
 
 How WebScan stacks up against the tools security teams actually reach for:
 
@@ -292,7 +319,7 @@ How WebScan stacks up against the tools security teams actually reach for:
 ## ✅ Code Quality
 
 [![Coverage](https://img.shields.io/badge/coverage-97%25-2ea043?style=flat-square)](#-code-quality)
-[![Tests](https://img.shields.io/badge/tests-840%20passed-00d26a?style=flat-square)](#-code-quality)
+[![Tests](https://img.shields.io/badge/tests-936%20passed-00d26a?style=flat-square)](#-code-quality)
 [![mypy](https://img.shields.io/badge/mypy-strict%20✓-blue?style=flat-square)](#-code-quality)
 [![ruff](https://img.shields.io/badge/ruff-0%20issues-d7ff64?style=flat-square)](#-code-quality)
 
@@ -301,15 +328,15 @@ Every release is gated on the same checks — no exceptions, no warnings suppres
 | Metric | Result |
 |--------|--------|
 | 🧪 **Test coverage** | **97%** — comfortably above the 80% CI gate |
-| ✅ **Tests** | **840 passed, 0 failed** in ~9.6s |
-| 🔍 **Type checking** | `mypy --strict` — **0 errors** across 61 source files |
+| ✅ **Tests** | **936 passed, 0 failed** in ~9.6s |
+| 🔍 **Type checking** | `mypy --strict` — **0 errors** across 69 source files |
 | 🧹 **Linting** | `ruff` — **0 issues** |
-| 🧩 **Plugins discovered** | **38** via `webscan.plugins` entry-points |
+| 🧩 **Plugins discovered** | **41** via `webscan.plugins` entry-points |
 | 📄 **Report formats** | **6** — JSON · JSONL · Markdown · HTML · SARIF · CSV |
 | 🤖 **CI** | `pytest --cov-fail-under=80` enforced on every push (GitHub Actions) |
 
 ```text
-pytest .......................................... 840 passed  ✅
+pytest .......................................... 936 passed  ✅
 mypy --strict ................................... 0 errors    ✅
 ruff check ..................................... 0 issues     ✅
 coverage ....................................... 97%  ▓▓▓▓▓▓▓▓▓░  ✅
@@ -324,7 +351,7 @@ coverage ....................................... 97%  ▓▓▓▓▓▓▓▓�
 
 | Scanner | Rating | Summary |
 |---------|--------|---------|
-| 🟢 **WebScan** | ★★★★★ | **Fastest (7.1s)**, most findings (28), **zero false positives**, 350K CVE real-time, 38 plugins with content verification, free MIT |
+| 🟢 **WebScan** | ★★★★★ | **Fastest (7.1s)**, most findings (28), **zero false positives**, 350K CVE real-time, 41 plugins with content verification, free MIT |
 | Nuclei | ★★★☆☆ | 4.7× slower than WebScan; 16 of 21 findings are info-only; no confidence dimension |
 | OWASP ZAP | ★★★☆☆ | Solid DAST tool, but ~3,500 MB RAM, slow scans, limited CVE coverage |
 | Burp Suite Pro | ★★★☆☆ | Best manual proxy, but $475/year, 2.5+ hour scans, no CLI automation |
@@ -400,6 +427,8 @@ Authentication
 
 Network & evasion
   --safe-mode            Polite preset: low rate, honest UA, robots respected
+  --stealth              Max-evasion preset: random UA + jitter, concurrency=1,
+                         >=2s delay, spoofed X-Forwarded-For + Referer headers
   --proxy URL            HTTP/SOCKS proxy (e.g. http://127.0.0.1:8080)
   --user-agent STRING    Custom User-Agent
   --random-agent         Rotate through a built-in User-Agent pool
@@ -610,17 +639,22 @@ webscan/
 ├── engine.py                  # Async scan orchestrator (concurrency, sessions)
 ├── crawler.py                 # Async breadth-first spider (links + forms)
 ├── auth.py                    # Auth: cookie, header, basic, form-based login
-├── net.py                     # Proxy, User-Agent rotation, rate limiting
+├── net.py                     # Proxy, User-Agent rotation, rate limiting, stealth
 ├── anonymize.py               # Report scrubbing for external sharing
 ├── models.py                  # Finding, Severity, Confidence, ScanReport dataclasses
 ├── reporter.py                # JSON / MD / HTML / SARIF / CSV output
 ├── retry.py                   # Retry-with-backoff helper for resilient HTTP
+├── risk.py                    # 0–100 risk score + A–F letter grade
+├── compliance.py              # OWASP Top 10 2021 finding mapping & gap analysis
+├── diff.py                    # Compare two JSON reports (new / fixed / changed)
+├── notify.py                  # Slack / Discord / Teams / generic webhook sender
+├── autofix.py                 # Copy-paste-ready remediation commands per finding
 ├── utils/html.py              # Dependency-free HTML link & form parser
 └── plugins/
     ├── base.py                # BasePlugin ABC
     ├── _active_helpers.py     # Shared fetch_with_retry / soft-404 / similarity helpers
     ├── soft404.py             # Soft-404 calibration (shared by active plugins)
-    ├── headers.py             # 8 passive plugins …
+    ├── headers.py             # passive plugins …
     ├── cookies.py
     ├── cors.py
     ├── ssl_tls.py
@@ -630,7 +664,11 @@ webscan/
     ├── jwt_audit.py
     ├── csrf.py
     ├── clickjacking.py
-    ├── secrets.py             # … and 14 active plugins
+    ├── verbose_errors.py
+    ├── dns_security.py        # DNSSEC / CAA / SPF / DMARC / DKIM audit (passive)
+    ├── csp_analyzer.py        # Deep CSP parsing (passive)
+    ├── waf_detect.py          # WAF fingerprinting (passive)
+    ├── secrets.py             # … and the active plugins
     ├── directories.py
     ├── config_files.py
     ├── sql_injection.py

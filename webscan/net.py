@@ -16,6 +16,16 @@ USER_AGENTS: list[str] = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
 ]
 
+# Spoofed search-engine Referer values used by ``--stealth``. A real browser
+# request to a deep link often carries a Google/Bing/Yahoo search Referer;
+# emitting one makes scanner traffic blend with organic navigation.
+STEALTH_REFERERS: list[str] = [
+    "https://www.google.com/search?q=site%3A{host}",
+    "https://www.google.com/search?q={host}+login",
+    "https://www.bing.com/search?q=site%3A{host}",
+    "https://duckduckgo.com/?q={host}",
+]
+
 
 @dataclass
 class NetConfig:
@@ -32,6 +42,13 @@ class NetConfig:
     # Set via ``--strict-ssl`` on the CLI. The legacy ``--no-verify-ssl`` flag
     # is a no-op kept for backward compatibility.
     verify_ssl: bool = False
+    # Stealth mode (``--stealth``): forces UA rotation + jitter, drops
+    # concurrency to 1, enforces a ≥2 s delay, and injects spoofed
+    # ``X-Forwarded-For`` / ``Referer`` headers per request. When True,
+    # :func:`pick_user_agent` always returns a random UA regardless of
+    # ``user_agent`` / ``random_agent`` — the whole point of stealth is to
+    # *not* emit the operator's chosen fingerprint.
+    stealth: bool = False
 
     def base_delay(self) -> float:
         """Per-target delay before jitter: max of ``delay`` and the rate-limit gap."""
@@ -56,9 +73,14 @@ class NetConfig:
 def pick_user_agent(config: NetConfig, index: int, default: str) -> str:
     """Return the User-Agent to use for the *index*-th unit of work.
 
-    Precedence: explicit ``--user-agent`` > ``--random-agent`` rotation >
-    *default*. Rotation is deterministic in *index* to stay reproducible.
+    Precedence: ``stealth`` (always rotate) > explicit ``--user-agent`` >
+    ``--random-agent`` rotation > *default*. Rotation is deterministic in
+    *index* to stay reproducible.
     """
+    # Stealth forces rotation regardless of any explicit override — emitting
+    # the operator's custom UA would defeat the whole point of --stealth.
+    if config.stealth:
+        return USER_AGENTS[index % len(USER_AGENTS)]
     if config.user_agent:
         return config.user_agent
     if config.random_agent:

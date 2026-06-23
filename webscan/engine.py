@@ -32,6 +32,10 @@ _REDIRECT_SENSITIVE_HEADERS = (
     "proxy-authorization",
 )
 
+# Minimum per-target delay enforced by ``--stealth``. Picked to sit well below
+# the typical WAF rate-limit threshold while keeping the scan practical.
+_STEALTH_MIN_DELAY: float = 2.0
+
 ProgressCallback = Callable[[str, int, int], None]
 
 
@@ -98,6 +102,73 @@ def _build_redirect_safe_trace() -> aiohttp.TraceConfig:
     return trace
 
 
+def _random_forwarded_for() -> str:
+    """Return a random public-looking IPv4 for the ``X-Forwarded-For`` header.
+
+    Avoids RFC 1918 / loopback / link-local ranges so the spoofed client IP
+    looks like a real upstream visitor, not a probe from inside the operator's
+    own network.
+    """
+    while True:
+        octet0 = random.randint(1, 254)
+        # Skip private/loopback/reserved first octets (10, 127, 169, 172, 192).
+        if octet0 in (10, 127, 169, 172, 192):
+            continue
+        return ".".join(
+            str(octet) for octet in (octet0, *(random.randint(0, 255) for _ in range(3)))
+        )
+
+
+def _random_search_referer(target_url: str) -> str:
+    """Return a random Google/Bing/DuckDuckGo search Referer for *target_url*.
+
+    Pairs naturally with ``--stealth``: real visitors often arrive at a deep
+    link from a search engine, so a search-style Referer makes the request
+    blend with organic traffic instead of looking like a direct scanner hit.
+    """
+    from urllib.parse import quote
+
+    host = urlparse(target_url).hostname or "example.com"
+    templates = [
+        f"https://www.google.com/search?q=site%3A{quote(host)}",
+        f"https://www.google.com/search?q={quote(host)}+login",
+        f"https://www.bing.com/search?q=site%3A{quote(host)}",
+        f"https://duckduckgo.com/?q={quote(host)}",
+    ]
+    return random.choice(templates)
+
+
+def _build_stealth_trace() -> aiohttp.TraceConfig:
+    """Build a TraceConfig that injects spoofed stealth headers per request.
+
+    For every outgoing request this sets a random ``X-Forwarded-For`` IP and a
+    random Google/Bing/DuckDuckGo ``Referer`` derived from the target host. The
+    headers are written into aiohttp's mutable request headers in
+    ``on_request_start`` so each request gets fresh values — the whole point of
+    ``--stealth`` is to avoid emitting a stable fingerprint across probes.
+    """
+
+    async def _on_request_start(
+        session: aiohttp.ClientSession,
+        trace_plan_ctx: Any,  # noqa: ANN401 - aiohttp-defined trace context is dynamic
+        params: aiohttp.TraceRequestStartParams,
+    ) -> None:
+        # aiohttp always populates ``params.headers`` with at least the session
+        # defaults, but the mapping may legitimately be empty if the operator
+        # zeroed every default. We always inject the stealth headers — the
+        # whole point of the trace hook is to *add* fingerprint-masking headers
+        # to whatever the request already carries.
+        headers = params.headers
+        if headers is None:  # pragma: no cover - aiohttp always provides a CIMultiDict
+            return
+        headers["X-Forwarded-For"] = _random_forwarded_for()
+        headers["Referer"] = _random_search_referer(str(params.url))
+
+    trace = aiohttp.TraceConfig()
+    trace.on_request_start.append(_on_request_start)
+    return trace
+
+
 class ScanEngine:
     """
     Runs all configured plugins against every target URL concurrently.
@@ -107,6 +178,9 @@ class ScanEngine:
     :param timeout:     Per-request timeout in seconds.
     :param on_progress: Optional callback ``(target, done, total) -> None``
                         invoked after each target finishes.
+    :param stealth:     When True, the engine shrinks the connection pool to a
+                        single connection and injects spoofed
+                        ``X-Forwarded-For`` / ``Referer`` headers per request.
     """
 
     def __init__(
@@ -122,6 +196,7 @@ class ScanEngine:
         delay: float = 0.0,
         random_delay: bool = False,
         verify_ssl: bool = False,
+        stealth: bool = False,
     ) -> None:
         self.plugins = plugins
         self.concurrency = max(1, concurrency)
@@ -134,6 +209,7 @@ class ScanEngine:
         self._user_agent = user_agent
         self._delay = max(0.0, delay)
         self._random_delay = random_delay
+        self._stealth = stealth
 
     # ------------------------------------------------------------------
     # Public API
@@ -147,17 +223,32 @@ class ScanEngine:
         total = len(targets)
         done_counter = 0
 
-        connector = aiohttp.TCPConnector(
-            limit=self.concurrency * 8,  # total connection pool
-            limit_per_host=self.concurrency,
-            ssl=self._ssl_ctx,
-        )
+        if self._stealth:
+            # Single in-flight connection, single per-host slot — the goal of
+            # stealth is minimal footprint, not throughput. Dropping the pool
+            # also makes the spoofed X-Forwarded-For sequence look like one
+            # client browsing, rather than a burst of parallel probes.
+            connector = aiohttp.TCPConnector(
+                limit=1,
+                limit_per_host=1,
+                ssl=self._ssl_ctx,
+            )
+        else:
+            connector = aiohttp.TCPConnector(
+                limit=self.concurrency * 8,  # total connection pool
+                limit_per_host=self.concurrency,
+                ssl=self._ssl_ctx,
+            )
         semaphore = asyncio.Semaphore(self.concurrency)
 
         merged_headers = {**_DEFAULT_HEADERS, **self._auth_headers}
         if self._user_agent:
             merged_headers["User-Agent"] = self._user_agent
         cookies = self._auth_cookies or None
+
+        trace_configs = [_build_redirect_safe_trace()]
+        if self._stealth:
+            trace_configs.append(_build_stealth_trace())
 
         async with aiohttp.ClientSession(
             connector=connector,
@@ -171,7 +262,7 @@ class ScanEngine:
             # host. Without this, ``--basic-auth admin:secret`` against a target
             # that responds with ``302 Location: http://attacker/`` would replay
             # the credentials on the attacker host (CWE-200 / CWE-522).
-            trace_configs=[_build_redirect_safe_trace()],
+            trace_configs=trace_configs,
         ) as session:
 
             async def _bounded(target: str) -> TargetResult:

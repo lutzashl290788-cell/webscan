@@ -75,6 +75,7 @@ Examples
     _add_crawler_args(parser)
     _add_auth_args(parser)
     _add_network_args(parser)
+    _add_stealth_args(parser)
     _add_plugin_args(parser)
     _add_output_args(parser)
     _add_performance_args(parser)
@@ -267,6 +268,26 @@ def _add_network_args(parser: argparse.ArgumentParser) -> None:
         help="Calibrate against a non-existent path first and suppress "
         "directories/config_files findings that match the server's soft-404 "
         "page (cuts false positives on sites that answer 200 for everything).",
+    )
+
+
+def _add_stealth_args(parser: argparse.ArgumentParser) -> None:
+    """Register the ``--stealth`` flag in its own argument group.
+
+    ``--stealth`` is a one-flag max-evasion preset that forces UA rotation +
+    request jitter, drops concurrency to 1, enforces a ≥2 s delay, and injects
+    spoofed ``X-Forwarded-For`` / ``Referer`` headers per request. Pair with
+    ``--proxy socks5://127.0.0.1:9050`` for Tor routing.
+    """
+    sg = parser.add_argument_group("Stealth")
+    sg.add_argument(
+        "--stealth",
+        action="store_true",
+        help="Max-evasion preset: forces --random-agent + --random-delay, "
+        "drops concurrency to 1, enforces >=2s delay between requests, and "
+        "spoofs X-Forwarded-For (random IP) + Referer (random Google/Bing "
+        "search URL) headers on every request. Pair with --proxy "
+        "socks5://127.0.0.1:9050 for Tor egress.",
     )
 
 
@@ -536,16 +557,45 @@ def _apply_safe_mode(args: argparse.Namespace) -> float:
     return rate_limit
 
 
+def _apply_stealth_mode(args: argparse.Namespace) -> None:
+    """Apply the max-evasion Stealth preset onto *args* in place.
+
+    ``--stealth`` overrides several other flags on purpose: it forces UA
+    rotation + request jitter on (regardless of what the operator passed),
+    drops concurrency to 1 (single connection, no parallelism), and enforces a
+    minimum 2 s delay between requests. The spoofed ``X-Forwarded-For`` /
+    ``Referer`` headers are injected at the engine layer (see
+    :func:`webscan.engine._build_stealth_trace`), not here.
+
+    Safe Mode takes precedence over Stealth for *politeness* settings
+    (rate-limit cap, honest UA, robots respect) — combining the two yields a
+    polite *and* evasive scan.
+    """
+    if not getattr(args, "stealth", False):
+        return
+    # Force UA rotation + jitter on, even if the operator didn't pass them.
+    args.random_agent = True
+    args.random_delay = True
+    # Single connection, no parallelism — minimal network footprint.
+    args.concurrency = 1
+    # At least 2 s between requests; honour a larger explicit delay.
+    args.delay = max(float(args.delay or 0.0), 2.0)
+
+
 def _resolve_net(args: argparse.Namespace, rate_limit: float) -> NetConfig:
     """Build the network config and publish proxy env vars for aiohttp."""
+    stealth = bool(getattr(args, "stealth", False))
     net = NetConfig(
         proxy=args.proxy or "",
         user_agent=args.user_agent or "",
+        # Safe Mode suppresses random_agent, but Stealth forces it back on —
+        # stealth's whole point is to *not* emit the operator's UA.
         random_agent=args.random_agent and not args.safe_mode,
         delay=args.delay,
         random_delay=args.random_delay,
         rate_limit=rate_limit,
         verify_ssl=bool(args.strict_ssl),
+        stealth=stealth,
     )
     if net.proxy:
         os.environ["HTTP_PROXY"] = net.proxy
@@ -655,6 +705,7 @@ async def _run(args: argparse.Namespace) -> int:
     quiet: bool = args.quiet
     auth = await _resolve_auth(args)
     rate_limit = _apply_safe_mode(args)
+    _apply_stealth_mode(args)
     net = _resolve_net(args, rate_limit)
 
     if not quiet:
@@ -692,6 +743,7 @@ async def _run(args: argparse.Namespace) -> int:
         delay=net.base_delay(),
         random_delay=net.random_delay,
         verify_ssl=bool(getattr(args, "strict_ssl", False)),
+        stealth=net.stealth,
     )
     report = await engine.scan_all(targets)
     if not quiet:
@@ -812,7 +864,7 @@ async def _run(args: argparse.Namespace) -> int:
 def _print_setup(
     args: argparse.Namespace, auth: PreparedAuth, net: NetConfig
 ) -> None:
-    """Print the auth / safe-mode / proxy status lines before scanning."""
+    """Print the auth / safe-mode / stealth / proxy status lines before scanning."""
     if (args.cookie or args.header or args.basic_auth or args.login_url) and (
         auth.cookies or auth.headers
     ):
@@ -824,6 +876,8 @@ def _print_setup(
         print(f"  Auth        : {', '.join(bits) or 'configured'}")
     if args.safe_mode:
         print("  Safe Mode   : on (polite rate, honest UA, robots respected)")
+    if getattr(args, "stealth", False):
+        print("  Stealth Mode : on (max evasion, minimal footprint)")
     if net.proxy:
         print(f"  Proxy       : {_mask_proxy_url(net.proxy)}")
 

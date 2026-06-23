@@ -1,14 +1,19 @@
 """Tests for v2.7.0 killer features: diff, notify, autofix, new plugins."""
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
+import aiohttp
 import pytest
 
+from webscan import cli
 from webscan.autofix import FixSuggestion, suggest_fix, suggest_fixes_for_report
 from webscan.diff import ChangedFinding, DiffResult, diff_reports, format_diff
+from webscan.engine import ScanEngine, _build_stealth_trace, _random_forwarded_for
 from webscan.models import Confidence, Finding, ScanReport, Severity, TargetResult
+from webscan.net import USER_AGENTS, NetConfig, pick_user_agent
 from webscan.notify import (
     build_discord_message,
     build_generic_payload,
@@ -353,3 +358,168 @@ def test_total_plugin_count() -> None:
     """Total plugins should be 41 (38 + 3 new)."""
     from webscan.registry import ALL_PLUGINS
     assert len(ALL_PLUGINS) == 41
+
+
+# ─── Stealth mode tests (--stealth) ─────────────────────────────────────────
+#
+# Mirrors the _apply_safe_mode test pattern in test_cli.py: build a Namespace
+# with --stealth, run the preset applier, and assert the post-conditions.
+
+
+def _stealth_ns(stealth: bool = False, **kw: object) -> argparse.Namespace:
+    """Build a minimal args Namespace for stealth-mode preset tests.
+
+    Defaults mirror the argparse defaults so tests don't need to spell out
+    every flag — pass ``stealth=True`` to exercise the preset.
+    """
+    defaults: dict[str, object] = {
+        "stealth": stealth,
+        "random_agent": False,
+        "random_delay": False,
+        "concurrency": 10,
+        "delay": 0.0,
+    }
+    defaults.update(kw)
+    return argparse.Namespace(**defaults)
+
+
+def test_stealth_mode_sets_random_agent() -> None:
+    """``--stealth`` forces ``random_agent=True`` regardless of the operator's flags."""
+    args = _stealth_ns(stealth=True, random_agent=False)
+    cli._apply_stealth_mode(args)
+    assert args.random_agent is True
+
+
+def test_stealth_mode_sets_low_concurrency() -> None:
+    """``--stealth`` drops concurrency to 1 (single connection, no parallelism)."""
+    args = _stealth_ns(stealth=True, concurrency=20)
+    cli._apply_stealth_mode(args)
+    assert args.concurrency == 1
+
+
+def test_stealth_mode_sets_random_delay() -> None:
+    """``--stealth`` forces ``random_delay=True`` so the per-target delay is jittered."""
+    args = _stealth_ns(stealth=True, random_delay=False)
+    cli._apply_stealth_mode(args)
+    assert args.random_delay is True
+    # And the base delay is floored at 2.0 s.
+    assert args.delay >= 2.0
+
+
+def test_stealth_mode_floors_delay_at_two_seconds() -> None:
+    """``--stealth`` enforces a minimum 2 s delay even when --delay was lower."""
+    args = _stealth_ns(stealth=True, delay=0.5)
+    cli._apply_stealth_mode(args)
+    assert args.delay == 2.0
+
+
+def test_stealth_mode_preserves_larger_delay() -> None:
+    """A larger explicit --delay is honoured by ``--stealth`` (max semantics)."""
+    args = _stealth_ns(stealth=True, delay=5.0)
+    cli._apply_stealth_mode(args)
+    assert args.delay == 5.0
+
+
+def test_stealth_mode_off_is_noop() -> None:
+    """Without ``--stealth`` the preset applier leaves the args untouched."""
+    args = _stealth_ns(stealth=False, concurrency=20, delay=0.5,
+                       random_agent=True, random_delay=True)
+    cli._apply_stealth_mode(args)
+    assert args.concurrency == 20
+    assert args.delay == 0.5
+    assert args.random_agent is True
+    assert args.random_delay is True
+
+
+def test_stealth_mode_forces_random_user_agent() -> None:
+    """``NetConfig.stealth=True`` makes ``pick_user_agent`` always rotate."""
+    cfg = NetConfig(stealth=True, user_agent="MyFingerprint/1.0", random_agent=False)
+    ua = pick_user_agent(cfg, 0, "Default/1.0")
+    # Stealth ignores the explicit UA — emitting it would defeat the point.
+    assert ua != "MyFingerprint/1.0"
+    assert ua in USER_AGENTS
+
+
+def test_resolve_net_threads_stealth_flag() -> None:
+    """``--stealth`` is wired from args into the NetConfig returned by _resolve_net."""
+    args = _stealth_ns(
+        stealth=True,
+        proxy="",
+        user_agent="",
+        random_agent=False,
+        safe_mode=False,
+        delay=2.0,
+        random_delay=False,
+        no_verify_ssl=True,
+        strict_ssl=False,
+    )
+    net = cli._resolve_net(args, rate_limit=0.0)
+    assert net.stealth is True
+
+
+def test_random_forwarded_for_is_public_ipv4() -> None:
+    """``_random_forwarded_for`` returns a 4-octet IPv4 with no private first octet."""
+    for _ in range(50):
+        ip = _random_forwarded_for()
+        octets = ip.split(".")
+        assert len(octets) == 4
+        first = int(octets[0])
+        assert 1 <= first <= 254
+        # No private / loopback / link-local / CGNAT first octets.
+        assert first not in (10, 127, 169, 172, 192)
+
+
+async def test_stealth_mode_adds_forwarded_for_header() -> None:
+    """A stealth-enabled engine injects ``X-Forwarded-For`` + ``Referer`` per request.
+
+    Invokes the stealth trace config's ``on_request_start`` callback directly
+    with a fake params object — no real network needed. The trace hook must
+    mutate the request headers in place, exactly as aiohttp would observe
+    during a live scan.
+    """
+    trace = _build_stealth_trace()
+    assert trace.on_request_start, "stealth trace should register an on_request_start hook"
+
+    fake_headers: dict[str, str] = {}
+    fake_params = argparse.Namespace(
+        headers=fake_headers,
+        url="https://example.com/page",
+    )
+    for cb in trace.on_request_start:
+        await cb(None, None, fake_params)  # type: ignore[arg-type]
+
+    assert "X-Forwarded-For" in fake_headers
+    assert "Referer" in fake_headers
+    # Referer should be a search-engine URL referencing the target host.
+    assert "example.com" in fake_headers["Referer"]
+    # X-Forwarded-For must look like a public IPv4 (no private first octet).
+    first_octet = int(fake_headers["X-Forwarded-For"].split(".")[0])
+    assert first_octet not in (10, 127, 169, 172, 192)
+
+
+async def test_stealth_engine_uses_single_connection_pool() -> None:
+    """A stealth ScanEngine builds its connector with limit=1 / limit_per_host=1.
+
+    We can't easily introspect the live TCPConnector, but we can verify the
+    engine stored the stealth flag and that ``scan_all`` runs to completion
+    against an empty target list (which exercises the connector construction
+    branch without making real HTTP requests).
+    """
+    from webscan.plugins.base import BasePlugin
+
+    class _NoopPlugin(BasePlugin):
+        name = "noop"
+        description = "yields nothing"
+
+        async def run(self, target: str, session: aiohttp.ClientSession) -> list[Finding]:
+            return []
+
+    engine = ScanEngine([_NoopPlugin()], concurrency=10, timeout=5, stealth=True)
+    assert engine._stealth is True
+    # Sanity: the engine reports the *requested* concurrency, but the stealth
+    # branch in scan_all overrides the connector pool size — the operator's
+    # concurrency value is preserved on the instance for logging.
+    assert engine.concurrency == 10
+    report = await engine.scan_all([])
+    assert report.targets == []
+    assert report.total_findings == 0
