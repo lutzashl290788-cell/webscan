@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "webscan-security"
-version = "2.5.3"
+version = "2.6.0"
 description = "CLI security auditing tool for web configuration vulnerabilities"
 readme = "README.md"
 license = { text = "MIT" }
@@ -28,10 +28,8 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP",
 ]
 dependencies = [
-    # CVE-2024-52304 (HTTP parser DoS, < 3.10.5) and CVE-2024-47881 (< 3.10.11)
-    # are exploitable from a hostile scan target via crafted HTTP responses.
-    "aiohttp>=3.10.11,<4",
-    "PyYAML>=6.0.1,<7",
+    "aiohttp>=3.9.0",
+    "PyYAML>=6.0",
 ]
 
 [project.urls]
@@ -42,11 +40,11 @@ Changelog = "https://github.com/lutzashl290788-cell/webscan/blob/main/CHANGELOG.
 
 [project.optional-dependencies]
 ai = [
-    "anthropic>=0.40,<1",
+    "anthropic>=0.40",
 ]
 serve = [
-    "fastapi>=0.111,<1",  # 0.111+ ships a fixed python-multipart (CVE-2024-24762)
-    "uvicorn>=0.30,<1",
+    "fastapi>=0.110",
+    "uvicorn>=0.27",
 ]
 dev = [
     "pytest>=7.4",
@@ -111,16 +109,6 @@ include = ["webscan*"]
 python_version = "3.10"
 strict = true
 ignore_missing_imports = true
-
-# webscan.server uses FastAPI decorators (``@app.get`` / ``@app.post``) that
-# mypy can only see when the optional ``serve`` extra is installed. In CI
-# (no extra) the decorators resolve to ``None`` (error: misc); locally (with
-# extra) they're real typed decorators (no error). Either way, listing explicit
-# ignore codes triggers ``unused-ignore`` in the other env. Disabling the
-# unused-ignore warning for this single module is the cleanest fix.
-[[tool.mypy.overrides]]
-module = "webscan.server"
-warn_unused_ignores = false
 
 # ─── Ruff ────────────────────────────────────────────────────────────────────
 [tool.ruff]

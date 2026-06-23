@@ -365,6 +365,26 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
         help="Exit with code 1 if any finding is at or above LEVEL "
         "(default: critical or high).",
     )
+    og.add_argument(
+        "--risk-score",
+        action="store_true",
+        help="Print a 0-100 risk score (like SSL Labs) after the scan. "
+        "100 = perfect, 0 = critical. Includes a letter grade (A-F).",
+    )
+    og.add_argument(
+        "--fail-on-risk",
+        type=int,
+        metavar="N",
+        help="Exit with code 1 if the risk score is below N (0-100). "
+        "Use as a CI gate: --fail-on-risk 70 fails if the score is < 70.",
+    )
+    og.add_argument(
+        "--compliance",
+        action="store_true",
+        help="Map findings to OWASP Top 10 2021 categories and print a "
+        "compliance summary. Shows which categories are affected and which "
+        "are clean.",
+    )
 
 
 def _add_performance_args(parser: argparse.ArgumentParser) -> None:
@@ -681,6 +701,33 @@ async def _run(args: argparse.Namespace) -> int:
 
     reporter = Reporter(report)
 
+    # Risk score (optional, --risk-score or --fail-on-risk or --compliance).
+    risk_breakdown = None
+    risk_score_val: float | None = None
+    if getattr(args, "risk_score", False) or getattr(args, "fail_on_risk", None) is not None:
+        from webscan.risk import compute_risk_score, risk_recommendation
+        risk_score_val, risk_breakdown = compute_risk_score(report)
+        if not quiet:
+            print(f"  Risk score   : {risk_score_val:.0f}/100 ({risk_breakdown.grade})")
+            print(f"                {risk_recommendation(risk_breakdown.grade)}")
+            print()
+
+    # Compliance mapping (optional, --compliance).
+    if getattr(args, "compliance", False):
+        from webscan.compliance import compliance_gap_analysis, compliance_summary, map_findings
+        mapping = map_findings(report)
+        summary = compliance_summary(mapping)
+        gaps = compliance_gap_analysis(mapping)
+        if not quiet:
+            print("  Compliance   : OWASP Top 10 2021")
+            print(f"  {'Category':<45} {'Findings':>8}  Severity breakdown")
+            print(f"  {'─' * 45} {'─' * 8}  {'─' * 30}")
+            for cat_id, cat_name, count, sev_summary in summary:
+                print(f"  {cat_id} {cat_name:<42} {count:>8}  {sev_summary}")
+            if gaps:
+                print(f"\n  Clean (no findings): {', '.join(f'{c[0]} {c[1]}' for c in gaps)}")
+            print()
+
     if not quiet:
         use_color = not args.no_color and sys.stdout.isatty()
         min_sev = Severity(args.min_severity) if args.min_severity else None
@@ -699,6 +746,16 @@ async def _run(args: argparse.Namespace) -> int:
 
     if args.output:
         _write_reports(reporter, args)
+
+    # CI gate: --fail-on-risk
+    if getattr(args, "fail_on_risk", None) is not None and risk_score_val is not None:
+        if risk_score_val < args.fail_on_risk:
+            if not quiet:
+                print(
+                    f"  [!] Risk score {risk_score_val:.0f} is below "
+                    f"threshold {args.fail_on_risk} — failing."
+                )
+            return 1
 
     return _exit_code(report, args)
 

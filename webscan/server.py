@@ -43,12 +43,7 @@ from webscan.reporter import Reporter
 try:  # pragma: no cover - import wiring
     from fastapi import FastAPI, HTTPException, Request
 except Exception:  # noqa: BLE001 - missing optional dep => names are None
-    # When fastapi is installed, mypy sees the real class types and complains
-    # about assigning None (code: `assignment`). When fastapi is missing, mypy
-    # treats the names as Any and complains about a bare None reassignment
-    # (code: `misc`). A bare `# type: ignore` covers both cases without
-    # triggering `unused-ignore` in either environment.
-    FastAPI = HTTPException = Request = None  # type: ignore
+    FastAPI = HTTPException = Request = None  # type: ignore[assignment,misc]
 
 # Default bind address: localhost only. Surfacing this as constants keeps the
 # CLI and the docs in agreement on the safe default.
@@ -160,35 +155,15 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="WebScan",
-        version="2.5.3",
+        version="2.6.0",
         description="Local HTTP backend for the WebScan security scanner.",
     )
 
-    # Explicit CORS deny-all: a browser front-end on a different origin must
-    # NOT be able to drive scans through this backend. If a future UI needs
-    # access, the operator should add an explicit allow-list here — never
-    # ``allow_origins=["*"]`` with credentials. Deny-by-default is also the
-    # FastAPI behaviour without this middleware, but declaring it explicitly
-    # makes the security posture visible in code and prevents accidental
-    # loosening later.
-    try:
-        from fastapi.middleware.cors import CORSMiddleware
-
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=[],          # no origins allowed
-            allow_methods=[],          # no methods allowed
-            allow_headers=[],          # no headers allowed
-            allow_credentials=False,   # cookies/Authorization never sent
-        )
-    except ImportError:  # pragma: no cover - defensive: fastapi is checked above
-        pass
-
-    @app.get("/health")  # type: ignore
+    @app.get("/health")
     async def health() -> dict[str, Any]:
         return {"status": "ok", "ai": ai_available()}
 
-    @app.post("/scan")  # type: ignore
+    @app.post("/scan")
     async def scan_endpoint(request: Request) -> dict[str, Any]:
         # Parse the body ourselves rather than via a pydantic model: the model
         # would have to live at import time (pydantic is optional) and a
