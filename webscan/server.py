@@ -159,11 +159,11 @@ def create_app() -> FastAPI:
         description="Local HTTP backend for the WebScan security scanner.",
     )
 
-    @app.get("/health")
+    @app.get("/health")  # type: ignore
     async def health() -> dict[str, Any]:
         return {"status": "ok", "ai": ai_available()}
 
-    @app.post("/scan")
+    @app.post("/scan")  # type: ignore
     async def scan_endpoint(request: Request) -> dict[str, Any]:
         # Parse the body ourselves rather than via a pydantic model: the model
         # would have to live at import time (pydantic is optional) and a
