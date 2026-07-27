@@ -1,5 +1,34 @@
 ---
 name: Bug report
+about: Сообщите о проблеме, шаги для воспроизведения и ожидаемое поведение
+title: "[BUG] "
+labels: bug
+assignees: ''
+---
+
+## Описание проблемы
+
+Кратко опишите, что пошло не так.
+
+## Шаги для воспроизведения
+1. 
+2. 
+3. 
+
+## Ожидаемое поведение
+
+Опишите ожидаемый результат.
+
+## Логи / вывод
+
+Прикрепите релевантные логи, трассировки или вывод pytest (если ошибка теста).
+
+## Среда
+- OS: 
+- Python: 
+- Версия webscan: 
+---
+name: Bug report
 about: Something is broken or behaving unexpectedly
 title: "bug: <short description>"
 labels: bug

@@ -15,6 +15,13 @@
 
 </div>
 
+<!-- Table of contents -->
+
+- [Quick Start](#-quick-start)
+- [What it does](#-what-it-does)
+- [Plugins](#-plugins)
+- [Usage](#-usage)
+
 ---
 
 ## ⚡ Quick Start
