@@ -22,11 +22,10 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies
+    - name: Install dependencies (including dev extras)
       run: |
         python -m pip install --upgrade pip
-        python -m pip install -e .
-        python -m pip install pytest
+        python -m pip install -e ".[dev]"
 
     - name: Run tests
       run: |
