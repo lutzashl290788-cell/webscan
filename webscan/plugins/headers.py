@@ -14,6 +14,14 @@ class _HeaderRule:
     severity: Severity
     description: str
     remediation: str
+    #: Canonical key for the underlying issue, shared with any other plugin that
+    #: detects the same problem, so the engine can collapse the duplicate
+    #: reports. ``None`` falls back to a per-header key, which still dedupes
+    #: against another plugin opting into the same ``missing-header:<name>``.
+    dedup_key: str | None = None
+
+    def key_for(self, header: str) -> str:
+        return self.dedup_key or f"missing-header:{header.lower()}"
 
 
 # Required security headers and what to say when they are absent
@@ -50,6 +58,10 @@ _REQUIRED_HEADERS: dict[str, _HeaderRule] = {
             "<iframe> on a third-party site, enabling clickjacking."
         ),
         remediation="Add \"X-Frame-Options: DENY\" or \"X-Frame-Options: SAMEORIGIN\".",
+        # The clickjacking plugin reports the same missing framing protection
+        # in more detail (it also inspects CSP frame-ancestors), so both share
+        # this key and the engine keeps the better of the two.
+        dedup_key="framing-protection-missing",
     ),
     "X-Content-Type-Options": _HeaderRule(
         severity=Severity.MEDIUM,
@@ -126,6 +138,7 @@ class HeadersPlugin(BasePlugin):
                                     "missing_header": name,
                                 },
                                 remediation=rule.remediation,
+                                dedup_key=rule.key_for(name),
                             )
                         )
 

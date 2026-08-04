@@ -66,6 +66,13 @@ class Finding:
     #: plugins that observe a condition directly need no change; heuristic
     #: checks downgrade to TENTATIVE / INFORMATIONAL explicitly.
     confidence: Confidence = Confidence.FIRM
+    #: Canonical identifier for the *underlying issue*, shared by every plugin
+    #: that can detect it. Two findings on the same URL with the same non-None
+    #: key describe one problem, so the engine collapses them into the single
+    #: most severe report instead of listing the issue twice (see
+    #: :func:`webscan.engine.deduplicate_findings`). Left ``None`` by plugins
+    #: whose findings no other plugin can produce.
+    dedup_key: str | None = None
 
 
 @dataclass

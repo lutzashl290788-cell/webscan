@@ -11,7 +11,13 @@ from urllib.parse import urlparse
 
 import aiohttp
 
-from webscan.models import ScanReport, TargetResult
+from webscan.models import (
+    CONFIDENCE_ORDER,
+    SEVERITY_ORDER,
+    Finding,
+    ScanReport,
+    TargetResult,
+)
 from webscan.plugins.base import BasePlugin
 
 _DEFAULT_HEADERS = {
@@ -327,7 +333,68 @@ class ScanEngine:
             else:
                 result.findings.extend(outcome)
 
+        # Plugins run independently and several of them detect overlapping
+        # issues, so collapse duplicates before the result reaches reporting.
+        result.findings = deduplicate_findings(result.findings)
+
         return result
+
+
+def deduplicate_findings(findings: list[Finding]) -> list[Finding]:
+    """Collapse findings that describe the same issue on the same URL.
+
+    Several plugins legitimately overlap: a missing ``Strict-Transport-Security``
+    header is spotted both by the generic header audit and by the TLS audit, and
+    an unframeable page is spotted both by the header audit and by the dedicated
+    clickjacking check. Reporting the same problem twice — historically with two
+    *different* severities — inflates the finding count and makes the operator
+    fix one row and wonder why the other is still there.
+
+    Findings are grouped by ``(url, dedup_key)``; a ``None`` key means the plugin
+    claims no overlap and the finding is always kept. Within a group the single
+    best report wins, ordered by severity, then confidence, then plugin name so
+    the outcome never depends on plugin scheduling. The losers are not silently
+    dropped: the surviving finding records them under
+    ``evidence["also_reported_by"]`` so nothing is lost from the report.
+
+    Order of first appearance is preserved.
+    """
+    groups: dict[tuple[str, str], list[Finding]] = {}
+    order: list[tuple[str, str] | int] = []
+    standalone: dict[int, Finding] = {}
+
+    for i, finding in enumerate(findings):
+        if finding.dedup_key is None:
+            standalone[i] = finding
+            order.append(i)
+            continue
+        key = (finding.url, finding.dedup_key)
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(finding)
+
+    out: list[Finding] = []
+    for slot in order:
+        if isinstance(slot, int):
+            out.append(standalone[slot])
+            continue
+        group = groups[slot]
+        best = min(group, key=_finding_rank)
+        others = sorted({f.plugin for f in group} - {best.plugin})
+        if others:
+            best.evidence = {**best.evidence, "also_reported_by": others}
+        out.append(best)
+    return out
+
+
+def _finding_rank(finding: Finding) -> tuple[int, int, str]:
+    """Sort key selecting the best report in a duplicate group (lower wins)."""
+    return (
+        SEVERITY_ORDER[finding.severity],
+        CONFIDENCE_ORDER[finding.confidence],
+        finding.plugin,
+    )
 
 
 def _utcnow() -> str:

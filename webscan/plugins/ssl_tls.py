@@ -130,6 +130,9 @@ class SslTlsPlugin(BasePlugin):
                 "Send 'Strict-Transport-Security: max-age=31536000; "
                 "includeSubDomains' over HTTPS."
             ),
+            # The headers plugin reports the very same absent header; the engine
+            # keeps whichever report is more severe rather than listing both.
+            dedup_key="missing-header:strict-transport-security",
         )
 
 
