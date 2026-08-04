@@ -3,11 +3,26 @@
 Produces a self-contained SVG (no external assets, no JS) whose lines reveal
 progressively via SMIL animation — renders inline on GitHub like a screencast.
 
-v2.5.3 — updated with 38 plugins, new finding types, confidence dimension.
+The version badge and plugin count are read from the installed package so the
+demo cannot drift out of sync with ``webscan.__version__``. Regenerate with
+``python assets/gen_demo.py`` after a release bump.
 """
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+
+# Allow running straight from a source checkout, without installing first.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from webscan import __version__  # noqa: E402
+from webscan.registry import ALL_PLUGINS  # noqa: E402
+
+VERSION = __version__
+PLUGIN_COUNT = len(ALL_PLUGINS)
+
+# Host used consistently throughout the mocked session.
+DEMO_HOST = "httpbin.org"
 
 FG = "#c9d1d9"
 GREEN = "#3fb950"
@@ -21,40 +36,56 @@ WHITE = "#f0f6fc"
 PROMPT = "#7ee787"
 MAGENTA = "#bc8cff"
 
-LINES: list[tuple[str, str, int]] = [
-    ("$ webscan -t https://httpbin.org --safe-mode", PROMPT, 0),
-    ("", FG, 0),
-    ("╔══════════════════════════════════════════════════╗", CYAN, 0),
-    ("║          WebScan v2.5.3 — Security Auditor        ║", CYAN, 0),
-    ("╚══════════════════════════════════════════════════╝", CYAN, 0),
-    ("  Targets     : 1", DIM, 0),
-    ("  Plugins     : 38 enabled", DIM, 0),
-    ("  Confidence  : firm (content-verified only)", DIM, 0),
-    ("  Concurrency : 10  ·  Retry: 2  ·  Soft-404: on", DIM, 0),
-    ("", FG, 0),
-    ("  [████████████████████] 1/1  done in 7.1s", GREEN, 0),
-    ("", FG, 0),
-    ("  Total findings  16", WHITE, 0),
-    ("", FG, 0),
-    ("  • https://example.com", FG, 0),
+# Inner width of the ASCII banner box, in characters.
+_BOX_W = 50
+
+# Mocked finding rows. The "Total findings" counter below is derived from this
+# list so the two can never disagree, and no issue is listed twice — the
+# engine deduplicates overlapping findings across plugins.
+FINDING_ROWS: list[tuple[str, str, int]] = [
     ("🟠 [HIGH    ] Missing header: Content-Security-Policy", ORANGE, 1),
     ("🟠 [HIGH    ] Missing header: Strict-Transport-Security", ORANGE, 1),
     ("🟠 [HIGH    ] CORS reflects an arbitrary Origin", ORANGE, 1),
-    ("🟡 [MEDIUM  ] Missing header: X-Frame-Options", YELLOW, 1),
-    ("🟡 [MEDIUM  ] Missing HSTS header", YELLOW, 1),
-    ("🟡 [MEDIUM  ] Clickjacking: no X-Frame-Options / CSP", YELLOW, 1),
     ("🟡 [MEDIUM  ] Clickjacking: no X-Frame-Options / CSP", YELLOW, 1),
     ("🔵 [LOW     ] Missing header: Referrer-Policy", BLUE, 1),
     ("🔵 [LOW     ] Information disclosure: Server", BLUE, 1),
     ("🔵 [LOW     ] No sitemap.xml found", BLUE, 1),
     ("🔵 [LOW     ] No robots.txt found", BLUE, 1),
     ("⚪ [INFO    ] security.txt not found", DIM, 1),
+]
+
+SUBDOMAIN_ROW: tuple[str, str, int] = (
+    f"⚪ [INFO    ] 2 subdomains discovered for {DEMO_HOST}", DIM, 1,
+)
+
+TOTAL_FINDINGS = len(FINDING_ROWS) + 1  # + the subdomain finding below
+# Distinct plugins behind the rows above: headers, cors, clickjacking,
+# robots_sitemap, security_txt, subdomains.
+PLUGINS_FIRED = 6
+
+LINES: list[tuple[str, str, int]] = [
+    (f"$ webscan -t https://{DEMO_HOST} --safe-mode", PROMPT, 0),
     ("", FG, 0),
-    ("⚪ [INFO    ] 2 subdomains discovered for httpbin.org", DIM, 1),
+    ("╔" + "═" * _BOX_W + "╗", CYAN, 0),
+    ("║" + f"WebScan v{VERSION} — Security Auditor".center(_BOX_W) + "║", CYAN, 0),
+    ("╚" + "═" * _BOX_W + "╝", CYAN, 0),
+    ("  Targets     : 1", DIM, 0),
+    (f"  Plugins     : {PLUGIN_COUNT} enabled", DIM, 0),
+    ("  Confidence  : firm (content-verified only)", DIM, 0),
+    ("  Concurrency : 10  ·  Retry: 2  ·  Soft-404: on", DIM, 0),
+    ("", FG, 0),
+    ("  [████████████████████] 1/1  done in 7.1s", GREEN, 0),
+    ("", FG, 0),
+    (f"  Total findings  {TOTAL_FINDINGS}", WHITE, 0),
+    ("", FG, 0),
+    (f"  • https://{DEMO_HOST}", FG, 0),
+    *FINDING_ROWS,
+    ("", FG, 0),
+    SUBDOMAIN_ROW,
     ("", FG, 0),
     ("  ✍  SARIF report : reports/scan.sarif", CYAN, 0),
     ("  ✍  JSON report  : reports/scan.json", CYAN, 0),
-    ("  ✓ scan complete — 0 false positives · 9 plugins fired", GREEN, 0),
+    (f"  ✓ scan complete — 0 false positives · {PLUGINS_FIRED} plugins fired", GREEN, 0),
 ]
 
 CHAR_W = 8.4
@@ -107,12 +138,15 @@ def build() -> str:
     progress = (
         f'<rect x="{bar_x}" y="{bar_y - 10}" width="{bar_w}" height="3" rx="1" fill="#21262d"/>'
         f'<rect x="{bar_x}" y="{bar_y - 10}" width="0" height="3" rx="1" fill="{GREEN}">'
-        f'<animate attributeName="width" from="0" to="{bar_w}" dur="1.5s" begin="2.0s" fill="freeze" '
+        f'<animate attributeName="width" from="0" to="{bar_w}" dur="1.5s" '
+        f'begin="2.0s" fill="freeze" '
         f'calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>'
         f'</rect>'
     )
 
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" font-family="SFMono-Regular,Consolas,Liberation Mono,Menlo,monospace">
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" \
+viewBox="0 0 {width} {height}" \
+font-family="SFMono-Regular,Consolas,Liberation Mono,Menlo,monospace">
   <defs>
     <radialGradient id="glow" cx="50%" cy="0%" r="60%">
       <stop offset="0" stop-color="#dc2626" stop-opacity="0.06"/>
@@ -127,7 +161,8 @@ def build() -> str:
   <circle cx="22" cy="17" r="6" fill="#ff5f56"/>
   <circle cx="42" cy="17" r="6" fill="#ffbd2e"/>
   <circle cx="62" cy="17" r="6" fill="#27c93f"/>
-  <text x="{width // 2}" y="22" fill="#8b949e" font-size="11" text-anchor="middle">webscan v2.5.3 — security audit · 38 plugins</text>
+  <text x="{width // 2}" y="22" fill="#8b949e" font-size="11" text-anchor="middle">\
+webscan v{VERSION} — security audit · {PLUGIN_COUNT} plugins</text>
   {progress}
   {chr(10).join("  " + r for r in rows)}
   {cursor}

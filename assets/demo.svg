@@ -1,52 +1,49 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="780" height="728" viewBox="0 0 780 728" font-family="SFMono-Regular,Consolas,Liberation Mono,Menlo,monospace">
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="668" viewBox="0 0 780 668" font-family="SFMono-Regular,Consolas,Liberation Mono,Menlo,monospace">
   <defs>
     <radialGradient id="glow" cx="50%" cy="0%" r="60%">
       <stop offset="0" stop-color="#dc2626" stop-opacity="0.06"/>
       <stop offset="1" stop-color="#dc2626" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <rect width="780" height="728" rx="10" fill="#0d1117"/>
-  <rect width="780" height="728" rx="10" fill="url(#glow)"/>
-  <rect width="780" height="728" rx="10" fill="none" stroke="#30363d" stroke-width="1"/>
+  <rect width="780" height="668" rx="10" fill="#0d1117"/>
+  <rect width="780" height="668" rx="10" fill="url(#glow)"/>
+  <rect width="780" height="668" rx="10" fill="none" stroke="#30363d" stroke-width="1"/>
   <rect width="780" height="34" rx="10" fill="#161b22"/>
   <rect y="24" width="780" height="10" fill="#161b22"/>
   <circle cx="22" cy="17" r="6" fill="#ff5f56"/>
   <circle cx="42" cy="17" r="6" fill="#ffbd2e"/>
   <circle cx="62" cy="17" r="6" fill="#27c93f"/>
-  <text x="390" y="22" fill="#8b949e" font-size="11" text-anchor="middle">webscan v2.5.3 — security audit · 38 plugins</text>
+  <text x="390" y="22" fill="#8b949e" font-size="11" text-anchor="middle">webscan v2.7.1 — security audit · 41 plugins</text>
   <rect x="22" y="220" width="300" height="3" rx="1" fill="#21262d"/><rect x="22" y="220" width="0" height="3" rx="1" fill="#3fb950"><animate attributeName="width" from="0" to="300" dur="1.5s" begin="2.0s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/></rect>
     <text x="20" y="50" fill="#7ee787" opacity="0" font-size="13">$ webscan -t https://httpbin.org --safe-mode<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.00s" fill="freeze"/></text>
   <text x="20" y="70" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.22s" fill="freeze"/></text>
   <text x="20" y="90" fill="#39c5cf" opacity="0" font-size="13">╔══════════════════════════════════════════════════╗<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.44s" fill="freeze"/></text>
-  <text x="20" y="110" fill="#39c5cf" opacity="0" font-size="13">║          WebScan v2.5.3 — Security Auditor        ║<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.66s" fill="freeze"/></text>
+  <text x="20" y="110" fill="#39c5cf" opacity="0" font-size="13">║        WebScan v2.7.1 — Security Auditor         ║<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.66s" fill="freeze"/></text>
   <text x="20" y="130" fill="#39c5cf" opacity="0" font-size="13">╚══════════════════════════════════════════════════╝<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.88s" fill="freeze"/></text>
   <text x="20" y="150" fill="#8b949e" opacity="0" font-size="13">  Targets     : 1<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="1.10s" fill="freeze"/></text>
-  <text x="20" y="170" fill="#8b949e" opacity="0" font-size="13">  Plugins     : 38 enabled<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="1.32s" fill="freeze"/></text>
+  <text x="20" y="170" fill="#8b949e" opacity="0" font-size="13">  Plugins     : 41 enabled<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="1.32s" fill="freeze"/></text>
   <text x="20" y="190" fill="#8b949e" opacity="0" font-size="13">  Confidence  : firm (content-verified only)<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="1.54s" fill="freeze"/></text>
   <text x="20" y="210" fill="#8b949e" opacity="0" font-size="13">  Concurrency : 10  ·  Retry: 2  ·  Soft-404: on<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="1.76s" fill="freeze"/></text>
   <text x="20" y="230" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="1.98s" fill="freeze"/></text>
   <text x="20" y="250" fill="#3fb950" opacity="0" font-size="13">  [████████████████████] 1/1  done in 7.1s<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="2.20s" fill="freeze"/></text>
   <text x="20" y="270" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="2.42s" fill="freeze"/></text>
-  <text x="20" y="290" fill="#f0f6fc" opacity="0" font-size="13">  Total findings  16<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="2.64s" fill="freeze"/></text>
+  <text x="20" y="290" fill="#f0f6fc" opacity="0" font-size="13">  Total findings  10<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="2.64s" fill="freeze"/></text>
   <text x="20" y="310" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="2.86s" fill="freeze"/></text>
-  <text x="20" y="330" fill="#c9d1d9" opacity="0" font-size="13">  • https://example.com<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="3.08s" fill="freeze"/></text>
+  <text x="20" y="330" fill="#c9d1d9" opacity="0" font-size="13">  • https://httpbin.org<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="3.08s" fill="freeze"/></text>
   <text x="54" y="350" fill="#db6d28" opacity="0" font-size="13">🟠 [HIGH    ] Missing header: Content-Security-Policy<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="3.30s" fill="freeze"/></text>
   <text x="54" y="370" fill="#db6d28" opacity="0" font-size="13">🟠 [HIGH    ] Missing header: Strict-Transport-Security<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="3.52s" fill="freeze"/></text>
   <text x="54" y="390" fill="#db6d28" opacity="0" font-size="13">🟠 [HIGH    ] CORS reflects an arbitrary Origin<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="3.74s" fill="freeze"/></text>
-  <text x="54" y="410" fill="#d29922" opacity="0" font-size="13">🟡 [MEDIUM  ] Missing header: X-Frame-Options<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="3.96s" fill="freeze"/></text>
-  <text x="54" y="430" fill="#d29922" opacity="0" font-size="13">🟡 [MEDIUM  ] Missing HSTS header<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="4.18s" fill="freeze"/></text>
-  <text x="54" y="450" fill="#d29922" opacity="0" font-size="13">🟡 [MEDIUM  ] Clickjacking: no X-Frame-Options / CSP<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="4.40s" fill="freeze"/></text>
-  <text x="54" y="470" fill="#d29922" opacity="0" font-size="13">🟡 [MEDIUM  ] Clickjacking: no X-Frame-Options / CSP<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="4.62s" fill="freeze"/></text>
-  <text x="54" y="490" fill="#58a6ff" opacity="0" font-size="13">🔵 [LOW     ] Missing header: Referrer-Policy<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="4.84s" fill="freeze"/></text>
-  <text x="54" y="510" fill="#58a6ff" opacity="0" font-size="13">🔵 [LOW     ] Information disclosure: Server<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="5.06s" fill="freeze"/></text>
-  <text x="54" y="530" fill="#58a6ff" opacity="0" font-size="13">🔵 [LOW     ] No sitemap.xml found<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="5.28s" fill="freeze"/></text>
-  <text x="54" y="550" fill="#58a6ff" opacity="0" font-size="13">🔵 [LOW     ] No robots.txt found<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="5.50s" fill="freeze"/></text>
-  <text x="54" y="570" fill="#8b949e" opacity="0" font-size="13">⚪ [INFO    ] security.txt not found<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="5.72s" fill="freeze"/></text>
-  <text x="20" y="590" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="5.94s" fill="freeze"/></text>
-  <text x="54" y="610" fill="#8b949e" opacity="0" font-size="13">⚪ [INFO    ] 2 subdomains discovered for httpbin.org<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="6.16s" fill="freeze"/></text>
-  <text x="20" y="630" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="6.38s" fill="freeze"/></text>
-  <text x="20" y="650" fill="#39c5cf" opacity="0" font-size="13">  ✍  SARIF report : reports/scan.sarif<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="6.60s" fill="freeze"/></text>
-  <text x="20" y="670" fill="#39c5cf" opacity="0" font-size="13">  ✍  JSON report  : reports/scan.json<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="6.82s" fill="freeze"/></text>
-  <text x="20" y="690" fill="#3fb950" opacity="0" font-size="13">  ✓ scan complete — 0 false positives · 9 plugins fired<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="7.04s" fill="freeze"/></text>
-  <rect x="20" y="697" width="8" height="16" fill="#3fb950" opacity="0"><animate attributeName="opacity" values="0;0;1" dur="7.26s" fill="freeze"/><animate attributeName="opacity" values="1;0;1" dur="1s" begin="7.26s" repeatCount="indefinite"/></rect>
+  <text x="54" y="410" fill="#d29922" opacity="0" font-size="13">🟡 [MEDIUM  ] Clickjacking: no X-Frame-Options / CSP<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="3.96s" fill="freeze"/></text>
+  <text x="54" y="430" fill="#58a6ff" opacity="0" font-size="13">🔵 [LOW     ] Missing header: Referrer-Policy<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="4.18s" fill="freeze"/></text>
+  <text x="54" y="450" fill="#58a6ff" opacity="0" font-size="13">🔵 [LOW     ] Information disclosure: Server<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="4.40s" fill="freeze"/></text>
+  <text x="54" y="470" fill="#58a6ff" opacity="0" font-size="13">🔵 [LOW     ] No sitemap.xml found<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="4.62s" fill="freeze"/></text>
+  <text x="54" y="490" fill="#58a6ff" opacity="0" font-size="13">🔵 [LOW     ] No robots.txt found<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="4.84s" fill="freeze"/></text>
+  <text x="54" y="510" fill="#8b949e" opacity="0" font-size="13">⚪ [INFO    ] security.txt not found<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="5.06s" fill="freeze"/></text>
+  <text x="20" y="530" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="5.28s" fill="freeze"/></text>
+  <text x="54" y="550" fill="#8b949e" opacity="0" font-size="13">⚪ [INFO    ] 2 subdomains discovered for httpbin.org<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="5.50s" fill="freeze"/></text>
+  <text x="20" y="570" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="5.72s" fill="freeze"/></text>
+  <text x="20" y="590" fill="#39c5cf" opacity="0" font-size="13">  ✍  SARIF report : reports/scan.sarif<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="5.94s" fill="freeze"/></text>
+  <text x="20" y="610" fill="#39c5cf" opacity="0" font-size="13">  ✍  JSON report  : reports/scan.json<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="6.16s" fill="freeze"/></text>
+  <text x="20" y="630" fill="#3fb950" opacity="0" font-size="13">  ✓ scan complete — 0 false positives · 6 plugins fired<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="6.38s" fill="freeze"/></text>
+  <rect x="20" y="637" width="8" height="16" fill="#3fb950" opacity="0"><animate attributeName="opacity" values="0;0;1" dur="6.60s" fill="freeze"/><animate attributeName="opacity" values="1;0;1" dur="1s" begin="6.60s" repeatCount="indefinite"/></rect>
 </svg>
