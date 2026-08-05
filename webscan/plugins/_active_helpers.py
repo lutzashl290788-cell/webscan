@@ -42,6 +42,11 @@ _MAX_BODY_FOR_COMPARE = 100_000
 # bounded.
 MAX_BODY_BYTES = 2 * 1024 * 1024
 
+# Per-iteration read size for :func:`fetch_body`. Large enough that a typical
+# page needs only a couple of iterations, small enough that the cap above is
+# honoured without over-allocating for tiny responses.
+_READ_CHUNK_BYTES = 64 * 1024
+
 
 async def fetch_body(resp: aiohttp.ClientResponse, *, limit: int = MAX_BODY_BYTES) -> str:
     """Read up to *limit* bytes of *resp* and decode as UTF-8 (errors ignored).
@@ -51,9 +56,15 @@ async def fetch_body(resp: aiohttp.ClientResponse, *, limit: int = MAX_BODY_BYTE
     page would OOM the scanner process — particularly dangerous under
     ``webscan serve`` where one client could kill every other scan.
 
+    Reads in a loop until *limit* or EOF. A single ``resp.content.read(limit)``
+    looks equivalent but is not: aiohttp's ``StreamReader.read(n)`` returns
+    whatever is *already buffered* once any data arrives, so a body split
+    across several TCP segments came back truncated to the first ~112 KiB —
+    silently hiding anything further down the page from every plugin that
+    greps the body.
+
     The cap applies to *bytes read*, not decoded characters, so the decoded
-    string may be slightly shorter than ``limit`` chars. Callers that need
-    exact-size reads should use ``resp.content.read(n)`` directly.
+    string may be slightly shorter than ``limit`` chars.
 
     Falls back to ``resp.text(errors="ignore")`` (without a size cap) when
     ``resp.content`` is not available — this is the case for some test fakes
@@ -61,8 +72,15 @@ async def fetch_body(resp: aiohttp.ClientResponse, *, limit: int = MAX_BODY_BYTE
     :func:`webscan.retry.request_with_retry`.
     """
     try:
-        raw = await resp.content.read(limit)
-        return raw.decode("utf-8", errors="ignore")
+        chunks: list[bytes] = []
+        remaining = limit
+        while remaining > 0:
+            chunk = await resp.content.read(min(remaining, _READ_CHUNK_BYTES))
+            if not chunk:  # EOF
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        return b"".join(chunks).decode("utf-8", errors="ignore")
     except (AttributeError, TypeError):
         # No streaming ``content`` attribute (e.g. a test fake or the retry
         # helper's Response dataclass). Fall back to ``text()`` — try with

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from webscan.plugins._active_helpers import (
     body_similarity,
+    fetch_body,
     fetch_with_headers,
     fetch_with_retry,
     is_soft404,
@@ -166,3 +167,80 @@ async def test_fetch_with_retry_success() -> None:
     body, status, _ct = result
     assert body == "ok"
     assert status == 200
+
+
+# ─── fetch_body: chunked reads ────────────────────────────────────────────────
+
+
+class _ChunkedContent:
+    """Mimics ``aiohttp.StreamReader.read(n)``.
+
+    The real reader returns whatever is *already buffered* once any data has
+    arrived — never more than one chunk per call, even when ``n`` is larger and
+    more of the body is still in flight. Reproducing that here is what makes
+    these regression tests meaningful.
+    """
+
+    def __init__(self, data: bytes, chunk_size: int) -> None:
+        self._data = data
+        self._chunk_size = chunk_size
+        self._pos = 0
+
+    async def read(self, n: int = -1) -> bytes:
+        if self._pos >= len(self._data):
+            return b""  # EOF
+        want = self._chunk_size if n < 0 else min(n, self._chunk_size)
+        out = self._data[self._pos:self._pos + want]
+        self._pos += len(out)
+        return out
+
+
+class _StreamingResp:
+    def __init__(self, data: bytes, chunk_size: int = 16 * 1024) -> None:
+        self.content = _ChunkedContent(data, chunk_size)
+
+
+async def test_fetch_body_reads_past_the_first_chunk() -> None:
+    """A body spanning many segments must come back whole, not truncated."""
+    body = "A" * 500_000
+    got = await fetch_body(_StreamingResp(body.encode()))
+    assert len(got) == 500_000
+    assert got == body
+
+
+async def test_fetch_body_short_body_unaffected() -> None:
+    got = await fetch_body(_StreamingResp(b"<html>hi</html>"))
+    assert got == "<html>hi</html>"
+
+
+async def test_fetch_body_honours_the_limit() -> None:
+    """The memory cap (CWE-400) must still bound a hostile multi-MB response."""
+    got = await fetch_body(_StreamingResp(b"B" * 1_000_000), limit=200_000)
+    assert len(got) == 200_000
+
+
+async def test_fetch_body_limit_larger_than_body_returns_whole_body() -> None:
+    got = await fetch_body(_StreamingResp(b"C" * 1_000), limit=999_999)
+    assert len(got) == 1_000
+
+
+async def test_fetch_body_empty_body() -> None:
+    assert await fetch_body(_StreamingResp(b"")) == ""
+
+
+async def test_fetch_body_falls_back_to_text_without_content_attr() -> None:
+    """The retry helper's Response dataclass and test fakes have no .content."""
+
+    class _NoContent:
+        async def text(self, **_kw: object) -> str:
+            return "fallback body"
+
+    assert await fetch_body(_NoContent()) == "fallback body"  # type: ignore[arg-type]
+
+
+async def test_fetch_body_falls_back_to_text_without_kwargs() -> None:
+    class _StrictText:
+        async def text(self) -> str:
+            return "no kwargs"
+
+    assert await fetch_body(_StrictText()) == "no kwargs"  # type: ignore[arg-type]
