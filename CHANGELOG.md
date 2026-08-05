@@ -7,7 +7,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **Response bodies were silently truncated at ~112 KiB.** `fetch_body()` called
+  `resp.content.read(limit)` once, but aiohttp's `StreamReader.read(n)` returns
+  whatever is *already buffered* rather than waiting for `n` bytes. A body split
+  across several TCP segments therefore came back cut short — measured at 114,688
+  bytes for a 500 KB page — so every plugin that greps the body (secrets, XSS
+  reflection, SQL errors, …) silently missed anything further down. The 2 MiB cap
+  was never actually the limiting factor. Now reads in a loop until EOF or the
+  cap, which is still enforced exactly.
+- **The same issue was reported twice, with two different severities.** The engine
+  concatenated per-plugin results without deduplication, so a missing HSTS header
+  came back as both HIGH (`headers`) and MEDIUM (`ssl_tls`), and an unframeable
+  page as both `Missing header: X-Frame-Options` (`headers`) and the detailed
+  `clickjacking` finding. Added `Finding.dedup_key` plus
+  `engine.deduplicate_findings()`, which groups by `(url, key)` and keeps the
+  single best report — ordered by severity, then confidence, then plugin name, so
+  the winner never depends on which plugin finishes first. Superseded plugins are
+  recorded in `evidence["also_reported_by"]`. On a live target: 9 findings before,
+  7 after.
+- **`python -m webscan` did not work** — the package had no `__main__.py`, so it
+  failed with "cannot be directly executed" even though the console script worked.
+- **CI was red on every push to `main`.** `python-tests.yml` declared
+  `python-version: [3.10, 3.11, 3.12]` unquoted; YAML parses those as floats, so
+  `3.10` became `3.1` and `actions/setup-python` could not find it. The file was
+  also a strict subset of `ci.yml` (same name, same triggers, fewer checks) and
+  has been removed.
+- **README banners advertised v2.5.3 and 38 plugins** while the project was v2.7.1
+  with 41. Both generators now read the version and plugin count from the package
+  so they cannot drift again. The terminal demo also listed one finding twice
+  under a "0 false positives" footer, scanned `httpbin.org` while showing results
+  for `example.com`, and claimed 16 findings while rendering 13.
+
+### Documentation
+
+- Restored the missing `2.6.0`, `2.7.0` and `2.7.1` entries below. All three were
+  tagged and released on 2026-06-23 with notes in `.github/release-notes/`, but
+  were never folded into this file, which had stood still at 2.5.3.
+
+## [2.7.1] - 2026-06-23
+
+### Added
+
+- **`--stealth` mode** — WAF/IDS evasion preset: forces User-Agent rotation and
+  request jitter on, drops concurrency to 1, and enforces a minimum 2 s delay
+  between requests. Safe Mode still takes precedence for politeness settings, so
+  the two combine into a polite *and* evasive scan.
+
+### Fixed
+
+- CORS plugin correctness fix.
+- README refreshed against reality: 41 plugins (was 38), 69 source files (was 61),
+  14 of 41 passive plugins (was 11 of 38), and v2.7.0 in the benchmark table.
+
+## [2.7.0] - 2026-06-23
+
+### Added
+
+- **Diff mode** (`webscan diff`) — compare two reports to catch regressions in CI.
+- **Webhook notifications** (`--webhook-url`) — post results to Slack/Discord/Teams.
+- **Auto-fix suggestions** (`--suggest-fixes`) — copy-pasteable remediation snippets.
+- **`dns_security` plugin** — DNSSEC, CAA, SPF, DMARC and DKIM auditing.
+- **`csp_analyzer` plugin** — semantic Content-Security-Policy analysis.
+- **`waf_detect` plugin** — fingerprints Cloudflare, CloudFront, Akamai,
+  Imperva/Incapsula, Sucuri, F5 BIG-IP, ModSecurity, Wordfence, Fastly, Varnish
+  and Azure Front Door.
+
+Plugin count went 38 → 41.
+
+## [2.6.0] - 2026-06-23
+
+### Added
+
+- **Risk score** (`--risk-score`, `--fail-on-risk N`) — a single 0–100 posture
+  score with letter grading, usable as a CI deployment gate.
+- **OWASP Top 10 2021 compliance mapping** (`--compliance`) — maps each plugin to
+  the OWASP category it covers, for audit evidence.
+- New modules `webscan/risk.py` and `webscan/compliance.py`.
 
 ## [2.5.3] - 2026-06-21
 
@@ -725,7 +802,10 @@ false positives**.
 - Plugins: `config_files`, `headers`, `directories`, `sql_injection` (error-based),
   `cors`, `cookies`, `http_methods`.
 
-[Unreleased]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.3...HEAD
+[Unreleased]: https://github.com/lutzashl290788-cell/webscan/compare/v2.7.1...HEAD
+[2.7.1]: https://github.com/lutzashl290788-cell/webscan/compare/v2.7.0...v2.7.1
+[2.7.0]: https://github.com/lutzashl290788-cell/webscan/compare/v2.6.0...v2.7.0
+[2.6.0]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.3...v2.6.0
 [2.5.3]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.2...v2.5.3
 [2.5.2]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.0...v2.5.1
