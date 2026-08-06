@@ -155,7 +155,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="WebScan",
-        version="2.7.1",
+        version="2.8.0",
         description="Local HTTP backend for the WebScan security scanner.",
     )
 

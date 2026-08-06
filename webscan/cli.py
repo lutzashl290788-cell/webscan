@@ -11,6 +11,7 @@ from typing import NoReturn
 
 import aiohttp
 
+from webscan import __version__
 from webscan.anonymize import anonymize_report
 from webscan.auth import AuthConfig, LoginError, PreparedAuth, prepare_auth
 from webscan.config import ConfigError, load_profile
@@ -68,6 +69,13 @@ Examples
   webscan --list-plugins
   webscan serve --host 127.0.0.1 --port 8000   # local HTTP backend ([serve] extra)
 """,
+    )
+
+    parser.add_argument(
+        "-V", "--version",
+        action="version",
+        version=f"webscan {__version__}",
+        help="Print the WebScan version and exit.",
     )
 
     _add_config_args(parser)

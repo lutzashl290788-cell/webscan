@@ -5,7 +5,7 @@
 *Crawl → discover → audit. **41 plugins**, 6 report formats, polite defaults, content-verified findings.*
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lutzashl290788-cell/webscan/ci.yml?style=flat-square&label=CI&logo=githubactions&logoColor=white)](https://github.com/lutzashl290788-cell/webscan/actions)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/github/license/lutzashl290788-cell/webscan?style=flat-square&color=00d26a)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/lutzashl290788-cell/webscan?style=flat-square&color=ffd700)](https://github.com/lutzashl290788-cell/webscan/stargazers)
 [![Issues](https://img.shields.io/github/issues/lutzashl290788-cell/webscan?style=flat-square&color=ff6b6b)](https://github.com/lutzashl290788-cell/webscan/issues)
@@ -114,7 +114,7 @@ plugin against them — all concurrently via `aiohttp`. One run, colour-coded fi
 machine-readable reports.
 
 ```console
-$ webscan -t https://example.com --plugins headers cookies http_methods ssl_tls tech_fingerprint
+$ webscan -t https://junify.ru --plugins headers cookies http_methods ssl_tls tech_fingerprint
 
 ╔══════════════════════════════════════════════════════════╗
 ║              WebScan — Security Auditor                 ║
@@ -124,22 +124,24 @@ $ webscan -t https://example.com --plugins headers cookies http_methods ssl_tls 
   Concurrency : 10
   Timeout     : 10s
 
-  [█] 1/1 — https://example.com
+  [█] 1/1 — https://junify.ru
 
-  Scan completed  2026-06-19T05:30:00+00:00 → 2026-06-19T05:30:01+00:00
-  Total findings  9
+  Scan completed  2026-08-05T20:03:35+00:00 → 2026-08-05T20:03:35+00:00
+  Total findings  8
 
-  • ttps://example.com]
+  • [https://junify.ru]
       🟠 [HIGH    ] Missing header: Content-Security-Policy
       🟠 [HIGH    ] Missing header: Strict-Transport-Security
       🟡 [MEDIUM  ] Missing header: X-Frame-Options
       🟡 [MEDIUM  ] Missing header: X-Content-Type-Options
-      🟡 [MEDIUM  ] Missing HSTS header
       🔵 [LOW     ] Missing header: Referrer-Policy
       🔵 [LOW     ] Missing header: Permissions-Policy
-      🔵 [LOW     ] Information disclosure: Server
-      ⚪ [INFO    ] Technologies detected: Cloudflare
+      🔵 [LOW     ] Information disclosure: Server (~informational)
+      ⚪ [INFO    ] Technologies detected: Nginx (~informational)
 ```
+
+> Real output from a scan of a domain the maintainer owns — the only kind of
+> target you should point this at.
 
 ---
 
@@ -243,7 +245,7 @@ and still finishes **4.8× faster**.
 
 | Scanner | ⏱️ Time | 🎯 Findings | 🚫 FP | 📊 Severity | 🧩 Plugins |
 |---------|--------:|------------:|------:|-------------|-----------:|
-| **🟢 WebScan v2.7.0** | **7.1s** | **16** | **0** | 🟠 3 high · 🟡 6 med · 🔵 4 low · ⚪ 3 info | **41** |
+| **🟢 WebScan v2.8.0** | **7.1s** | **16** | **0** | 🟠 3 high · 🟡 6 med · 🔵 4 low · ⚪ 3 info | **41** |
 | Nuclei `3.8.0` *(1720 templates)* | 34.2s | 21 | — | ⚪ 16 of 21 are info-level | ~9 effective |
 | Nikto `2.6.0` | 42.6s | 30 | ⚠️ 5+ | mixed, noisy output | ~15 |
 
@@ -289,14 +291,14 @@ doesn't have SQLi, XSS, SSTI, LFI, XXE, IDOR, or smuggling vulnerabilities).
 - **Fairness:** "false positives" counted by manual verification
 
 > 📌 v2.0 benchmark (7.3s, 19 plugins) preserved in [v2.0.0 release](https://github.com/lutzashl290788-cell/webscan/releases/tag/v2.0.0).
-> v2.7.0 runs 41 plugins (2× more) in 7.1s — faster than v2.0's 7.3s with 19 plugins!
+> v2.8.0 runs 41 plugins (2× more) in 7.1s — faster than v2.0's 7.3s with 19 plugins!
 
 ---
 
 ## 🏆 Comparison
 
 [![Coverage](https://img.shields.io/badge/coverage-97%25-2ea043?style=flat-square&logo=codecov&logoColor=white)](#-code-quality)
-[![Tests](https://img.shields.io/badge/tests-936%20passed-00d26a?style=flat-square&logo=pytest&logoColor=white)](#-code-quality)
+[![Tests](https://img.shields.io/badge/tests-933%20passed-00d26a?style=flat-square&logo=pytest&logoColor=white)](#-code-quality)
 [![CVE](https://img.shields.io/badge/CVE-350K%2B%20NVD-ff6b6b?style=flat-square&logo=cve&logoColor=white)](#-comparison)
 [![Plugins](https://img.shields.io/badge/plugins-41-9b59b6?style=flat-square)](#-comparison)
 
@@ -326,7 +328,7 @@ How WebScan stacks up against the tools security teams actually reach for:
 ## ✅ Code Quality
 
 [![Coverage](https://img.shields.io/badge/coverage-97%25-2ea043?style=flat-square)](#-code-quality)
-[![Tests](https://img.shields.io/badge/tests-936%20passed-00d26a?style=flat-square)](#-code-quality)
+[![Tests](https://img.shields.io/badge/tests-933%20passed-00d26a?style=flat-square)](#-code-quality)
 [![mypy](https://img.shields.io/badge/mypy-strict%20✓-blue?style=flat-square)](#-code-quality)
 [![ruff](https://img.shields.io/badge/ruff-0%20issues-d7ff64?style=flat-square)](#-code-quality)
 
@@ -335,15 +337,15 @@ Every release is gated on the same checks — no exceptions, no warnings suppres
 | Metric | Result |
 |--------|--------|
 | 🧪 **Test coverage** | **97%** — comfortably above the 80% CI gate |
-| ✅ **Tests** | **936 passed, 0 failed** in ~9.6s |
-| 🔍 **Type checking** | `mypy --strict` — **0 errors** across 69 source files |
+| ✅ **Tests** | **933 passed, 23 skipped** in ~8s |
+| 🔍 **Type checking** | `mypy --strict` — **0 errors** across 70 source files |
 | 🧹 **Linting** | `ruff` — **0 issues** |
 | 🧩 **Plugins discovered** | **41** via `webscan.plugins` entry-points |
 | 📄 **Report formats** | **6** — JSON · JSONL · Markdown · HTML · SARIF · CSV |
 | 🤖 **CI** | `pytest --cov-fail-under=80` enforced on every push (GitHub Actions) |
 
 ```text
-pytest .......................................... 936 passed  ✅
+pytest .......................................... 933 passed  ✅
 mypy --strict ................................... 0 errors    ✅
 ruff check ..................................... 0 issues     ✅
 coverage ....................................... 97%  ▓▓▓▓▓▓▓▓▓░  ✅
@@ -358,11 +360,11 @@ coverage ....................................... 97%  ▓▓▓▓▓▓▓▓�
 
 | Scanner | Rating | Summary |
 |---------|--------|---------|
-| 🟢 **WebScan** | ★★★★★ | **Fastest (7.1s)**, most findings (28), **zero false positives**, 350K CVE real-time, 41 plugins with content verification, free MIT |
-| Nuclei | ★★★☆☆ | 4.7× slower than WebScan; 16 of 21 findings are info-only; no confidence dimension |
+| 🟢 **WebScan** | ★★★★★ | **Fastest (7.1s)**, 16 findings with **zero false positives**, 350K CVE real-time, 41 plugins with content verification, free MIT |
+| Nuclei | ★★★☆☆ | 4.8× slower than WebScan; 16 of 21 findings are info-only; no confidence dimension |
 | OWASP ZAP | ★★★☆☆ | Solid DAST tool, but ~3,500 MB RAM, slow scans, limited CVE coverage |
 | Burp Suite Pro | ★★★☆☆ | Best manual proxy, but $475/year, 2.5+ hour scans, no CLI automation |
-| Nikto | ★★☆☆☆ | 5.8× slower, 5+ false positives per scan, no severity levels, legacy Perl |
+| Nikto | ★★☆☆☆ | 6.0× slower, 5+ false positives per scan, no severity levels, legacy Perl |
 
 <div align="center">
 
@@ -536,13 +538,13 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.12" }
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.14" }
       - run: pip install .
       - run: webscan -t ${{ secrets.STAGING_URL }} --min-severity high --format sarif -o report
         continue-on-error: true
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: report.sarif
 ```
@@ -712,7 +714,7 @@ cd webscan && pip install .
 pip install -e ".[dev]"
 ```
 
-**Requirements:** Python ≥ 3.10, `aiohttp` ≥ 3.9
+**Requirements:** Python ≥ 3.11, `aiohttp` ≥ 3.14.3
 
 ---
 

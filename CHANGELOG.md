@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-08-05
+
+### Changed
+
+- Refreshed runtime, optional, and development dependencies to their current stable
+  releases and regenerated the lock file.
+- Raised the minimum supported Python version to 3.11 and added CI coverage for
+  Python 3.13 and 3.14.
+- Updated GitHub Actions to their current major releases.
+
 ### Fixed
 
 - **Response bodies were silently truncated at ~112 KiB.** `fetch_body()` called

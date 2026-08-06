@@ -16,7 +16,7 @@ Thank you for taking the time to contribute! This document covers everything you
 
 ## 1. Development setup
 
-**Prerequisites:** Python 3.10 or later, and `git`.
+**Prerequisites:** Python 3.11 or later, and `git`.
 
 ```bash
 # 1. Fork the repo on GitHub, then clone your fork
