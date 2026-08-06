@@ -812,7 +812,7 @@ false positives**.
 - Plugins: `config_files`, `headers`, `directories`, `sql_injection` (error-based),
   `cors`, `cookies`, `http_methods`.
 
-[Unreleased]: https://github.com/lutzashl290788-cell/webscan/compare/v2.7.1...HEAD
+[Unreleased]: https://github.com/lutzashl290788-cell/webscan/compare/v2.8.0...HEAD
 [2.7.1]: https://github.com/lutzashl290788-cell/webscan/compare/v2.7.0...v2.7.1
 [2.7.0]: https://github.com/lutzashl290788-cell/webscan/compare/v2.6.0...v2.7.0
 [2.6.0]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.3...v2.6.0

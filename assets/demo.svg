@@ -13,12 +13,12 @@
   <circle cx="22" cy="17" r="6" fill="#ff5f56"/>
   <circle cx="42" cy="17" r="6" fill="#ffbd2e"/>
   <circle cx="62" cy="17" r="6" fill="#27c93f"/>
-  <text x="390" y="22" fill="#8b949e" font-size="11" text-anchor="middle">webscan v2.7.1 — security audit · 41 plugins</text>
+  <text x="390" y="22" fill="#8b949e" font-size="11" text-anchor="middle">webscan v2.8.0 — security audit · 41 plugins</text>
   <rect x="22" y="220" width="300" height="3" rx="1" fill="#21262d"/><rect x="22" y="220" width="0" height="3" rx="1" fill="#3fb950"><animate attributeName="width" from="0" to="300" dur="1.5s" begin="2.0s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/></rect>
     <text x="20" y="50" fill="#7ee787" opacity="0" font-size="13">$ webscan -t https://httpbin.org --safe-mode<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.00s" fill="freeze"/></text>
   <text x="20" y="70" fill="#c9d1d9" opacity="0" font-size="13">&#160;<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.22s" fill="freeze"/></text>
   <text x="20" y="90" fill="#39c5cf" opacity="0" font-size="13">╔══════════════════════════════════════════════════╗<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.44s" fill="freeze"/></text>
-  <text x="20" y="110" fill="#39c5cf" opacity="0" font-size="13">║        WebScan v2.7.1 — Security Auditor         ║<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.66s" fill="freeze"/></text>
+  <text x="20" y="110" fill="#39c5cf" opacity="0" font-size="13">║        WebScan v2.8.0 — Security Auditor         ║<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.66s" fill="freeze"/></text>
   <text x="20" y="130" fill="#39c5cf" opacity="0" font-size="13">╚══════════════════════════════════════════════════╝<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="0.88s" fill="freeze"/></text>
   <text x="20" y="150" fill="#8b949e" opacity="0" font-size="13">  Targets     : 1<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="1.10s" fill="freeze"/></text>
   <text x="20" y="170" fill="#8b949e" opacity="0" font-size="13">  Plugins     : 41 enabled<animate attributeName="opacity" from="0" to="1" dur="0.15s" begin="1.32s" fill="freeze"/></text>
