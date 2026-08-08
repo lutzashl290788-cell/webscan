@@ -525,6 +525,24 @@ class Reporter:
         """
         threshold = SEVERITY_ORDER.get(min_severity, 99) if min_severity else 99
         lines: list[str] = []
+        all_findings = [f for tr in self.report.targets for f in tr.findings
+                        if SEVERITY_ORDER.get(f.severity, 99) <= threshold]
+        counts = _count_severities(all_findings)
+        if all_findings:
+            lines.append("  Findings by severity")
+            lines.append("  " + "─" * 21)
+            summary_parts = []
+            for severity in Severity:
+                if counts[severity]:
+                    label = severity.value.upper()
+                    if color:
+                        tint = _SEVERITY_ANSI.get(severity, "")
+                        label = f"{tint}{label}{_ANSI_RESET}"
+                    summary_parts.append(f"{label} {counts[severity]}")
+            lines.append("  " + "  ·  ".join(summary_parts))
+            lines.append("")
+        lines.append("  Findings")
+        lines.append("  " + "─" * 21)
         for tr in self.report.targets:
             shown = [
                 f

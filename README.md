@@ -2,7 +2,7 @@
 
 <img src="assets/header.svg" alt="WebScan — automated web security auditor" width="820"/>
 
-*Crawl → discover → audit. **41 plugins**, 6 report formats, polite defaults, content-verified findings.*
+*Discover → verify → report. **41 plugins**, 6 report formats, polite defaults, content-verified findings.*
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lutzashl290788-cell/webscan/ci.yml?style=flat-square&label=CI&logo=githubactions&logoColor=white)](https://github.com/lutzashl290788-cell/webscan/actions)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
@@ -18,9 +18,27 @@
 <!-- Table of contents -->
 
 - [Quick Start](#-quick-start)
+- [Choose a scan](#-choose-a-scan)
 - [What it does](#-what-it-does)
 - [Plugins](#-plugins)
 - [Usage](#-usage)
+- [Output formats](#-output-formats)
+- [CI/CD](#-cicd)
+
+### At a glance
+
+| | WebScan | Why it helps |
+|---|---|---|
+| **Signal** | 41 content-verified plugins | Findings include evidence, confidence, and remediation |
+| **Workflow** | Crawl → scan → export | Start in a terminal, finish in CI or a shareable report |
+| **Safety** | Safe Mode, robots.txt, rate limits | A responsible default for owner-led audits |
+| **Integration** | JSON, JSONL, Markdown, HTML, SARIF, CSV | Feed dashboards, pull requests, or a spreadsheet |
+
+The shortest path from install to a useful result is:
+
+```text
+target  →  safe scan  →  terminal summary  →  report.json / report.html
+```
 
 ---
 
@@ -34,8 +52,25 @@ cd webscan && pip install .
 webscan -t https://example.com --safe-mode
 ```
 
+The first run is intentionally conservative. Use `--explain` when reviewing
+results with a team, and add `-o report --format json html` when the result needs
+to leave the terminal.
+
 > **Legal notice:** use only on systems you own or have explicit written permission to test.
 > A responsibility notice is printed on every interactive run.
+
+## 🧭 Choose a scan
+
+| Goal | Command | Output |
+|---|---|---|
+| **Baseline an owned site** | `webscan -t https://example.com --safe-mode` | Terminal summary |
+| **Discover routes first** | `webscan -t https://example.com --crawl --depth 3` | Crawled URLs + findings |
+| **Run in CI** | `webscan -t "$STAGING_URL" --min-severity high --format sarif -o report` | `report.sarif` |
+| **Share with a stakeholder** | `webscan -t https://example.com --format html md -o report --anonymize` | Offline HTML + Markdown |
+| **Compare a deploy** | `webscan diff baseline.json current.json --fail-on-new` | New / fixed / changed findings |
+
+> Active and opt-in plugins can send probes or make external lookups. Review the
+> [plugin list](#-plugins) and enable those checks explicitly when appropriate.
 
 ---
 

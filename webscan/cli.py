@@ -910,14 +910,19 @@ def _mask_proxy_url(url: str) -> str:
 def _print_banner(
     targets: list[str], plugins: list[BasePlugin], args: argparse.Namespace
 ) -> None:
-    """Print the scan header banner."""
-    print("╔══════════════════════════════════════════════════════════╗")
-    print("║              WebScan — Security Auditor                 ║")
-    print("╚══════════════════════════════════════════════════════════╝")
-    print(f"  Targets     : {len(targets)}")
-    print(f"  Plugins     : {', '.join(p.name for p in plugins)}")
-    print(f"  Concurrency : {args.concurrency}")
-    print(f"  Timeout     : {args.timeout}s")
+    """Print a compact, scannable header before work starts."""
+    width = 92
+    inner = width - 4
+    plugin_names = ", ".join(p.name for p in plugins)
+    print("┌─ WebScan / security audit " + "─" * (width - 28) + "┐")
+    subtitle = "Targeted, content-verified checks for systems you are authorised to test"
+    print(f"│  {subtitle:<{inner}} │")
+    print("├" + "─" * (width - 2) + "┤")
+    details = (f"Targets {len(targets)}  ·  Plugins {len(plugins)}  ·  "
+               f"Concurrency {args.concurrency}  ·  Timeout {args.timeout}s")
+    print(f"│  {details:<{inner}} │")
+    print(f"│  {'Checks: ' + plugin_names[:inner - 10]:<{inner}} │")
+    print("└" + "─" * (width - 2) + "┘")
     print()
 
 
