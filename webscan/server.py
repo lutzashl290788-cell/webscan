@@ -22,17 +22,22 @@ Endpoints:
 
 * ``GET  /health`` — liveness probe; also reports whether the AI layer is
   configured (SDK importable *and* a key present).
+* ``GET  /`` — local dashboard for launching scans and reviewing history.
 * ``POST /scan``   — run a scan. Body is :class:`ScanRequest`; the response is
   the serialised :class:`~webscan.models.ScanReport` plus an optional
   AI-written ``summary`` string.
+* ``GET/DELETE /api/history/{id}`` — retrieve or remove a local scan history item.
 """
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from webscan.ai import AIAssistant, AIConfig, ai_available
 from webscan.api import scan
+from webscan.dashboard import DASHBOARD_HTML
+from webscan.history import ScanHistory
 from webscan.models import CONFIDENCE_ORDER, Confidence
 from webscan.reporter import Reporter
 
@@ -42,13 +47,15 @@ from webscan.reporter import Reporter
 # guarded so ``import webscan.server`` still succeeds without the extra.
 try:  # pragma: no cover - import wiring
     from fastapi import FastAPI, HTTPException, Request
+    from fastapi.responses import HTMLResponse
 except Exception:  # noqa: BLE001 - missing optional dep => names are None
-    FastAPI = HTTPException = Request = None  # type: ignore[assignment,misc]
+    FastAPI = HTTPException = Request = HTMLResponse = None  # type: ignore[assignment,misc]
 
 # Default bind address: localhost only. Surfacing this as constants keeps the
 # CLI and the docs in agreement on the safe default.
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8000
+DEFAULT_HISTORY_PATH = Path.home() / ".webscan" / "history.db"
 
 # Hardening caps for the HTTP backend (CWE-400 / CWE-770). A single client must
 # not be able to exhaust the server's memory or open a million concurrent scans
@@ -142,7 +149,7 @@ async def run_scan(payload: dict[str, Any]) -> dict[str, Any]:
     return {"report": report_dict, "summary": summary}
 
 
-def create_app() -> FastAPI:
+def create_app(history_path: str | Path | None = None) -> FastAPI:
     """Build and return the FastAPI application.
 
     :raises RuntimeError: if the ``serve`` extra (fastapi) is not installed.
@@ -158,6 +165,14 @@ def create_app() -> FastAPI:
         version="2.8.0",
         description="Local HTTP backend for the WebScan security scanner.",
     )
+    # Programmatic app instances default to an in-memory history so tests and
+    # embedded users do not unexpectedly write to their home directory.
+    history = ScanHistory(history_path or ":memory:")
+    app.state.history = history
+
+    @app.get("/", response_class=HTMLResponse)  # type: ignore
+    async def dashboard() -> HTMLResponse:
+        return HTMLResponse(DASHBOARD_HTML)
 
     # Explicit CORS deny-all: a browser front-end on a different origin must
     # NOT be able to drive scans through this backend.
@@ -199,14 +214,37 @@ def create_app() -> FastAPI:
         if not isinstance(payload, dict):
             raise HTTPException(status_code=400, detail="body must be a JSON object")
         try:
-            return await run_scan(payload)
+            result = await run_scan(payload)
+            result["history_id"] = history.add(result["report"], result["summary"])
+            return result
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/history")  # type: ignore
+    async def history_list() -> list[dict[str, Any]]:
+        return history.list()
+
+    @app.get("/api/history/{scan_id}")  # type: ignore
+    async def history_item(scan_id: int) -> dict[str, Any]:
+        item = history.get(scan_id)
+        if item is None:
+            raise HTTPException(status_code=404, detail="scan not found")
+        return item
+
+    @app.delete("/api/history/{scan_id}")  # type: ignore
+    async def history_delete(scan_id: int) -> dict[str, bool]:
+        if not history.delete(scan_id):
+            raise HTTPException(status_code=404, detail="scan not found")
+        return {"deleted": True}
 
     return app
 
 
-def run_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
+def run_server(
+    host: str = DEFAULT_HOST,
+    port: int = DEFAULT_PORT,
+    history_path: str | Path = DEFAULT_HISTORY_PATH,
+) -> None:
     """Start the uvicorn server. Blocks until interrupted.
 
     :raises RuntimeError: if the ``serve`` extra is not installed.
@@ -218,4 +256,8 @@ def run_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
         )
     import uvicorn
 
-    uvicorn.run(create_app(), host=host, port=port)
+    try:
+        app = create_app(history_path)
+    except OSError as exc:
+        raise RuntimeError(f"Cannot open history database at {history_path}: {exc}") from exc
+    uvicorn.run(app, host=host, port=port)

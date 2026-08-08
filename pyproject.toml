@@ -142,6 +142,7 @@ ignore = ["UP017", "UP041", "UP042"]
 "webscan/autofix.py" = ["E501"]
 "webscan/notify.py" = ["E501"]
 "webscan/diff.py" = ["E501"]
+"webscan/dashboard.py" = ["E501"]
 
 # ─── pytest ──────────────────────────────────────────────────────────────────
 [tool.pytest.ini_options]

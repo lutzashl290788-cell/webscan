@@ -108,6 +108,21 @@ python -m pip install 'webscan-security[dev]'   # test and lint tooling
 | Compare two deployments | `webscan diff baseline.json current.json --fail-on-new` | New, fixed, and changed findings |
 | Gate a pull request | `--format sarif -o report --fail-on-risk 70` | SARIF artifact + non-zero exit code |
 | Share results safely | `--format html md --anonymize` | Redacted offline reports |
+| Browse scan history locally | `webscan serve` | Dashboard at `http://127.0.0.1:8000` |
+
+### Local dashboard
+
+Install the optional serving dependencies and start the local dashboard:
+
+```bash
+python -m pip install 'webscan-security[serve]'
+webscan serve
+```
+
+Open `http://127.0.0.1:8000` to run a scan, revisit previous scans, and filter
+findings by severity, confidence, plugin, or free-text query. History is stored
+in `~/.webscan/history.db` and never uploaded. Choose another location when
+needed with `--history-db /path/to/history.db` or `WEBSCAN_HISTORY_DB`.
 
 ## How a scan works
 
