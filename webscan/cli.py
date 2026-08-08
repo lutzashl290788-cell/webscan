@@ -974,7 +974,7 @@ def _serve(argv: list[str]) -> NoReturn:
     )
     opts = sub.parse_args(argv)
 
-    from webscan.server import DEFAULT_HISTORY_PATH, run_server, server_available
+    from webscan.server import run_server, server_available
 
     if not server_available():
         _die(
@@ -983,11 +983,10 @@ def _serve(argv: list[str]) -> NoReturn:
         )
     print(f"WebScan server listening on http://{opts.host}:{opts.port}", file=sys.stderr)
     try:
-        run_server(
-            host=opts.host,
-            port=opts.port,
-            history_path=opts.history_db or DEFAULT_HISTORY_PATH,
-        )
+        if opts.history_db:
+            run_server(host=opts.host, port=opts.port, history_path=opts.history_db)
+        else:
+            run_server(host=opts.host, port=opts.port)
     except KeyboardInterrupt:  # pragma: no cover - interactive shutdown
         pass
     sys.exit(0)
