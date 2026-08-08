@@ -439,14 +439,18 @@ class Reporter:
             f"<title>WebScan Report — {_esc(r.scan_started)}</title>",
             f"<style>{_HTML_CSS}</style></head><body>",
             '<div class="wrap">',
-            "<h1>🔍 WebScan Security Report</h1>",
-            '<div class="meta">',
+            '<header class="hero">',
+            '<div><p class="eyebrow">SECURITY AUDIT</p><h1>WebScan Security Report</h1>',
+            '<p class="lede">Content-verified findings for authorised testing.</p></div>',
+            '<div class="hero-mark" aria-hidden="true">WS</div>',
+            '</header>',
+            '<section class="meta" aria-label="Scan metadata">',
             f"<span>Started: <code>{_esc(r.scan_started)}</code></span>",
             f"<span>Finished: <code>{_esc(r.scan_finished)}</code></span>",
             f"<span>Targets: <strong>{len(r.targets)}</strong></span>",
             f"<span>Findings: <strong>{r.total_findings}</strong></span>",
-            "</div>",
-            '<div class="counts">',
+            "</section>",
+            '<section class="counts" aria-label="Finding summary">',
         ]
 
         for sev in Severity:
@@ -454,7 +458,7 @@ class Reporter:
                 f'<span class="pill {sev.value}">{sev.value.upper()}'
                 f" · {totals[sev]}</span>"
             )
-        parts.append("</div>")
+        parts.append("</section>")
 
         for tr in r.targets:
             parts.append(f'<section><h2>🌐 {_esc(tr.target)}</h2>')
@@ -620,35 +624,45 @@ def _safe_url(url: str) -> str:
 
 
 _HTML_CSS = """
-*{box-sizing:border-box}body{margin:0;background:#0d1117;color:#e6edf3;
-font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-.wrap{max-width:980px;margin:0 auto;padding:32px 20px}
-h1{font-size:24px;margin:0 0 16px}h2{font-size:18px;margin:28px 0 12px;
-border-bottom:1px solid #21262d;padding-bottom:8px}
-.meta{display:flex;flex-wrap:wrap;gap:16px;color:#8b949e;font-size:13px;
-margin-bottom:16px}.meta code,code{background:#161b22;padding:2px 6px;
-border-radius:4px;color:#79c0ff}
-.counts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
-.pill,.badge{display:inline-block;padding:3px 10px;border-radius:20px;
-font-size:12px;font-weight:600;color:#fff}
+*{box-sizing:border-box}body{margin:0;background:#0b1020;color:#e7edf7;
+font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:1060px;margin:0 auto;padding:40px 24px 64px}
+.hero{display:flex;align-items:center;justify-content:space-between;gap:24px;
+padding:24px 0 22px;border-bottom:1px solid #27324a}.eyebrow{margin:0 0 6px;
+color:#78a9ff;font-size:11px;font-weight:700;letter-spacing:1.4px}.hero h1{font-size:30px;
+letter-spacing:.2px;margin:0 0 4px}.lede{color:#93a4bf;margin:0}.hero-mark{display:grid;
+place-items:center;
+width:58px;height:58px;border:1px solid #3b82f6;border-radius:12px;color:#9ec1ff;
+font-size:14px;font-weight:800;letter-spacing:1px}.meta{display:flex;flex-wrap:wrap;gap:10px 22px;
+color:#93a4bf;font-size:13px;padding:18px 0 14px}.meta code,code{background:#141c31;padding:3px 7px;
+border-radius:5px;color:#9ec1ff}.counts{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+gap:10px;margin:0 0 30px}.pill{display:flex;flex-direction:column;gap:2px;padding:12px 14px;
+border:1px solid #27324a;border-radius:8px;background:#111a2e;color:#cbd7ea;font-size:11px;
+font-weight:700;letter-spacing:.4px}.badge{display:inline-block;padding:3px 9px;border-radius:5px;
+font-size:11px;font-weight:700;color:#fff}
+h2{font-size:18px;margin:30px 0 12px;padding-bottom:9px;border-bottom:1px solid #27324a;
+color:#f2f6fc;overflow-wrap:anywhere}
 .critical{background:#da3633}.high{background:#db6d28}.medium{background:#d29922}
 .low{background:#1f6feb}.info{background:#484f58}
-.finding{background:#161b22;border:1px solid #21262d;border-left-width:4px;
+.finding{background:#111a2e;border:1px solid #27324a;border-left-width:4px;
 border-radius:8px;padding:14px 16px;margin:10px 0}
 .finding.critical{border-left-color:#da3633}.finding.high{border-left-color:#db6d28}
 .finding.medium{border-left-color:#d29922}.finding.low{border-left-color:#1f6feb}
 .finding.info{border-left-color:#484f58}
 .fh{display:flex;align-items:center;gap:10px;margin-bottom:6px}
-.ftitle{font-weight:600}.fmeta{font-size:13px;color:#8b949e;margin-bottom:8px}
+.ftitle{font-weight:600}.fmeta{font-size:13px;color:#93a4bf;margin-bottom:8px;overflow-wrap:anywhere}
 .conf{font-size:11px;color:#d29922;border:1px solid #d29922;border-radius:10px;
 padding:1px 7px;font-weight:600}
 .fmeta a{color:#79c0ff;text-decoration:none}
-pre{background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:10px;
+pre{background:#0b1020;border:1px solid #27324a;border-radius:6px;padding:10px;
 overflow:auto;font-size:12px;color:#c9d1d9}
 .rem{font-size:13px;color:#adbac7}.ok{color:#3fb950}
 .errors{background:#2d1416;border:1px solid #5c2326;border-radius:6px;
 padding:8px 12px;font-size:13px;color:#ff7b72}
 .errors ul{margin:4px 0 0;padding-left:18px}
+@media(max-width:640px){.wrap{padding:24px 15px 40px}.hero h1{font-size:25px}
+.hero-mark{width:48px;height:48px}.meta{display:grid;gap:8px}
+.fh{align-items:flex-start;flex-wrap:wrap}}
 """
 
 
