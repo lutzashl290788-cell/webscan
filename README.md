@@ -81,6 +81,25 @@ This writes `reports/example.json`, `reports/example.html`, and
 `reports/example.md`. Reports are self-contained where possible and can be
 shared without a WebScan installation.
 
+### Choose a built-in preset
+
+```bash
+webscan -t https://example.com --preset quick
+webscan -t https://example.com --preset safe
+webscan -t https://example.com --preset full
+webscan -t https://example.com --preset active
+```
+
+| Preset | Use case |
+|---|---|
+| `quick` | Fast, high-confidence review of actionable findings. |
+| `safe` | Polite crawl with soft-404 handling and firm findings only. |
+| `full` | Safe crawl plus DNS, technology, and robots/sitemap reconnaissance. |
+| `active` | Explicitly enables the heavier active checks for authorised testing. |
+
+Presets cannot be combined with `--config`; use a YAML profile when a team
+needs a custom, version-controlled configuration.
+
 ### Install from source
 
 ```bash

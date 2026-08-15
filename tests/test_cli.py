@@ -76,6 +76,25 @@ def test_safe_mode_off_is_noop() -> None:
     assert args.concurrency == 50
 
 
+def test_builtin_safe_preset_sets_low_noise_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    parser = cli._build_parser()
+    monkeypatch.setattr(sys, "argv", ["webscan", "--preset", "safe"])
+    cli._apply_preset(parser)
+    args = parser.parse_args()
+    assert args.crawl is True
+    assert args.safe_mode is True
+    assert args.soft_404 is True
+    assert args.min_confidence == "firm"
+    assert args.no_bruteforce is True
+
+
+def test_builtin_preset_rejects_config_combination(monkeypatch: pytest.MonkeyPatch) -> None:
+    parser = cli._build_parser()
+    monkeypatch.setattr(sys, "argv", ["webscan", "--preset", "safe", "--config", "scan.yml"])
+    with pytest.raises(SystemExit):
+        cli._apply_preset(parser)
+
+
 # ── plugin registry / wiring ────────────────────────────────────────────────────
 
 def test_registry_includes_new_plugins() -> None:

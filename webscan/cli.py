@@ -50,6 +50,39 @@ def _disclaimer_text() -> str:
 # Supported report output formats.
 _OUTPUT_FORMATS = ["json", "jsonl", "md", "html", "sarif", "csv"]
 
+_BUILTIN_PRESETS: dict[str, dict[str, object]] = {
+    "quick": {
+        "plugins": list(DEFAULT_PLUGINS),
+        "min_confidence": "firm",
+    },
+    "safe": {
+        "plugins": list(DEFAULT_PLUGINS),
+        "crawl": True,
+        "safe_mode": True,
+        "soft_404": True,
+        "no_bruteforce": True,
+        "min_confidence": "firm",
+    },
+    "full": {
+        "plugins": list(DEFAULT_PLUGINS) + [
+            "dns_security", "tech_fingerprint", "robots_sitemap",
+        ],
+        "crawl": True,
+        "safe_mode": True,
+        "soft_404": True,
+        "no_bruteforce": True,
+    },
+    "active": {
+        "plugins": list(DEFAULT_PLUGINS) + [
+            "cve_lookup", "graphql", "mass_assignment", "race_condition",
+            "request_smuggling",
+        ],
+        "crawl": True,
+        "soft_404": True,
+        "no_bruteforce": True,
+    },
+}
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Argument parsing
@@ -102,6 +135,14 @@ def _add_config_args(parser: argparse.ArgumentParser) -> None:
         "--profile",
         metavar="NAME",
         help="Named profile to select from a config file's 'profiles:' section.",
+    )
+    cg.add_argument(
+        "--preset",
+        choices=sorted(_BUILTIN_PRESETS),
+        help=(
+            "Built-in scan preset: quick, safe, full, or active. "
+            "Presets cannot be combined with --config."
+        ),
     )
 
 
@@ -1030,6 +1071,7 @@ def main() -> None:
 
     parser = _build_parser()
     _apply_config(parser)
+    _apply_preset(parser)
     args = parser.parse_args()
 
     if args.list_plugins:
@@ -1052,6 +1094,16 @@ def main() -> None:
 def _die(msg: str) -> NoReturn:
     print(f"[!] {msg}", file=sys.stderr)
     sys.exit(1)
+
+
+def _apply_preset(parser: argparse.ArgumentParser) -> None:
+    """Apply a built-in preset before the final parse so CLI flags override it."""
+    pre, _ = parser.parse_known_args()
+    if not pre.preset:
+        return
+    if pre.config:
+        _die("--preset cannot be combined with --config/--profile; choose one.")
+    parser.set_defaults(**_BUILTIN_PRESETS[pre.preset])
 
 
 if __name__ == "__main__":
