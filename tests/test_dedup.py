@@ -1,8 +1,8 @@
 """Tests for cross-plugin finding deduplication (webscan.engine)."""
 from __future__ import annotations
 
-from webscan.engine import deduplicate_findings
-from webscan.models import Confidence, Finding, Severity
+from webscan.engine import _deduplicate_report_site_findings, deduplicate_findings
+from webscan.models import Confidence, Finding, ScanReport, Severity, TargetResult
 
 URL = "https://example.com"
 
@@ -81,6 +81,20 @@ def test_site_key_collapses_across_paths_but_not_hosts() -> None:
                  url="https://other.example/"),
     ])
     assert len(out) == 2
+
+
+def test_report_level_site_key_collapses_crawled_results() -> None:
+    first = _finding("headers", "No framing", dedup_key="site:framing-protection-missing")
+    second = _finding(
+        "headers", "No framing", dedup_key="site:framing-protection-missing",
+        url="https://example.com/account",
+    )
+    report = ScanReport(targets=[
+        TargetResult(target=URL, findings=[first]),
+        TargetResult(target="https://example.com/account", findings=[second]),
+    ])
+    _deduplicate_report_site_findings(report)
+    assert sum(len(target.findings) for target in report.targets) == 1
 
 
 def test_confidence_breaks_severity_ties() -> None:

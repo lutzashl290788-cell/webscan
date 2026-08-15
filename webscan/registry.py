@@ -169,6 +169,11 @@ OPT_IN_PLUGINS: frozenset[str] = frozenset({
     "mass_assignment",
     "race_condition",
     "request_smuggling",
+    # Recon and hygiene observations are useful when explicitly requested,
+    # but are not vulnerability findings for a focused default scan.
+    "dns_security",
+    "tech_fingerprint",
+    "robots_sitemap",
 })
 
 # Names run by default — everything except the opt-in set, in registry order.

@@ -300,6 +300,7 @@ class ScanEngine:
             else:
                 report.targets.append(item)
 
+        _deduplicate_report_site_findings(report)
         report.scan_finished = _utcnow()
         report.total_findings = sum(len(r.findings) for r in report.targets)
         return report
@@ -394,6 +395,44 @@ def _dedup_scope(finding: Finding) -> str:
         parsed = urlsplit(finding.url)
         return f"{parsed.scheme}://{parsed.netloc}"
     return finding.url
+
+
+def _deduplicate_report_site_findings(report: ScanReport) -> None:
+    """Collapse explicitly site-wide findings across crawled target results.
+
+    ``_scan_target`` can only compare plugins for one URL. A crawler creates
+    many ``TargetResult`` objects for the same origin, so host-wide checks
+    such as DNS and framing protection would otherwise repeat in the final
+    report. Only ``site:`` keys opt into this pass; endpoint findings remain
+    untouched.
+    """
+    groups: dict[tuple[str, str], list[Finding]] = {}
+    for target_result in report.targets:
+        for finding in target_result.findings:
+            if finding.dedup_key and finding.dedup_key.startswith("site:"):
+                groups.setdefault((_dedup_scope(finding), finding.dedup_key), []).append(finding)
+
+    winners: set[int] = set()
+    for findings in groups.values():
+        winner = min(findings, key=_finding_rank)
+        winners.add(id(winner))
+        duplicate_urls = sorted({f.url for f in findings if f.url != winner.url})
+        if duplicate_urls:
+            winner.evidence = {
+                **winner.evidence,
+                "also_observed_at": duplicate_urls,
+            }
+
+    for target_result in report.targets:
+        target_result.findings = [
+            finding
+            for finding in target_result.findings
+            if not (
+                finding.dedup_key
+                and finding.dedup_key.startswith("site:")
+                and id(finding) not in winners
+            )
+        ]
 
 
 def _finding_rank(finding: Finding) -> tuple[int, int, str]:

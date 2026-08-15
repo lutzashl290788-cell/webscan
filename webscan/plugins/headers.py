@@ -72,7 +72,7 @@ _REQUIRED_HEADERS: dict[str, _HeaderRule] = {
         # The clickjacking plugin reports the same missing framing protection
         # in more detail (it also inspects CSP frame-ancestors), so both share
         # this key and the engine keeps the better of the two.
-        dedup_key="framing-protection-missing",
+        dedup_key="site:framing-protection-missing",
     ),
     "X-Content-Type-Options": _HeaderRule(
         severity=Severity.MEDIUM,

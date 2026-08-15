@@ -236,7 +236,7 @@ class ClickjackingPlugin(BasePlugin):
                         "(or `'none'` if the page should never be framed) and "
                         "`X-Frame-Options: SAMEORIGIN` as a legacy fallback."
                     ),
-                    dedup_key="framing-protection-missing",
+                    dedup_key="site:framing-protection-missing",
                 ))
             return findings
 
@@ -314,7 +314,7 @@ class ClickjackingPlugin(BasePlugin):
             ),
             # Same root cause as the headers plugin's "Missing header:
             # X-Frame-Options"; the engine keeps only this, more detailed, report.
-            dedup_key="framing-protection-missing",
+            dedup_key="site:framing-protection-missing",
         ))
         return findings
 

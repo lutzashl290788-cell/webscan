@@ -105,6 +105,7 @@ class TechFingerprintPlugin(BasePlugin):
                     "technologies": detected,
                     "server_banner": server,
                 },
+                dedup_key="site:technology-fingerprint",
                 remediation=(
                     "Suppress or genericise version-revealing headers (Server, "
                     "X-Powered-By, X-Generator) and remove framework fingerprints "
