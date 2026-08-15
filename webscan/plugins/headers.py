@@ -8,7 +8,6 @@ import aiohttp
 from webscan.models import Confidence, Finding, Severity
 from webscan.plugins.base import BasePlugin
 
-
 _STATIC_CONTENT_TYPES = (
     "text/css",
     "text/javascript",
