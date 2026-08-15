@@ -78,3 +78,11 @@ async def test_clean_target_no_findings() -> None:
     session = _Session({})
     findings = await DirectoriesPlugin().run(_BASE, session)  # type: ignore[arg-type]
     assert findings == []
+
+
+async def test_probes_origin_when_target_has_query() -> None:
+    session = _Session({"/admin/": (200, b"<h1>Admin login</h1>")})
+    findings = await DirectoriesPlugin().run(
+        "https://example.com/search?q=invoice", session  # type: ignore[arg-type]
+    )
+    assert any(f.url == "https://example.com/admin/" for f in findings)

@@ -50,13 +50,13 @@ async def test_flags_sensitive_disallowed_paths() -> None:
     assert leak.severity is Severity.LOW
 
 
-async def test_missing_sitemap_reported() -> None:
+async def test_missing_sitemap_is_not_a_security_finding() -> None:
     session = _Session({"robots.txt": ("User-agent: *\nDisallow: /x\n", 200)})
     plugin = RobotsSitemapPlugin()
 
     findings = await plugin.run("https://example.com", session)  # type: ignore[arg-type]
 
-    assert any("No sitemap.xml" in f.title for f in findings)
+    assert not any("No sitemap.xml" in f.title for f in findings)
 
 
 async def test_clean_site_no_leak() -> None:

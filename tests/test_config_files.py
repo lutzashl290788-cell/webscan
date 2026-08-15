@@ -98,3 +98,12 @@ async def test_empty_non_executable_file_not_flagged() -> None:
     session = _Session({"/database.yml": "   \n"})
     findings = await ConfigFilesPlugin().run(_BASE, session)  # type: ignore[arg-type]
     assert findings == []
+
+
+async def test_probes_origin_when_target_has_query() -> None:
+    """Crawled URLs must not become the base for root file probes."""
+    session = _Session({"/.env": _ENV_BODY})
+    findings = await ConfigFilesPlugin().run(
+        "https://example.com/search?q=invoice", session  # type: ignore[arg-type]
+    )
+    assert [f.title for f in findings] == ["Exposed file: /.env"]

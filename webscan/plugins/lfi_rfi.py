@@ -53,7 +53,7 @@ _LFI_PARAM_NAMES: frozenset[str] = frozenset({
     "lang", "language", "locale",  # i18n includes are a classic LFI vector
     "image", "img", "picture", "pic",  # image-resize scripts
     "download", "open", "read", "fetch", "get",
-    "cat", "category", "id",  # `?cat=7` in WordPress is canonical
+    "cat", "category",  # WordPress category/archive parameters; no generic id
 })
 
 # ─── Payloads ─────────────────────────────────────────────────────────────────

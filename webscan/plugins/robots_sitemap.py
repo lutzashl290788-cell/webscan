@@ -46,22 +46,9 @@ class RobotsSitemapPlugin(BasePlugin):
         if robots is not None:
             findings.extend(self._analyse_robots(robots, base))
 
-        sitemap = await self._get(session, f"{base}/sitemap.xml")
-        if sitemap is None:
-            findings.append(
-                Finding(
-                    plugin=self.name,
-                    title="No sitemap.xml found",
-                    severity=Severity.LOW,
-                    description=(
-                        "No sitemap.xml was served. A sitemap helps search engines "
-                        "and is a sign of good site hygiene (informational)."
-                    ),
-                    url=f"{base}/sitemap.xml",
-                    evidence={},
-                    remediation="Publish a sitemap.xml listing your public URLs.",
-                )
-            )
+        # A missing sitemap is SEO hygiene, not a security issue. Avoid adding
+        # a low-confidence finding to every scan when there is no leak.
+        await self._get(session, f"{base}/sitemap.xml")
 
         return findings
 

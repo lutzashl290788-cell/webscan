@@ -148,19 +148,8 @@ class WafDetectPlugin(BasePlugin):
                     "probe_status": probe_resp.status if 'probe_resp' in dir() else None,
                 },
             ))
-        else:
-            findings.append(Finding(
-                plugin=self.name,
-                title="No WAF detected",
-                severity=Severity.INFO,
-                confidence=Confidence.INFORMATIONAL,
-                description=(
-                    "No Web Application Firewall was detected. The target responds "
-                    "directly to probes without filtering. Consider deploying a WAF "
-                    "(Cloudflare, AWS WAF, ModSecurity) for defense-in-depth."
-                ),
-                url=target,
-                evidence={"waf_detected": False},
-            ))
+        # Absence of a WAF signature is not a security finding. Reporting it on
+        # every scanned URL adds noise without actionable evidence; only emit a
+        # result when a WAF was positively fingerprinted.
 
         return findings

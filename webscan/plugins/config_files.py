@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from urllib.parse import urlsplit
 
 import aiohttp
 
@@ -130,7 +131,8 @@ class ConfigFilesPlugin(BasePlugin):
         target: str,
         session: aiohttp.ClientSession,
     ) -> list[Finding]:
-        base = target.rstrip("/")
+        parsed = urlsplit(target)
+        base = f"{parsed.scheme}://{parsed.netloc}"
         findings: list[Finding] = []
 
         baseline = await calibrate(session, base) if self.soft_404 else None
