@@ -162,7 +162,7 @@ def create_app(history_path: str | Path | None = None) -> FastAPI:
 
     app = FastAPI(
         title="WebScan",
-        version="2.8.0",
+        version="2.8.1",
         description="Local HTTP backend for the WebScan security scanner.",
     )
     # Programmatic app instances default to an in-memory history so tests and

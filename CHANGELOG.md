@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.8.1] - 2026-08-15
+
+### English
+
+#### Improved
+
+- Reduced crawler false positives by probing the site origin instead of
+  appending sensitive paths to crawled URLs with query strings.
+- Tightened prototype-pollution heuristics so generic framework `Object.assign`
+  and merge calls require a nearby user-input signal.
+- Skipped repeated security-header checks for static assets and added report-level
+  deduplication for explicitly site-wide findings.
+- Focused the default profile on actionable vulnerability findings. DNS,
+  technology fingerprinting, and robots/sitemap hygiene checks remain available
+  through explicit plugin selection.
+- Added benchmark coverage for the false-positive reductions while preserving
+  `100%` recall on the local ground-truth target.
+
+### Русский
+
+#### Улучшено
+
+- Снижено количество ложных срабатываний при crawl: sensitive paths теперь
+  проверяются от origin сайта, а не дописываются к URL страниц с query-параметрами.
+- Ужесточена эвристика prototype pollution: обычные вызовы `Object.assign` и
+  merge в framework-коде требуют признака пользовательского ввода.
+- Статические JS/CSS/media-файлы больше не порождают повторные findings по
+  security headers; добавлен dedup site-wide результатов на уровне отчёта.
+- Default-профиль сфокусирован на actionable уязвимостях. DNS,
+  fingerprinting технологий и robots/sitemap доступны через явный выбор plugins.
+- Добавлены benchmark-тесты точности; recall на локальной ground-truth цели
+  сохранён на уровне `100%`.
+
+### Upgrade
+
+```bash
+pip install --upgrade webscan-security==2.8.1
+```
+
 ## [2.8.0] - 2026-08-05
 
 ### Changed
@@ -812,7 +851,8 @@ false positives**.
 - Plugins: `config_files`, `headers`, `directories`, `sql_injection` (error-based),
   `cors`, `cookies`, `http_methods`.
 
-[Unreleased]: https://github.com/lutzashl290788-cell/webscan/compare/v2.8.0...HEAD
+[Unreleased]: https://github.com/lutzashl290788-cell/webscan/compare/v2.8.1...HEAD
+[2.8.1]: https://github.com/lutzashl290788-cell/webscan/compare/v2.8.0...v2.8.1
 [2.7.1]: https://github.com/lutzashl290788-cell/webscan/compare/v2.7.0...v2.7.1
 [2.7.0]: https://github.com/lutzashl290788-cell/webscan/compare/v2.6.0...v2.7.0
 [2.6.0]: https://github.com/lutzashl290788-cell/webscan/compare/v2.5.3...v2.6.0
