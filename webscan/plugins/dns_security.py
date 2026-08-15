@@ -163,6 +163,8 @@ class DnsSecurityPlugin(BasePlugin):
                 remediation="Verify DKIM is configured. Check your email provider's docs for the correct selector name.",
             ))
 
+        for finding in findings:
+            finding.dedup_key = "site:dns:" + finding.title.lower()
         return findings
 
 

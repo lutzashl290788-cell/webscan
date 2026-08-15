@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from urllib.parse import urlsplit
 
 import aiohttp
 
@@ -32,7 +33,9 @@ class SecurityTxtPlugin(BasePlugin):
         session: aiohttp.ClientSession,
     ) -> list[Finding]:
         findings: list[Finding] = []
-        url = target.rstrip("/") + self._SECURITY_TXT_PATH
+        parsed = urlsplit(target)
+        base = f"{parsed.scheme}://{parsed.netloc}"
+        url = base + self._SECURITY_TXT_PATH
 
         try:
             async with session.get(
@@ -55,7 +58,7 @@ class SecurityTxtPlugin(BasePlugin):
                                 f"(HTTP {resp.status}). Consider publishing one "
                                 f"per RFC 9116 to provide a security contact."
                             ),
-                            url=target,
+                            url=base,
                             evidence={"http_status": resp.status, "checked_url": url},
                             remediation=(
                                 "Create a security.txt file at "
@@ -70,6 +73,8 @@ class SecurityTxtPlugin(BasePlugin):
         except (aiohttp.ClientError, asyncio.TimeoutError):
             pass
 
+        for finding in findings:
+            finding.dedup_key = "site:security-txt:" + finding.title.lower()
         return findings
 
     def _parse_security_txt(self, text: str, target: str, url: str) -> list[Finding]:

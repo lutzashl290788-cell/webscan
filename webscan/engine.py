@@ -7,7 +7,7 @@ import ssl as ssl_lib
 from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 
 import aiohttp
 
@@ -368,7 +368,7 @@ def deduplicate_findings(findings: list[Finding]) -> list[Finding]:
             standalone[i] = finding
             order.append(i)
             continue
-        key = (finding.url, finding.dedup_key)
+        key = (_dedup_scope(finding), finding.dedup_key)
         if key not in groups:
             groups[key] = []
             order.append(key)
@@ -386,6 +386,14 @@ def deduplicate_findings(findings: list[Finding]) -> list[Finding]:
             best.evidence = {**best.evidence, "also_reported_by": others}
         out.append(best)
     return out
+
+
+def _dedup_scope(finding: Finding) -> str:
+    """Use host scope for explicitly site-wide findings."""
+    if finding.dedup_key and finding.dedup_key.startswith("site:"):
+        parsed = urlsplit(finding.url)
+        return f"{parsed.scheme}://{parsed.netloc}"
+    return finding.url
 
 
 def _finding_rank(finding: Finding) -> tuple[int, int, str]:

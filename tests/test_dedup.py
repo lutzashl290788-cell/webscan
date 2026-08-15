@@ -71,6 +71,18 @@ def test_same_key_on_different_urls_stays_separate() -> None:
     assert len(out) == 2
 
 
+def test_site_key_collapses_across_paths_but_not_hosts() -> None:
+    out = deduplicate_findings([
+        _finding("dns_security", "Missing SPF", dedup_key="site:dns:spf",
+                 url="https://example.com/"),
+        _finding("dns_security", "Missing SPF", dedup_key="site:dns:spf",
+                 url="https://example.com/login"),
+        _finding("dns_security", "Missing SPF", dedup_key="site:dns:spf",
+                 url="https://other.example/"),
+    ])
+    assert len(out) == 2
+
+
 def test_confidence_breaks_severity_ties() -> None:
     out = deduplicate_findings([
         _finding("aaa", "tentative", dedup_key="k", confidence=Confidence.TENTATIVE),
