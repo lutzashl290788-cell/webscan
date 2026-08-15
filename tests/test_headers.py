@@ -39,3 +39,13 @@ async def test_flags_weak_csp() -> None:
     findings = await HeadersPlugin().run("https://example.com", session)  # type: ignore[arg-type]
 
     assert any("Weak CSP directive" in f.title for f in findings)
+
+
+async def test_skips_static_assets() -> None:
+    """Do not repeat document security findings for JS/CSS/image assets."""
+    session = FakeSession(FakeResponse(
+        status=200,
+        headers=[("Content-Type", "application/javascript")],
+    ))
+    findings = await HeadersPlugin().run("https://example.com/assets/app.js", session)  # type: ignore[arg-type]
+    assert findings == []

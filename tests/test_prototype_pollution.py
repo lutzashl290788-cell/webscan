@@ -27,6 +27,28 @@ class TestPluginRun:
         findings = await plugin.run(_TARGET, FakeSession(resp))  # type: ignore[arg-type]
         assert findings == []
 
+    async def test_benign_object_assign_in_bundle_is_ignored(self) -> None:
+        """Framework-internal Object.assign must not be reported as pollution."""
+        plugin = PrototypePollutionPlugin()
+        body = (
+            '<html><script>function render(e,t){return Object.assign(e,t);}</script>'
+            '</html>' + " " * 50
+        )
+        resp = FakeResponse(body=body, status=200, headers=[("Content-Type", "text/html")])
+        findings = await plugin.run(_TARGET, FakeSession(resp))  # type: ignore[arg-type]
+        assert findings == []
+
+    async def test_object_assign_with_query_input_is_detected(self) -> None:
+        """A merge fed from URL input remains a useful heuristic finding."""
+        plugin = PrototypePollutionPlugin()
+        body = (
+            '<html><script>const query = new URLSearchParams(location.search); '
+            'const target = {}; Object.assign(target, query);</script></html>' + " " * 50
+        )
+        resp = FakeResponse(body=body, status=200, headers=[("Content-Type", "text/html")])
+        findings = await plugin.run(_TARGET, FakeSession(resp))  # type: ignore[arg-type]
+        assert any("Prototype pollution" in f.title for f in findings)
+
     async def test_non_html_skipped(self) -> None:
         plugin = PrototypePollutionPlugin()
         resp = FakeResponse(body='{"x":1}', status=200, headers=[("Content-Type",
@@ -76,7 +98,7 @@ class TestCoverageGaps:
         plugin = PrototypePollutionPlugin()
         body = (
             '<html><body><script>'
-            'function extend() { return {}; }'
+            'const payload = location.hash; function extend() { return payload; }'
             '</script>' + "x" * 100 + '</body></html>'
         )
         resp = FakeResponse(body=body, status=200, headers=[("Content-Type", "text/html")])
@@ -90,7 +112,7 @@ class TestCoverageGaps:
         plugin = PrototypePollutionPlugin()
         body = (
             '<html><body><script>'
-            'const extend = (a) => a;'
+            'const params = location.search; const extend = (a) => params || a;'
             '</script>' + "x" * 100 + '</body></html>'
         )
         resp = FakeResponse(body=body, status=200, headers=[("Content-Type", "text/html")])

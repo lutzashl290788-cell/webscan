@@ -57,6 +57,27 @@ _MERGE_DEFINITIONS: tuple[re.Pattern[str], ...] = (
 _MAX_SCRIPTS = 10
 _MIN_BODY_LENGTH = 100
 
+# A merge call alone is not evidence of prototype pollution.  Production
+# bundles contain thousands of benign Object.assign/merge calls (Vue itself is
+# a common example).  Keep the heuristic conservative unless the surrounding
+# code or source variable indicates data that can originate outside the app.
+_TAINT_HINTS = re.compile(
+    r"(?:location|urlsearchparams|searchparams|query|querystring|hash|"
+    r"document\.cookie|postmessage|json\.parse|formdata|request|payload|"
+    r"user[_-]?input|untrusted|params?)",
+    re.IGNORECASE,
+)
+
+
+def _has_taint_hint(text: str, match: re.Match[str]) -> bool:
+    """Return whether a merge call has a nearby user-input signal."""
+    source = match.group(0)
+    # Include a bounded context window: enough for a call's data-flow hints,
+    # while avoiding unrelated words elsewhere in a large vendor bundle.
+    start = max(0, match.start() - 700)
+    end = min(len(text), match.end() + 700)
+    return bool(_TAINT_HINTS.search(source) or _TAINT_HINTS.search(text[start:end]))
+
 
 class PrototypePollutionPlugin(BasePlugin):
     """Scans HTML and JS for prototype-pollution-vulnerable merge patterns."""
@@ -107,6 +128,22 @@ class PrototypePollutionPlugin(BasePlugin):
             # Check for vulnerable call patterns (MEDIUM).
             for pattern, description in _VULNERABLE_PATTERNS:
                 match = pattern.search(text)
+                # Generic Object.assign/merge matches are especially noisy in
+                # framework bundles. Require a concrete taint hint before
+                # reporting them; the jQuery test and explicit userInput calls
+                # still satisfy this check.
+                if (
+                    match
+                    and (
+                        description.startswith("Object.assign")
+                        or description.startswith("lodash defaultsDeep")
+                        or description.startswith("merge function")
+                        or description.startswith("extend function")
+                        or description.startswith("deepClone function")
+                    )
+                    and not _has_taint_hint(text, match)
+                ):
+                    continue
                 if match and description not in seen_patterns:
                     seen_patterns.add(description)
                     findings.append(Finding(
@@ -143,7 +180,7 @@ class PrototypePollutionPlugin(BasePlugin):
             if not any(f.severity is Severity.MEDIUM for f in findings):
                 for pattern in _MERGE_DEFINITIONS:
                     match = pattern.search(text)
-                    if match:
+                    if match and _has_taint_hint(text, match):
                         findings.append(Finding(
                             plugin=self.name,
                             title="Merge/extend function defined (check for __proto__ filtering)",

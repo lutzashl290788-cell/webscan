@@ -9,6 +9,18 @@ from webscan.models import Confidence, Finding, Severity
 from webscan.plugins.base import BasePlugin
 
 
+_STATIC_CONTENT_TYPES = (
+    "text/css",
+    "text/javascript",
+    "application/javascript",
+    "application/x-javascript",
+    "image/",
+    "font/",
+    "audio/",
+    "video/",
+)
+
+
 @dataclass(frozen=True)
 class _HeaderRule:
     severity: Severity
@@ -122,6 +134,14 @@ class HeadersPlugin(BasePlugin):
             async with session.get(target, allow_redirects=True, ssl=False) as resp:
                 headers = resp.headers
                 status = resp.status
+
+                # Header findings on every crawled asset are duplicates of the
+                # document-level policy and create substantial report noise.
+                # Keep API/JSON responses eligible, but skip clearly static
+                # JS/CSS/media resources.
+                content_type = headers.get("Content-Type", "").lower()
+                if content_type.startswith(_STATIC_CONTENT_TYPES):
+                    return findings
 
                 # --- Missing security headers ---
                 for name, rule in _REQUIRED_HEADERS.items():
