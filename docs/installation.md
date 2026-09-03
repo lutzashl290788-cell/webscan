@@ -98,7 +98,7 @@ pipx install 'webscan-security[serve]'   # with extras
 ## Verifying the install
 
 ```bash
-webscan --version        # prints e.g. "webscan 2.8.1"
+webscan --version        # prints e.g. "webscan 2.8.2"
 webscan --list-plugins   # prints all 41 plugins
 ```
 
