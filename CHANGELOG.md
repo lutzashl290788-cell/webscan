@@ -9,9 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.8.2] - 2026-09-03
 
-Documentation and repository maintenance. No scanning behaviour changed.
+Built-in scan presets, documentation and repository maintenance. The engine and
+the plugins are unchanged: a scan run on 2.8.1 produces the same findings.
 
 ### English
+
+#### Added
+
+- `--preset` selects a built-in scan configuration without a config file:
+  `quick` (fast, high-confidence findings), `safe` (polite crawl, firm findings
+  only), `full` (safe crawl plus DNS, technology and robots/sitemap recon) and
+  `active` (the heavier active checks, for authorised testing). A preset sets
+  defaults, so explicit CLI flags still override it, and it cannot be combined
+  with `--config`/`--profile` — WebScan exits with a clear message rather than
+  silently merging two sources of configuration.
 
 #### Fixed
 
@@ -60,6 +71,17 @@ Documentation and repository maintenance. No scanning behaviour changed.
   100755 without a shebang.
 
 ### Русский
+
+#### Добавлено
+
+- `--preset` выбирает встроенную конфигурацию сканирования без конфиг-файла:
+  `quick` (быстро, находки с высокой уверенностью), `safe` (аккуратный crawl,
+  только firm-находки), `full` (safe-crawl плюс DNS, technology и
+  robots/sitemap разведка) и `active` (тяжёлые active-проверки, для
+  авторизованного тестирования). Пресет задаёт значения по умолчанию, поэтому
+  явные CLI-флаги его переопределяют; с `--config`/`--profile` он не
+  сочетается — вместо молчаливого слияния двух источников настроек WebScan
+  выходит с понятным сообщением.
 
 #### Исправлено
 
