@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.8.3] - 2026-09-03
+
+A hotfix for a hardening gap in the optional `serve` backend. The scan
+engine, the plugins and the CLI are unchanged from 2.8.2.
+
 ### English
 
 #### Fixed
@@ -1003,7 +1008,9 @@ false positives**.
 - Plugins: `config_files`, `headers`, `directories`, `sql_injection` (error-based),
   `cors`, `cookies`, `http_methods`.
 
-[Unreleased]: https://github.com/lutzashl290788-cell/webscan/compare/v2.8.1...HEAD
+[Unreleased]: https://github.com/lutzashl290788-cell/webscan/compare/v2.8.3...HEAD
+[2.8.3]: https://github.com/lutzashl290788-cell/webscan/compare/v2.8.2...v2.8.3
+[2.8.2]: https://github.com/lutzashl290788-cell/webscan/compare/v2.8.1...v2.8.2
 [2.8.1]: https://github.com/lutzashl290788-cell/webscan/compare/v2.8.0...v2.8.1
 [2.7.1]: https://github.com/lutzashl290788-cell/webscan/compare/v2.7.0...v2.7.1
 [2.7.0]: https://github.com/lutzashl290788-cell/webscan/compare/v2.6.0...v2.7.0
