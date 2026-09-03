@@ -3,7 +3,7 @@
 # ─── Build stage ──────────────────────────────────────────────────────────────
 # Digest-pinned for reproducibility (CWE-1357). To update, pull the new digest
 # from `docker pull python:3.12-slim && docker inspect --format='{{index .RepoDigests 0}}' python:3.12-slim`.
-FROM python:3.12-slim@sha256:c2d8472b831337ab296a8ce652e1ba786e9e3034fc445dc58b50a7f5251f0003 AS build
+FROM python:3.14-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS build
 
 WORKDIR /src
 
@@ -15,7 +15,7 @@ RUN python -m pip install --no-cache-dir --upgrade pip build \
     && python -m pip install --no-cache-dir --prefix=/install .
 
 # ─── Runtime stage ────────────────────────────────────────────────────────────
-FROM python:3.12-slim@sha256:c2d8472b831337ab296a8ce652e1ba786e9e3034fc445dc58b50a7f5251f0003 AS runtime
+FROM python:3.14-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS runtime
 
 # Copy the installed package and its dependencies from the build stage.
 COPY --from=build /install /usr/local
