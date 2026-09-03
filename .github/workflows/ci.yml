@@ -35,3 +35,32 @@ jobs:
 
       - name: Tests (pytest + coverage gate)
         run: pytest -q --cov=webscan --cov-report=term-missing --cov-fail-under=80
+
+  # Verify the distribution actually builds and its metadata is valid, so a
+  # packaging mistake is caught here rather than at release time.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Check distribution metadata
+        run: twine check --strict dist/*
+
+      - name: Smoke-test the wheel
+        run: |
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install --quiet dist/*.whl
+          /tmp/smoke/bin/webscan --version
+          /tmp/smoke/bin/webscan --list-plugins | tail -n +2 | wc -l

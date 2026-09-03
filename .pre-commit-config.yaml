@@ -1,0 +1,42 @@
+# Install once:  pip install pre-commit && pre-commit install
+# Run manually:  pre-commit run --all-files
+#
+# These hooks mirror the checks CI runs in .github/workflows/ci.yml, so a clean
+# pre-commit run means the lint and type jobs will pass.
+default_language_version:
+  python: python3.11
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=512"]
+        exclude: ^poetry\.lock$
+      - id: check-executables-have-shebangs
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: detect-private-key
+      - id: end-of-file-fixer
+        exclude: ^assets/.*\.svg$
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+      - id: trailing-whitespace
+        args: ["--markdown-linebreak-ext=md"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.1
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.3.0
+    hooks:
+      - id: mypy
+        files: ^webscan/
+        additional_dependencies:
+          - aiohttp>=3.14.3
+          - types-PyYAML>=6.0.12

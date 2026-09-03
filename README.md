@@ -37,7 +37,9 @@ repeatable runs, and reports that fit the rest of their workflow.
 - [CI/CD](#cicd)
 - [Python API](#python-api)
 - [Architecture](#architecture)
+- [Documentation](#documentation)
 - [Development](#development)
+- [Security](#security)
 - [Legal](#legal)
 
 ## Why WebScan
@@ -169,15 +171,17 @@ mutate state. See the opt-in list in the catalog before enabling them.
 
 Run `webscan --list-plugins` for descriptions from the installed registry.
 
+WebScan ships **41 plugins**: **33 run by default** and **8 are opt-in**. The
+complete, annotated catalogue lives in [docs/plugins.md](docs/plugins.md).
+
 ### Passive checks
 
 `headers` · `secrets` · `cors` · `cookies` · `ssl_tls` · `security_txt` ·
-`tech_fingerprint` · `robots_sitemap` · `jwt_audit` · `csrf` · `clickjacking` ·
-`verbose_errors` · `prototype_pollution` · `dns_security` · `csp_analyzer` ·
-`waf_detect` · `websocket_security`
+`jwt_audit` · `csrf` · `clickjacking` · `verbose_errors` ·
+`prototype_pollution` · `csp_analyzer` · `waf_detect` · `websocket_security`
 
-These inspect responses, certificates, DNS, HTML, JavaScript, cookies, and
-headers without sending exploit payloads.
+These inspect responses, certificates, HTML, JavaScript, cookies, and headers
+without sending exploit payloads.
 
 ### Active checks
 
@@ -192,22 +196,39 @@ headers without sending exploit payloads.
 | `ssrf` | Cloud metadata and localhost response signatures |
 | `http_methods` | Dangerous `PUT`, `DELETE`, `TRACE`, `CONNECT`, and `PATCH` methods |
 | `subdomains` | Certificate Transparency and optional DNS brute force |
-| `graphql` / `graphql_depth` | Introspection, depth abuse, and field suggestion disclosure |
+| `graphql_depth` | Depth abuse and field-suggestion information disclosure |
 | `xxe` | XML entity probes with per-scan markers |
 | `idor` | API object-ID variations with similarity and auth-error suppression |
 | `cache_poisoning` / `host_header_injection` | Host and forwarding header reflection/poisoning |
 | `ssti` | Jinja2, Twig, FreeMarker, ERB, and Smarty syntax variants |
 | `backup_files` | Source-verified `.bak`, `.old`, `.orig`, `~`, and `.save` files |
-| `mass_assignment` | API role/property injection (opt-in) |
-| `file_upload` | Harmless upload and predicted URL accessibility (opt-in) |
-| `race_condition` | Concurrent request success comparison (opt-in) |
-| `request_smuggling` | CL.TE and TE.CL timeout/marker probes (opt-in) |
+| `file_upload` | Harmless upload and predicted URL accessibility |
 | `web_cache_deception` | Dynamic URLs with static extensions and sensitive response checks |
-| `cve_lookup` | Detected software/version mapping to NVD CVEs (opt-in, external lookup) |
 
-> **Opt-in:** `graphql`, `cve_lookup`, `mass_assignment`, `race_condition`, and
-> `request_smuggling` are excluded from the default run. Enable deliberately:
-> `webscan -t https://example.com --plugins graphql cve_lookup`.
+### Opt-in checks
+
+Eight plugins are excluded from the default run and must be requested
+explicitly, for three different reasons:
+
+| Plugin | Coverage | Why it is opt-in |
+|---|---|---|
+| `mass_assignment` | API role/property injection | May mutate target state |
+| `race_condition` | Concurrent request success comparison | May mutate target state |
+| `request_smuggling` | CL.TE and TE.CL timeout/marker probes | May mutate target state |
+| `cve_lookup` | Detected software/version mapped to known CVEs | Queries an external CVE database |
+| `dns_security` | DNSSEC, CAA, SPF, DMARC, DKIM records | Queries public DNS resolvers |
+| `graphql` | GraphQL endpoints with introspection enabled | Reconnaissance, not a vulnerability |
+| `tech_fingerprint` | Server, framework, and CMS identification | Reconnaissance, not a vulnerability |
+| `robots_sitemap` | `robots.txt` / `sitemap.xml` leaks and hygiene | Reconnaissance, not a vulnerability |
+
+```bash
+webscan -t https://example.com --plugins graphql cve_lookup   # named plugins only
+webscan -t https://example.com --preset active                # defaults + active opt-ins
+webscan -t https://example.com --preset full                  # defaults + recon opt-ins
+```
+
+Naming plugins **replaces** the default set rather than adding to it — use a
+preset when you want the defaults plus extras.
 
 ### Confidence levels
 
@@ -291,13 +312,16 @@ Network and safety
   --rate-limit N                 Cap requests per second
   --retries N / --retry-backoff  Retry transient errors with exponential backoff
   --strict-ssl                   Enforce certificate verification
-  --soft-404                    Calibrate and suppress soft-404 false positives
+  --no-bruteforce                Skip DNS brute force in the subdomains plugin
+  --soft-404                     Calibrate and suppress soft-404 false positives
 
 Plugins and output
+  --preset NAME                  quick | safe | full | active
+  --config FILE / --profile NAME YAML config file and named profile
   --plugins NAME [...]           Select plugins (default: all except opt-in)
   --list-plugins                 Print the registry and exit
   -o, --output PATH              Report base path
-  --format FORMAT [...]           json | jsonl | md | html | sarif | csv
+  --format FORMAT [...]          json | jsonl | md | html | sarif | csv
   --min-severity LEVEL           critical | high | medium | low | info
   --min-confidence LEVEL         firm | tentative | informational
   --explain                      Add plain-language explanations
@@ -308,7 +332,12 @@ Plugins and output
   --compliance                   Map findings to OWASP Top 10 2021
   --suggest-fixes                Print copy-paste remediation suggestions
   --webhook-url URL              Send a Slack/Discord/Teams/HTTP summary
+  --ai-triage / --ai-summary     Claude triage and executive summary ([ai] extra)
   --no-color / -q / -v           Disable colour, quiet mode, or verbose mode
+
+Performance
+  -c, --concurrency N            Max concurrent targets (default: 10)
+  --timeout SEC                  Per-request timeout in seconds (default: 10)
 ```
 
 Use `webscan --help` for the complete, version-specific reference.
@@ -405,6 +434,23 @@ webscan/
 
 Runtime dependencies are deliberately small: `aiohttp` and `PyYAML`.
 
+## Documentation
+
+Full reference documentation lives in [`docs/`](docs/README.md).
+
+| Guide | Covers |
+|---|---|
+| [Installation](docs/installation.md) | pip, extras, Docker, pipx |
+| [Quickstart](docs/quickstart.md) | First scan to first report |
+| [Plugin reference](docs/plugins.md) | All 41 checks, opt-in rationale, confidence model |
+| [Configuration](docs/configuration.md) | YAML profiles, every supported key, environment variables |
+| [Reports](docs/reports.md) | Six formats, anonymising, diffing, risk scoring, dashboard |
+| [CI/CD integration](docs/ci-cd.md) | Exit codes, gating strategies, GitHub Actions, GitLab, Jenkins |
+| [Python API](docs/python-api.md) | `scan()`, report dataclasses, rendering |
+| [Plugin development](docs/plugin-development.md) | The `BasePlugin` contract, helpers, testing, publishing |
+| [Architecture](docs/architecture.md) | Module map, scan pipeline, concurrency, design constraints |
+| [Troubleshooting](docs/troubleshooting.md) | Install problems, noisy results, missing checks, CI issues |
+
 ## Development
 
 ```bash
@@ -414,9 +460,25 @@ mypy webscan
 pytest -q
 ```
 
+Optionally install the git hooks, which run the same checks CI does:
+
+```bash
+pip install pre-commit && pre-commit install
+```
+
 To write a plugin, subclass `BasePlugin`, implement `run()`, and register it
 under the `webscan.plugins` entry-point group. Reuse the active helpers for
-retry, soft-404 calibration, and response similarity checks.
+retry, soft-404 calibration, and response similarity checks. The full contract
+is in [docs/plugin-development.md](docs/plugin-development.md); the
+contribution process is in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Security
+
+Found a vulnerability **in WebScan itself**? Do not open a public issue —
+report it privately through
+[GitHub Security Advisories](https://github.com/lutzashl290788-cell/webscan/security/advisories/new).
+Our policy, response targets, and scan security model are in
+[SECURITY.md](SECURITY.md).
 
 ## Legal
 
@@ -428,8 +490,10 @@ be illegal in your jurisdiction. You are solely responsible for your use.
 
 Made for responsible testing and fewer false positives.
 
-[Star the project](https://github.com/lutzashl290788-cell/webscan/stargazers) ·
-[Report a bug](https://github.com/lutzashl290788-cell/webscan/issues) ·
-[Contribute](CONTRIBUTING.md)
+[Documentation](docs/README.md) ·
+[Report a bug](https://github.com/lutzashl290788-cell/webscan/issues/new/choose) ·
+[Security policy](SECURITY.md) ·
+[Contribute](CONTRIBUTING.md) ·
+[Changelog](CHANGELOG.md)
 
 </div>

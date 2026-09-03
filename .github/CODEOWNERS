@@ -1,0 +1,15 @@
+# Default owner for everything in this repository.
+*                       @lutzashl290788-cell
+
+# Security-sensitive surfaces: networking, auth handling, and the disclosure
+# policy itself always need a maintainer review.
+/webscan/net.py         @lutzashl290788-cell
+/webscan/auth.py        @lutzashl290788-cell
+/webscan/anonymize.py   @lutzashl290788-cell
+/webscan/registry.py    @lutzashl290788-cell
+/SECURITY.md            @lutzashl290788-cell
+
+# Release and supply-chain surfaces.
+/.github/workflows/     @lutzashl290788-cell
+/Dockerfile             @lutzashl290788-cell
+/pyproject.toml         @lutzashl290788-cell
