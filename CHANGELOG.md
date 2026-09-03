@@ -7,6 +7,111 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.8.2] - 2026-09-03
+
+Documentation and repository maintenance. No scanning behaviour changed.
+
+### English
+
+#### Fixed
+
+- Corrected the plugin catalog in `README.md`. It listed 5 opt-in plugins when
+  the registry defines 8: `dns_security`, `tech_fingerprint` and
+  `robots_sitemap` were documented as passive checks that run by default,
+  although 2.8.1 moved them out of the default profile. `file_upload` was
+  labelled opt-in although it runs by default.
+- Fixed the plugin registration instructions in `CONTRIBUTING.md` and the
+  `BasePlugin` docstring, which still pointed at `ALL_PLUGINS` in
+  `webscan/cli.py`. The registry moved to `webscan/registry.py`, and
+  registration also requires a `pyproject.toml` entry point.
+- Repaired the GitHub issue templates. `bug_report.md` contained two
+  concatenated documents, each with its own YAML front matter, so only the
+  first was ever rendered. Two competing pull-request templates existed at
+  once, leaving the choice between them undefined.
+- Completed the CLI reference in `README.md`: fixed two misaligned columns and
+  added the missing `--preset`, `--config`/`--profile`, `--no-bruteforce`,
+  `--ai-triage`/`--ai-summary`, `-c`/`--concurrency` and `--timeout` entries.
+- Fixed a dead `README.md#-benchmark` anchor in this changelog.
+
+#### Added
+
+- A `docs/` reference set: installation, quickstart, plugin reference,
+  configuration, reports, CI/CD integration, Python API, plugin development,
+  architecture and troubleshooting.
+- `SECURITY.md` — vulnerability disclosure process, response targets,
+  supported versions, scope, and the security model of running a scan.
+- The full Contributor Covenant 2.1 in `CODE_OF_CONDUCT.md`, replacing a
+  five-line stub, with project rules on unauthorised scanning and disclosure.
+- GitHub Issue Forms, an issue chooser that routes security reports to a
+  private advisory, `CODEOWNERS`, Dependabot, `.editorconfig` and a
+  pre-commit configuration mirroring the CI checks.
+- A CI job that builds the sdist and wheel, runs `twine check --strict`, and
+  smoke-tests the wheel in a clean virtualenv.
+- Tests that keep the version consistent across `pyproject.toml`,
+  `webscan.__version__`, the changelog and the release notes.
+
+#### Changed
+
+- The version is no longer hard-coded in `webscan/notify.py` and
+  `webscan/server.py`; both import `__version__`. This was a recurring source
+  of drift between the package version and the webhook and `serve` payloads.
+- Dropped the executable bit from 141 tracked files (Python modules, Markdown,
+  workflows, assets, `LICENSE`, `pyproject.toml`) that were committed as mode
+  100755 without a shebang.
+
+### Русский
+
+#### Исправлено
+
+- Исправлен каталог плагинов в `README.md`. Было указано 5 opt-in плагинов
+  вместо 8: `dns_security`, `tech_fingerprint` и `robots_sitemap` описывались
+  как пассивные проверки, работающие по умолчанию, хотя в 2.8.1 они были
+  вынесены из default-профиля. `file_upload` был помечен как opt-in, хотя
+  входит в набор по умолчанию.
+- Исправлена инструкция по регистрации плагина в `CONTRIBUTING.md` и в
+  docstring `BasePlugin`: обе ссылались на `ALL_PLUGINS` в `webscan/cli.py`,
+  тогда как реестр находится в `webscan/registry.py`, а регистрация требует
+  ещё и entry point в `pyproject.toml`.
+- Починены шаблоны issue. `bug_report.md` содержал два склеенных документа с
+  двумя YAML-заголовками, из-за чего отображался только первый. Одновременно
+  существовали два разных PR-шаблона.
+- Дополнен CLI-справочник в `README.md`: выровнены две колонки и добавлены
+  отсутствовавшие `--preset`, `--config`/`--profile`, `--no-bruteforce`,
+  `--ai-triage`/`--ai-summary`, `-c`/`--concurrency` и `--timeout`.
+- Исправлена нерабочая ссылка `README.md#-benchmark` в этом файле.
+
+#### Добавлено
+
+- Раздел `docs/`: установка, быстрый старт, справочник плагинов, конфигурация,
+  отчёты, интеграция с CI/CD, Python API, разработка плагинов, архитектура и
+  решение проблем.
+- `SECURITY.md` — процесс раскрытия уязвимостей, сроки ответа, поддерживаемые
+  версии, границы scope и модель безопасности сканирования.
+- Полный текст Contributor Covenant 2.1 в `CODE_OF_CONDUCT.md` вместо
+  заглушки из пяти строк, с правилами о несанкционированном сканировании.
+- GitHub Issue Forms, чузер, направляющий сообщения об уязвимостях в приватный
+  advisory, `CODEOWNERS`, Dependabot, `.editorconfig` и конфигурация
+  pre-commit, повторяющая проверки CI.
+- CI-задача, которая собирает sdist и wheel, выполняет `twine check --strict`
+  и проверяет установку колеса в чистом окружении.
+- Тесты, следящие за согласованностью версии между `pyproject.toml`,
+  `webscan.__version__`, changelog и release notes.
+
+#### Изменено
+
+- Версия больше не захардкожена в `webscan/notify.py` и `webscan/server.py` —
+  оба импортируют `__version__`. Это был постоянный источник расхождений между
+  версией пакета и данными в webhook и `serve`.
+- Снят бит исполняемости со 141 файла (модули Python, Markdown, workflow-файлы,
+  ассеты, `LICENSE`, `pyproject.toml`), закоммиченных с режимом 100755 без
+  shebang.
+
+### Upgrade
+
+```bash
+pip install --upgrade webscan-security==2.8.2
+```
+
 ## [2.8.1] - 2026-08-15
 
 ### English

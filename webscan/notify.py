@@ -17,6 +17,7 @@ from typing import Any
 
 import aiohttp
 
+from webscan import __version__
 from webscan.models import ScanReport, Severity
 
 
@@ -174,7 +175,7 @@ def build_discord_message(
                 "title": "🛡️ WebScan Security Report",
                 "description": "\n".join(desc_parts),
                 "color": worst,
-                "footer": {"text": "WebScan v2.8.1 · open-source DAST"},
+                "footer": {"text": f"WebScan v{__version__} · open-source DAST"},
             }
         ],
     }
@@ -205,7 +206,7 @@ def build_generic_payload(
 
     return {
         "scanner": "WebScan",
-        "version": "2.8.1",
+        "version": __version__,
         "target": target,
         "scan_started": report.scan_started,
         "scan_finished": report.scan_finished,

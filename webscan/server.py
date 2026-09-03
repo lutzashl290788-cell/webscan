@@ -34,6 +34,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from webscan import __version__
 from webscan.ai import AIAssistant, AIConfig, ai_available
 from webscan.api import scan
 from webscan.dashboard import DASHBOARD_HTML
@@ -162,7 +163,7 @@ def create_app(history_path: str | Path | None = None) -> FastAPI:
 
     app = FastAPI(
         title="WebScan",
-        version="2.8.1",
+        version=__version__,
         description="Local HTTP backend for the WebScan security scanner.",
     )
     # Programmatic app instances default to an in-memory history so tests and
