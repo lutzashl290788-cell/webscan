@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### English
+
+#### Fixed
+
+- `serve`: the request body cap on `POST /scan` no longer buffers the body it is
+  meant to reject. `await request.body()` returns only once the whole body is in
+  memory, so the 64 KiB check ran after the memory had already been spent — a
+  client could make the server hold an arbitrarily large body and still be told
+  it was too large (CWE-400). The body is now read from the ASGI stream and the
+  read stops at the cap. `Content-Length` is not trusted as the sole guard: it is
+  absent under chunked transfer encoding and a client may understate it.
+
+### Русский
+
+#### Исправлено
+
+- `serve`: ограничение на размер тела запроса в `POST /scan` больше не
+  буферизует то, что должно отклонить. `await request.body()` возвращается
+  только после того, как всё тело оказалось в памяти, поэтому проверка на 64 КиБ
+  срабатывала уже после расхода памяти — клиент мог заставить сервер удерживать
+  тело произвольного размера и лишь затем получить отказ (CWE-400). Теперь тело
+  читается из ASGI-потока, и чтение прекращается на лимите. `Content-Length` как
+  единственная защита не используется: при chunked-кодировании его нет, а клиент
+  может его занизить.
+
 ## [2.8.2] - 2026-09-03
 
 Built-in scan presets, documentation and repository maintenance. The engine and

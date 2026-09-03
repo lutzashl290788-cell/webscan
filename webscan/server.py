@@ -67,6 +67,30 @@ _MAX_TIMEOUT = 60
 _MAX_CONCURRENCY = 32
 
 
+async def _read_body_capped(request: Request) -> bytes:
+    """Read the request body, stopping as soon as it exceeds ``_MAX_BODY_BYTES``.
+
+    ``await request.body()`` buffers the *whole* body before it returns, so a
+    length check on its result reports the overrun only after the memory has
+    already been spent — which is exactly what the cap exists to prevent. Reading
+    the ASGI stream lets the server stop at the limit (CWE-400).
+
+    ``Content-Length`` is deliberately not trusted as the sole guard: it is
+    absent under chunked transfer encoding and a client is free to understate it.
+    """
+    chunks: list[bytes] = []
+    size = 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > _MAX_BODY_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"request body too large (max {_MAX_BODY_BYTES} bytes)",
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 def server_available() -> bool:
     """Return True only if both fastapi and uvicorn are importable. Never raises."""
     try:
@@ -200,14 +224,9 @@ def create_app(history_path: str | Path | None = None) -> FastAPI:
         # would have to live at import time (pydantic is optional) and a
         # locally-defined one is unresolvable under ``from __future__ import
         # annotations``. run_scan validates and raises ValueError on bad input.
-        # Body-size cap (CWE-400): read at most _MAX_BODY_BYTES; a larger body
-        # is rejected with 413 before it can exhaust memory.
-        raw = await request.body()
-        if len(raw) > _MAX_BODY_BYTES:
-            raise HTTPException(
-                status_code=413,
-                detail=f"request body too large (max {_MAX_BODY_BYTES} bytes)",
-            )
+        # Body-size cap (CWE-400): the read stops at _MAX_BODY_BYTES, so an
+        # oversized body is rejected with 413 without being buffered first.
+        raw = await _read_body_capped(request)
         try:
             payload = json.loads(raw)
         except (ValueError, TypeError) as exc:  # malformed JSON body

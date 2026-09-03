@@ -182,6 +182,41 @@ def test_scan_rejects_oversized_body(client) -> None:  # noqa: ANN001
     assert "too large" in resp.json()["detail"]
 
 
+async def test_oversized_body_is_rejected_without_being_buffered() -> None:
+    """The cap must stop the *read*, not measure a body already held in memory.
+
+    ``await request.body()`` returns only once the whole body has been buffered,
+    so a length check on its result cannot prevent the memory from being spent.
+    This drives the reader with a counting ASGI ``receive`` and asserts it stops
+    asking for chunks at the cap.
+    """
+    from fastapi import HTTPException
+    from starlette.requests import Request
+
+    from webscan.server import _MAX_BODY_BYTES, _read_body_capped
+
+    chunk = b"x" * 8192
+    total = 4 * 1024 * 1024  # a 4 MiB body — 64x over the cap
+    delivered = 0
+
+    async def receive() -> dict[str, Any]:
+        nonlocal delivered
+        delivered += len(chunk)
+        return {
+            "type": "http.request",
+            "body": chunk,
+            "more_body": delivered < total,
+        }
+
+    scope = {"type": "http", "method": "POST", "path": "/scan", "headers": []}
+    with pytest.raises(HTTPException) as excinfo:
+        await _read_body_capped(Request(scope, receive))
+
+    assert excinfo.value.status_code == 413
+    # Stopped at the cap rather than draining all 4 MiB into memory.
+    assert delivered <= _MAX_BODY_BYTES + len(chunk)
+
+
 def test_scan_rejects_malformed_json(client) -> None:  # noqa: ANN001
     """Invalid JSON body returns 400, not 500."""
     resp = client.post(
