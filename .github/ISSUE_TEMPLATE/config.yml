@@ -1,0 +1,13 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/lutzashl290788-cell/webscan/security/advisories/new
+    about: >
+      Report vulnerabilities privately via a GitHub security advisory. Never
+      open a public issue for a security problem.
+  - name: Question or usage help
+    url: https://github.com/lutzashl290788-cell/webscan/discussions
+    about: Ask how to use WebScan, interpret a finding, or configure a scan.
+  - name: Documentation
+    url: https://github.com/lutzashl290788-cell/webscan/tree/main/docs
+    about: Installation, configuration, plugin reference, and CI/CD recipes.

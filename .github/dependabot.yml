@@ -1,0 +1,39 @@
+version: 2
+updates:
+  # Python runtime and dev dependencies declared in pyproject.toml.
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "chore"
+      include: scope
+    groups:
+      dev-dependencies:
+        patterns: ["pytest*", "mypy", "ruff", "types-*"]
+
+  # GitHub Actions used by the workflows in .github/workflows.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Base images in the Dockerfile. Digest-pinned, so updates arrive as PRs.
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: monthly
+    labels: ["dependencies", "docker"]
+    commit-message:
+      prefix: "chore"
