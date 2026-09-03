@@ -30,21 +30,40 @@ jobs:
             exit 1
           fi
 
-          echo "Creating release for $TAG"
+          echo "Releasing $TAG"
+
+          # Retagging an existing release (a moved tag, or a re-run of this job)
+          # must not fail the workflow: create the release the first time, update
+          # it in place afterwards.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            ACTION=edit
+            echo "Release $TAG already exists — updating it in place"
+          else
+            ACTION=create
+          fi
 
           # Try to load release notes from .github/release-notes/
           NOTES_FILE=".github/release-notes/${TAG}.md"
           if [ -f "$NOTES_FILE" ]; then
             echo "Using release notes from $NOTES_FILE"
-            gh release create "$TAG" \
-              --title "WebScan $TAG" \
+            # Prefer the notes file's own H1 as the release title, so a release
+            # keeps its descriptive name; fall back to the bare version.
+            TITLE=$(sed -n 's/^# \(.*\)/\1/p' "$NOTES_FILE" | head -1)
+            [ -n "$TITLE" ] || TITLE="WebScan $TAG"
+            gh release "$ACTION" "$TAG" \
+              --title "$TITLE" \
               --notes-file "$NOTES_FILE" \
               --latest
-          else
+          elif [ "$ACTION" = create ]; then
             # Fallback: extract from CHANGELOG
             echo "No release notes file, generating from CHANGELOG"
             gh release create "$TAG" \
               --title "WebScan $TAG" \
               --generate-notes \
               --latest
+          else
+            # No notes file and the release already exists: leave its body alone
+            # rather than replacing hand-written notes with generated ones.
+            echo "No release notes file — leaving the existing $TAG notes unchanged"
+            gh release edit "$TAG" --latest
           fi
