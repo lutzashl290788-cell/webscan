@@ -752,7 +752,7 @@ false positives**.
 - **Quality bar**: 214 tests, 94% coverage, `mypy --strict` clean, ruff clean,
   enforced by an `--cov-fail-under=80` CI gate.
 - **Benchmark**: 7.3s end-to-end, 28 findings, 0 false positives — see the
-  [README benchmark](README.md#-benchmark).
+  [README benchmark](README.md#performance-snapshot).
 
 ### Added
 - **Test suite expanded to 214 tests at 94% line coverage**, including full

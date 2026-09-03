@@ -12,9 +12,11 @@ class BasePlugin(ABC):
     """
     Every plugin must inherit from BasePlugin and implement :meth:`run`.
 
-    Plugin discovery happens via ``ALL_PLUGINS`` in ``cli.py``.  To add a new
-    plugin, create a module under ``webscan/plugins/``, subclass
-    ``BasePlugin``, and register it.
+    The registry lives in :mod:`webscan.registry`. To add a built-in plugin,
+    create a module under ``webscan/plugins/``, subclass ``BasePlugin``, add it
+    to ``_BUILTIN_PLUGINS`` and register an entry point under the
+    ``webscan.plugins`` group in ``pyproject.toml``. Third-party packages
+    register the entry point only; see ``docs/plugin-development.md``.
     """
 
     #: Short machine-readable identifier (used in CLI --plugins flag).

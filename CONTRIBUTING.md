@@ -11,6 +11,7 @@ Thank you for taking the time to contribute! This document covers everything you
 3. [Linting and type-checking](#3-linting-and-type-checking)
 4. [Writing a plugin](#4-writing-a-plugin)
 5. [Submitting changes](#5-submitting-changes)
+6. [Further reading](#6-further-reading)
 
 ---
 
@@ -34,7 +35,14 @@ pip install -e ".[dev]"
 webscan --list-plugins
 ```
 
-The `[dev]` extra installs `pytest`, `pytest-asyncio`, `ruff`, and `mypy` — everything needed for tests and lint.
+The `[dev]` extra installs `pytest`, `pytest-asyncio`, `pytest-cov`, `ruff`, `mypy`, and `types-PyYAML` — everything needed for tests, lint, and type checks.
+
+Optionally install the git hooks so the same checks run before each commit:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
 
 ---
 
@@ -72,6 +80,12 @@ mypy webscan
 ```
 
 Both tools are configured in `pyproject.toml`. A PR must pass both before it can be merged.
+
+CI additionally enforces a **coverage floor of 80%**:
+
+```bash
+pytest -q --cov=webscan --cov-report=term-missing --cov-fail-under=80
+```
 
 ---
 
@@ -122,16 +136,30 @@ class MyPlugin(BasePlugin):
 
 ### Step 2 — Register it
 
-In `webscan/cli.py`, add your plugin to `ALL_PLUGINS`:
+Registration happens in two places, both required.
+
+**1. The registry** — `webscan/registry.py` is the single source of truth for
+plugin identity, shared by the CLI and the library API:
 
 ```python
 from webscan.plugins.my_plugin import MyPlugin
 
-ALL_PLUGINS = {
+_BUILTIN_PLUGINS: dict[str, type[BasePlugin]] = {
     ...,
     "my_plugin": MyPlugin,
 }
 ```
+
+**2. The entry point** — `pyproject.toml`:
+
+```toml
+[project.entry-points."webscan.plugins"]
+my_plugin = "webscan.plugins.my_plugin:MyPlugin"
+```
+
+If your plugin sends heavy, external, or state-changing requests, also add its
+name to `OPT_IN_PLUGINS` in the registry so it stays out of the default run,
+with a comment explaining why.
 
 ### Step 3 — Add tests
 
@@ -177,3 +205,12 @@ mypy webscan
 4. All CI checks (tests, ruff, mypy) must be green before review.
 
 For significant changes, open a feature-request issue first to align on design before writing code.
+
+---
+
+## 6. Further reading
+
+- [docs/plugin-development.md](docs/plugin-development.md) — the full plugin contract, active-scan helpers, and how to publish a third-party plugin
+- [docs/architecture.md](docs/architecture.md) — module map, scan pipeline, and the design constraints behind them
+- [SECURITY.md](SECURITY.md) — reporting a vulnerability in WebScan itself
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — community standards
