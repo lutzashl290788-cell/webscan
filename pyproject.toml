@@ -41,7 +41,7 @@ Changelog = "https://github.com/lutzashl290788-cell/webscan/blob/main/CHANGELOG.
 
 [project.optional-dependencies]
 ai = [
-    "anthropic>=0.120.2,<1",
+    "anthropic>=0.120.2,<2",
 ]
 serve = [
     "fastapi>=0.141.1,<1",
